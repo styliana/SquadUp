@@ -12,7 +12,7 @@ const CreateProject = () => {
     title: '',
     type: 'Hackathon',
     description: '',
-    skills: [], // Tutaj SkillSelector będzie wrzucał wybrane
+    skills: [],
     teamSize: 4,
     deadline: ''
   });
@@ -46,7 +46,8 @@ const CreateProject = () => {
           members_current: 1,
           deadline: formData.deadline || 'Flexible',
           author: user.email.split('@')[0], 
-          role: 'Leader'
+          role: 'Leader',
+          author_id: user.id
         }
       ]);
 
@@ -69,8 +70,6 @@ const CreateProject = () => {
       </div>
 
       <form onSubmit={handleSubmit} className="bg-surface border border-white/5 rounded-2xl p-8 space-y-8">
-        
-        {/* INFO O PROJEKCIE */}
         <div className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-white mb-2">Project Title *</label>
@@ -115,7 +114,6 @@ const CreateProject = () => {
           </div>
         </div>
 
-        {/* SKILLS - TERAZ UŻYWAMY NASZEGO SELEKTORA */}
         <div className="pt-6 border-t border-white/5">
           <SkillSelector 
             selectedSkills={formData.skills} 
@@ -123,7 +121,6 @@ const CreateProject = () => {
           />
         </div>
 
-        {/* DETALE */}
         <div className="pt-6 border-t border-white/5 grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-white mb-2">Team Size</label>
@@ -163,7 +160,6 @@ const CreateProject = () => {
             {isSubmitting ? 'Publishing...' : 'Publish Listing'}
           </button>
         </div>
-
       </form>
     </div>
   );

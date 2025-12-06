@@ -1,11 +1,11 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Megaphone, PlusCircle, MessageSquare, User, Users, LogOut } from 'lucide-react';
-import { useAuth } from '../context/AuthContext'; // <--- Importujemy nasz Context
+import { Megaphone, PlusCircle, MessageSquare, User, Users, LogOut, Briefcase } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user, signOut } = useAuth(); 
 
   const isActive = (path) => location.pathname === path;
 
@@ -29,27 +29,27 @@ const Navbar = () => {
             </span>
           </Link>
 
-          {/* LINKI NAWIGACYJNE */}
+          {/* NAWIGACJA */}
           <div className="hidden md:flex items-center space-x-8">
             <NavLink to="/projects" icon={<Megaphone size={18} />} text="Find Projects" active={isActive('/projects')} />
             
-            {/* Pokazuj te linki tylko jak zalogowany */}
+            {/* Linki widoczne TYLKO dla zalogowanych */}
             {user && (
               <>
                 <NavLink to="/create-project" icon={<PlusCircle size={18} />} text="Create Project" active={isActive('/create-project')} />
+                <NavLink to="/my-projects" icon={<Briefcase size={18} />} text="My Projects" active={isActive('/my-projects')} />
                 <NavLink to="/chat" icon={<MessageSquare size={18} />} text="Chat" active={isActive('/chat')} />
               </>
             )}
           </div>
 
-          {/* AUTH BUTTONS - ZMIENNE W ZALEŻNOŚCI OD STANU */}
+          {/* PRZYCISKI LOGOWANIA / PROFILU */}
           <div className="flex items-center gap-4">
             {user ? (
-              // WIDOK ZALOGOWANEGO UŻYTKOWNIKA
               <>
                 <Link to="/profile" className="flex items-center gap-2 group">
                   <div className="w-9 h-9 rounded-full bg-gradient-to-br from-secondary to-purple-600 flex items-center justify-center text-white font-bold text-sm border border-white/10 group-hover:border-primary transition-colors">
-                    {user.email.charAt(0).toUpperCase()}
+                    {user.email ? user.email.charAt(0).toUpperCase() : 'U'}
                   </div>
                   <span className="hidden sm:block text-sm font-medium text-white group-hover:text-primary transition-colors">
                     Profile
@@ -59,13 +59,12 @@ const Navbar = () => {
                 <button 
                   onClick={handleLogout}
                   className="p-2 text-textMuted hover:text-red-400 transition-colors"
-                  title="Wyloguj się"
+                  title="Log out"
                 >
                   <LogOut size={20} />
                 </button>
               </>
             ) : (
-              // WIDOK GOŚCIA (PRZYCISK LOGOWANIA)
               <Link to="/login">
                 <button className="bg-gradient-to-r from-primary to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white font-medium py-2 px-5 rounded-lg transition-all duration-300 shadow-[0_0_10px_rgba(6,182,212,0.3)] hover:shadow-[0_0_20px_rgba(6,182,212,0.5)]">
                   Sign In
@@ -80,7 +79,6 @@ const Navbar = () => {
   );
 };
 
-// Helper Component
 const NavLink = ({ to, icon, text, active }) => (
   <Link 
     to={to} 
