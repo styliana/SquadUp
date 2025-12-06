@@ -1,37 +1,72 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // Do przekierowania po dodaniu
-import { Upload, X, Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, X } from 'lucide-react';
+import { supabase } from '../supabaseClient';
+import { useAuth } from '../context/AuthContext';
 
 const CreateProject = () => {
   const navigate = useNavigate();
+  const { user } = useAuth(); // Potrzebujemy danych autora
   
-  // Stan formularza
   const [formData, setFormData] = useState({
     title: '',
-    type: 'Hackathon', // Domyślna wartość
+    type: 'Hackathon',
     description: '',
     skills: [],
     skillInput: '',
     teamSize: 4,
     deadline: ''
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const projectTypes = ['Hackathon', 'Competition', 'Portfolio', 'Startup'];
   const popularSkills = ['React', 'Python', 'Figma', 'Node.js', 'TypeScript'];
 
-  // Obsługa dodawania skilla
   const handleAddSkill = (skill) => {
     if (skill && !formData.skills.includes(skill)) {
       setFormData({ ...formData, skills: [...formData.skills, skill], skillInput: '' });
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleRemoveSkill = (skillToRemove) => {
+    setFormData({ ...formData, skills: formData.skills.filter(skill => skill !== skillToRemove) });
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Tutaj normalnie wysłalibyśmy dane do backendu
-    console.log('Nowy projekt:', formData);
-    alert('Projekt utworzony! (Symulacja)');
-    navigate('/projects'); // Wracamy do listy
+    if (!user) {
+      alert("Musisz być zalogowany!");
+      return;
+    }
+    
+    setIsSubmitting(true);
+
+    // Wysyłamy dane do Supabase
+    const { error } = await supabase
+      .from('projects')
+      .insert([
+        {
+          title: formData.title,
+          type: formData.type,
+          description: formData.description,
+          skills: formData.skills,
+          members_max: formData.teamSize,
+          members_current: 1, // Zawsze zaczynamy od autora
+          deadline: formData.deadline || 'Flexible',
+          author: user.email.split('@')[0], // Uproszczenie: Bierzemy część maila jako nick
+          role: 'Leader' // Domyślna rola
+        }
+      ]);
+
+    setIsSubmitting(false);
+
+    if (error) {
+      console.error(error);
+      alert('Błąd podczas dodawania projektu.');
+    } else {
+      alert('Projekt dodany pomyślnie! 🎉');
+      navigate('/projects');
+    }
   };
 
   return (
@@ -43,15 +78,13 @@ const CreateProject = () => {
 
       <form onSubmit={handleSubmit} className="bg-surface border border-white/5 rounded-2xl p-8 space-y-8">
         
-        {/* SEKcja 1: Podstawowe info */}
         <div className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-white mb-2">Project Title *</label>
             <input 
               type="text" 
               required
-              className="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary transition-colors placeholder:text-gray-600"
-              placeholder="e.g. AI-powered Study Companion"
+              className="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary"
               value={formData.title}
               onChange={e => setFormData({...formData, title: e.target.value})}
             />
@@ -82,22 +115,20 @@ const CreateProject = () => {
             <textarea 
               required
               rows={5}
-              className="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary transition-colors placeholder:text-gray-600 resize-none"
-              placeholder="Describe the project goal, what you want to achieve, and who you are looking for..."
+              className="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary resize-none"
               value={formData.description}
               onChange={e => setFormData({...formData, description: e.target.value})}
             />
           </div>
         </div>
 
-        {/* SEKcja 2: Skillsy */}
         <div className="pt-6 border-t border-white/5 space-y-6">
           <div>
             <label className="block text-sm font-medium text-white mb-2">Required Skills</label>
             <div className="flex gap-2 mb-3">
               <input 
                 type="text" 
-                className="flex-grow bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary transition-colors placeholder:text-gray-600"
+                className="flex-grow bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary"
                 placeholder="Type a skill..."
                 value={formData.skillInput}
                 onChange={e => setFormData({...formData, skillInput: e.target.value})}
@@ -106,33 +137,30 @@ const CreateProject = () => {
               <button 
                 type="button"
                 onClick={() => handleAddSkill(formData.skillInput)}
-                className="bg-white/5 border border-white/10 text-white px-4 rounded-xl hover:bg-white/10 transition-colors"
+                className="bg-white/5 border border-white/10 text-white px-4 rounded-xl hover:bg-white/10"
               >
                 <Plus size={24} />
               </button>
             </div>
             
-            {/* Popularne podpowiedzi */}
-            <div className="flex flex-wrap gap-2 mb-4 text-xs text-textMuted">
-              <span>Popular:</span>
+            <div className="flex flex-wrap gap-2">
               {popularSkills.map(skill => (
                 <button 
                   key={skill} 
                   type="button" 
                   onClick={() => handleAddSkill(skill)}
-                  className="hover:text-primary transition-colors"
+                  className="text-xs text-textMuted hover:text-primary transition-colors"
                 >
                   + {skill}
                 </button>
               ))}
             </div>
 
-            {/* Wybrane skillsy */}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 mt-3">
               {formData.skills.map(skill => (
                 <span key={skill} className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-primary/10 border border-primary/20 text-primary text-sm">
                   {skill}
-                  <button type="button" onClick={() => setFormData({...formData, skills: formData.skills.filter(s => s !== skill)})}>
+                  <button type="button" onClick={() => handleRemoveSkill(skill)}>
                     <X size={14} className="hover:text-white" />
                   </button>
                 </span>
@@ -141,7 +169,6 @@ const CreateProject = () => {
           </div>
         </div>
 
-        {/* SEKcja 3: Detale */}
         <div className="pt-6 border-t border-white/5 grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-white mb-2">Team Size</label>
@@ -149,36 +176,36 @@ const CreateProject = () => {
               type="number" 
               min="2"
               max="10"
-              className="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary transition-colors"
+              className="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary"
               value={formData.teamSize}
               onChange={e => setFormData({...formData, teamSize: parseInt(e.target.value)})}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-white mb-2">Deadline (Optional)</label>
+            <label className="block text-sm font-medium text-white mb-2">Deadline</label>
             <input 
               type="date" 
-              className="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary transition-colors [color-scheme:dark]"
+              className="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary [color-scheme:dark]"
               value={formData.deadline}
               onChange={e => setFormData({...formData, deadline: e.target.value})}
             />
           </div>
         </div>
 
-        {/* FOOTER BUTTONS */}
         <div className="pt-6 flex justify-end gap-4">
           <button 
             type="button" 
             onClick={() => navigate('/projects')}
-            className="px-6 py-3 rounded-xl border border-white/10 text-white font-medium hover:bg-white/5 transition-colors"
+            className="px-6 py-3 rounded-xl border border-white/10 text-white font-medium hover:bg-white/5"
           >
             Cancel
           </button>
           <button 
             type="submit"
-            className="px-8 py-3 rounded-xl bg-gradient-to-r from-primary to-blue-600 text-white font-bold shadow-lg hover:shadow-primary/25 transition-all"
+            disabled={isSubmitting}
+            className="px-8 py-3 rounded-xl bg-gradient-to-r from-primary to-blue-600 text-white font-bold hover:shadow-primary/25 disabled:opacity-50"
           >
-            Publish Listing
+            {isSubmitting ? 'Publishing...' : 'Publish Listing'}
           </button>
         </div>
 
