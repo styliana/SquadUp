@@ -1,7 +1,8 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
-import Projects from './pages/Projects'; // <--- TEGO BRAKOWAŁO!
+import Projects from './pages/Projects';
+import ProjectDetails from './pages/ProjectDetails';
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
           
           {/* Strona z projektami */}
           <Route path="/projects" element={<Projects />} />
+          <Route path="/projects/:id" element={<ProjectDetails />} />
           
           {/* Placeholdery dla reszty stron */}
           <Route path="/create-project" element={<div className="p-10 text-center text-2xl text-gray-400 mt-10">Create Project Page (Coming Soon) 🚀</div>} />
