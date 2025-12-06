@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
-import { Loader2, MessageSquare, Briefcase, MessageCircle, User } from 'lucide-react';
+import { Loader2, MessageSquare, Briefcase, MessageCircle, User, Check, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const MyProjects = () => {
@@ -18,49 +18,61 @@ const MyProjects = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    
     try {
-      // --- 1. POBIERZ MOJE PROJEKTY (PUBLISHED) ---
-      const { data: myProjects, error: err1 } = await supabase
+      // 1. MOJE PROJEKTY
+      const { data: myProjects } = await supabase
         .from('projects')
         .select('*')
         .eq('author_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (err1) throw err1;
-
-      // WAŻNE: Ustawiamy projekty od razu, nawet bez aplikacji (żeby nie było pusto)
-      setCreatedProjects(myProjects || []);
-
-      // --- 2. DOCIĄGNIJ ZGŁOSZENIA DO TYCH PROJEKTÓW ---
-      if (myProjects && myProjects.length > 0) {
+      if (myProjects) {
         const projectsWithApps = await Promise.all(myProjects.map(async (project) => {
-          // Pobieramy aplikacje i łączymy z tabelą profiles, wskazując klucz applicant_id
-          const { data: applications, error: appError } = await supabase
+          const { data: applications } = await supabase
             .from('applications')
-            .select('*, profiles!applicant_id(*)') 
+            .select('*, profiles(*)')
             .eq('project_id', project.id);
-            
-          if (appError) console.error("Błąd pobierania aplikacji:", appError);
-          
           return { ...project, applications: applications || [] };
         }));
         setCreatedProjects(projectsWithApps);
       }
 
-      // --- 3. POBIERZ GDZIE JA APLIKOWAŁEM (APPLIED) ---
-      const { data: myApplications, error: err2 } = await supabase
+      // 2. MOJE APLIKACJE
+      const { data: myApplications } = await supabase
         .from('applications')
-        .select('*, projects!project_id(*)') // Wskazujemy klucz project_id
+        .select('*, projects(*)')
         .eq('applicant_id', user.id);
 
-      if (err2) throw err2;
       setAppliedProjects(myApplications || []);
-
     } catch (error) {
-      console.error("Główny błąd pobierania:", error);
+      console.error("Błąd:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // --- NOWE FUNKCJE DO ZARZĄDZANIA ---
+  const handleStatusChange = async (applicationId, newStatus) => {
+    try {
+      const { error } = await supabase
+        .from('applications')
+        .update({ status: newStatus })
+        .eq('id', applicationId);
+
+      if (error) throw error;
+
+      // Odśwież widok lokalnie (szybciej niż ponowne pobieranie wszystkiego)
+      setCreatedProjects(prev => prev.map(project => ({
+        ...project,
+        applications: project.applications.map(app => 
+          app.id === applicationId ? { ...app, status: newStatus } : app
+        )
+      })));
+
+      alert(`Status changed to: ${newStatus}`);
+    } catch (error) {
+      console.error(error);
+      alert("Nie udało się zmienić statusu.");
     }
   };
 
@@ -74,23 +86,12 @@ const MyProjects = () => {
 
       {/* ZAKŁADKI */}
       <div className="flex border-b border-white/10 mb-8">
-        <button 
-          onClick={() => setActiveTab('published')}
-          className={`pb-4 px-6 text-lg font-medium transition-all relative ${
-            activeTab === 'published' ? 'text-primary' : 'text-textMuted hover:text-white'
-          }`}
-        >
-          Published Projects ({createdProjects.length})
+        <button onClick={() => setActiveTab('published')} className={`pb-4 px-6 text-lg font-medium transition-all relative ${activeTab === 'published' ? 'text-primary' : 'text-textMuted hover:text-white'}`}>
+          Published Projects
           {activeTab === 'published' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-primary rounded-t-full" />}
         </button>
-        
-        <button 
-          onClick={() => setActiveTab('applied')}
-          className={`pb-4 px-6 text-lg font-medium transition-all relative ${
-            activeTab === 'applied' ? 'text-primary' : 'text-textMuted hover:text-white'
-          }`}
-        >
-          Applications Sent ({appliedProjects.length})
+        <button onClick={() => setActiveTab('applied')} className={`pb-4 px-6 text-lg font-medium transition-all relative ${activeTab === 'applied' ? 'text-primary' : 'text-textMuted hover:text-white'}`}>
+          Applications Sent
           {activeTab === 'applied' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-primary rounded-t-full" />}
         </button>
       </div>
@@ -99,9 +100,8 @@ const MyProjects = () => {
       {activeTab === 'published' && (
         <div className="space-y-8 animate-in fade-in slide-in-from-left-4 duration-300">
           {createdProjects.length === 0 ? (
-            <div className="text-center py-20 bg-surface/30 rounded-2xl border border-dashed border-white/10">
-              <p className="text-textMuted mb-4">You haven't created any projects yet.</p>
-              <Link to="/create-project" className="text-primary hover:underline">Create one now!</Link>
+            <div className="text-center py-20 bg-surface/30 rounded-2xl border border-dashed border-white/10 text-textMuted">
+              No projects yet. <Link to="/create-project" className="text-primary hover:underline">Create one!</Link>
             </div>
           ) : (
             createdProjects.map(project => (
@@ -109,45 +109,81 @@ const MyProjects = () => {
                 <div className="p-5 border-b border-white/5 bg-white/[0.02] flex justify-between items-center">
                   <div>
                     <h2 className="text-xl font-bold text-white">{project.title}</h2>
-                    <p className="text-sm text-textMuted mt-1">{project.type} • Posted on {new Date(project.created_at).toLocaleDateString()}</p>
+                    <p className="text-sm text-textMuted mt-1">
+                      Members: {project.members_current}/{project.members_max}
+                    </p>
                   </div>
-                  <Link to={`/projects/${project.id}`} className="text-sm text-primary hover:underline">View Public Page</Link>
+                  <Link to={`/projects/${project.id}`} className="text-sm text-primary hover:underline">View Page</Link>
                 </div>
 
                 <div className="p-5">
                   <h3 className="text-sm font-bold text-textMuted uppercase tracking-wider mb-4">
-                    Candidates ({project.applications?.length || 0})
+                    Candidates ({project.applications.length})
                   </h3>
                   
-                  {(!project.applications || project.applications.length === 0) ? (
-                    <p className="text-textMuted text-sm italic py-2">No applications yet. Waiting for candidates...</p>
+                  {project.applications.length === 0 ? (
+                    <p className="text-textMuted text-sm italic py-2">No applications yet.</p>
                   ) : (
                     <div className="grid gap-4">
                       {project.applications.map(app => (
-                        <div key={app.id} className="bg-background border border-white/10 rounded-xl p-4 flex flex-col md:flex-row gap-4 items-start">
+                        <div key={app.id} className="bg-background border border-white/10 rounded-xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
                           
-                          <div className="flex items-center gap-3 min-w-[200px]">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-700 to-gray-600 flex items-center justify-center text-white font-bold uppercase">
+                          {/* LEWA STRONA: INFO */}
+                          <div className="flex items-start gap-4 flex-grow">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-700 to-gray-600 flex items-center justify-center text-white font-bold uppercase shrink-0">
                               {app.profiles?.full_name?.charAt(0) || '?'}
                             </div>
-                            <div>
-                              <div className="font-bold text-white text-sm">{app.profiles?.full_name || 'Unknown User'}</div>
-                              <div className="text-xs text-textMuted">{app.profiles?.university || 'Student'}</div>
+                            <div className="flex-grow">
+                              <div className="font-bold text-white text-sm">
+                                {app.profiles?.full_name || 'User'} 
+                                <span className="ml-2 text-xs font-normal text-textMuted">• {app.profiles?.university}</span>
+                              </div>
+                              
+                              <div className="mt-2 bg-surface/50 rounded-lg p-2 text-sm text-gray-300 relative inline-block max-w-xl">
+                                <span className="text-primary font-bold text-xs mr-2">Note:</span>
+                                <span className="italic">"{app.message}"</span>
+                              </div>
                             </div>
                           </div>
 
-                          <div className="flex-grow bg-surface/50 rounded-lg p-3 text-sm text-gray-300 relative">
-                            <MessageSquare size={14} className="absolute -left-1 top-3 text-surface/50 fill-current" />
-                            <span className="text-primary font-bold text-xs block mb-1">Note:</span>
-                            <p className="italic">"{app.message || 'No message'}"</p>
-                          </div>
+                          {/* PRAWA STRONA: STATUS I AKCJE */}
+                          <div className="flex items-center gap-3 shrink-0">
+                            {/* Jeśli status to pending, pokaż przyciski */}
+                            {app.status === 'pending' ? (
+                              <>
+                                <button 
+                                  onClick={() => handleStatusChange(app.id, 'accepted')}
+                                  className="p-2 bg-green-500/10 text-green-400 rounded-lg hover:bg-green-500/20 border border-green-500/20 transition-all" 
+                                  title="Accept"
+                                >
+                                  <Check size={18} />
+                                </button>
+                                <button 
+                                  onClick={() => handleStatusChange(app.id, 'rejected')}
+                                  className="p-2 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500/20 border border-red-500/20 transition-all" 
+                                  title="Reject"
+                                >
+                                  <X size={18} />
+                                </button>
+                              </>
+                            ) : (
+                              // Jeśli już zdecydowano, pokaż status
+                              <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase border ${
+                                app.status === 'accepted' 
+                                ? 'bg-green-500/10 text-green-400 border-green-500/20' 
+                                : 'bg-red-500/10 text-red-400 border-red-500/20'
+                              }`}>
+                                {app.status}
+                              </span>
+                            )}
 
-                          <div className="flex gap-2 shrink-0 self-center md:self-start">
-                            <Link to="/chat" className="px-4 py-2 bg-primary/10 text-primary text-sm font-medium rounded-lg hover:bg-primary/20 transition-colors flex items-center gap-2">
-                              <MessageCircle size={16} /> Chat
+                            <div className="w-px h-8 bg-white/10 mx-1"></div>
+
+                            <Link to="/chat" className="p-2 text-textMuted hover:text-white transition-colors" title="Chat">
+                              <MessageCircle size={18} />
                             </Link>
-                            <Link to={`/profile`} className="px-3 py-2 border border-white/10 text-white rounded-lg hover:bg-white/5 transition-colors">
-                              <User size={16} />
+                            <Link to="/profile" className="p-2 text-textMuted hover:text-white transition-colors" title="Profile">
+                              <User size={18} />
                             </Link>
                           </div>
 
@@ -162,35 +198,25 @@ const MyProjects = () => {
         </div>
       )}
 
-      {/* WIDOK: APPLIED */}
+      {/* WIDOK: APPLIED - Bez zmian, tylko renderujemy listę */}
       {activeTab === 'applied' && (
         <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-          {appliedProjects.length === 0 ? (
-            <div className="text-center py-20 bg-surface/30 rounded-2xl border border-dashed border-white/10">
-              <p className="text-textMuted mb-4">You haven't applied to any projects.</p>
-              <Link to="/projects" className="text-primary hover:underline">Browse Projects</Link>
-            </div>
-          ) : (
-            appliedProjects.map(app => (
-              <div key={app.id} className="bg-surface border border-white/5 rounded-xl p-5 flex flex-col md:flex-row gap-6 items-center justify-between hover:border-white/10 transition-colors">
-                <div className="flex-grow">
-                  <h3 className="text-lg font-bold text-white mb-1">{app.projects?.title || "Unknown Project"}</h3>
-                  <div className="flex gap-3 text-sm text-textMuted mb-2">
-                    <span className="bg-white/5 px-2 rounded">{app.projects?.type}</span>
-                    <span>Applied: {new Date(app.created_at).toLocaleDateString()}</span>
-                  </div>
-                  <div className="text-sm text-gray-400 bg-background/50 p-2 rounded border border-white/5 inline-block">
-                    <span className="text-primary text-xs font-bold mr-2">YOUR NOTE:</span>
-                    <span className="italic">"{app.message}"</span>
-                  </div>
+          {appliedProjects.map(app => (
+            <div key={app.id} className="bg-surface border border-white/5 rounded-xl p-5 flex flex-col md:flex-row gap-6 items-center justify-between">
+              <div className="flex-grow">
+                <h3 className="text-lg font-bold text-white mb-1">{app.projects?.title}</h3>
+                <div className="flex gap-3 text-sm text-textMuted mb-2">
+                  <span>Status:</span>
+                  <span className={`font-bold uppercase ${
+                    app.status === 'accepted' ? 'text-green-400' : 
+                    app.status === 'rejected' ? 'text-red-400' : 'text-yellow-400'
+                  }`}>{app.status || 'Pending'}</span>
                 </div>
-                
-                <Link to={`/projects/${app.project_id}`} className="px-5 py-2.5 border border-white/10 rounded-lg text-white text-sm font-medium hover:bg-white/5 transition-colors whitespace-nowrap">
-                  View Project
-                </Link>
+                <p className="text-sm text-gray-400 italic">Your note: "{app.message}"</p>
               </div>
-            ))
-          )}
+              <Link to={`/projects/${app.project_id}`} className="px-5 py-2.5 border border-white/10 rounded-lg text-white text-sm hover:bg-white/5">View Project</Link>
+            </div>
+          ))}
         </div>
       )}
     </div>
