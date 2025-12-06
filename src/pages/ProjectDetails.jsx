@@ -1,11 +1,43 @@
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { PROJECTS } from '../data/mockProjects';
-import { ArrowLeft, Calendar, Clock, User, MessageCircle, Send } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, User, MessageCircle, Send, Loader2 } from 'lucide-react';
+import { supabase } from '../supabaseClient'; // <--- Importujemy klienta bazy
 
 const ProjectDetails = () => {
   const { id } = useParams();
-  // Szukamy projektu o danym ID (konwertujemy id z URL na liczbę)
-  const project = PROJECTS.find(p => p.id === parseInt(id));
+  const [project, setProject] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchProjectDetails();
+  }, [id]);
+
+  const fetchProjectDetails = async () => {
+    try {
+      setLoading(true);
+      // Pobieramy JEDEN konkretny projekt pasujący do ID z adresu URL
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      setProject(data);
+    } catch (error) {
+      console.error("Błąd pobierania projektu:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-[50vh] text-primary">
+        <Loader2 size={40} className="animate-spin" />
+      </div>
+    );
+  }
 
   if (!project) {
     return <div className="text-center py-20 text-2xl text-white">Project not found 😢</div>;
@@ -31,7 +63,8 @@ const ProjectDetails = () => {
               </span>
               <div className="flex items-center gap-2 text-textMuted">
                 <User size={18} />
-                <span>{project.membersCurrent}/{project.membersMax} Members</span>
+                {/* Używamy nazw kolumn z bazy danych (snake_case) */}
+                <span>{project.members_current}/{project.members_max} Members</span>
               </div>
             </div>
 
@@ -42,17 +75,16 @@ const ProjectDetails = () => {
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-white mb-2">Project Description</h3>
-                <p className="text-gray-300 leading-relaxed">
+                <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">
                   {project.description}
-                  <br /><br />
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
                 </p>
               </div>
 
               <div>
                 <h3 className="text-lg font-semibold text-white mb-3">Required Skills</h3>
                 <div className="flex flex-wrap gap-2">
-                  {project.tags.map(tag => (
+                  {/* W bazie skills to tablica, więc mapujemy ją tak samo */}
+                  {project.skills && project.skills.map(tag => (
                     <span key={tag} className="px-3 py-1.5 rounded-lg bg-background border border-white/10 text-sm text-gray-300">
                       {tag}
                     </span>
@@ -67,7 +99,8 @@ const ProjectDetails = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <Clock size={16} />
-                  <span>Posted: {project.timePosted}</span>
+                  {/* Formatujemy datę utworzenia */}
+                  <span>Posted: {new Date(project.created_at).toLocaleDateString()}</span>
                 </div>
               </div>
             </div>
@@ -82,11 +115,12 @@ const ProjectDetails = () => {
             <h3 className="text-lg font-bold text-white mb-4">Team Leader</h3>
             <div className="flex items-center gap-4 mb-6">
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-xl font-bold text-white">
-                {project.author.charAt(0)}
+                {/* Pierwsza litera autora */}
+                {project.author ? project.author.charAt(0).toUpperCase() : '?'}
               </div>
               <div>
                 <div className="font-bold text-white">{project.author}</div>
-                <div className="text-sm text-textMuted">Student • Organizer</div>
+                <div className="text-sm text-textMuted">{project.role}</div>
               </div>
             </div>
             <button className="w-full py-3 rounded-xl border border-white/10 text-white font-medium hover:bg-white/5 transition-all flex items-center justify-center gap-2">
@@ -98,7 +132,7 @@ const ProjectDetails = () => {
           {/* KARTA APLIKOWANIA */}
           <div className="bg-surface border border-white/5 rounded-2xl p-6">
             <h3 className="text-lg font-bold text-white mb-2">
-              {project.membersMax - project.membersCurrent} Open Spots
+              {project.members_max - project.members_current} Open Spots
             </h3>
             <p className="text-textMuted text-sm mb-6">
               Apply now to join this project. The team leader will review your application.
