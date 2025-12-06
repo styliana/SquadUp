@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { X, Check } from 'lucide-react';
+import { X } from 'lucide-react';
 
-const SkillSelector = ({ selectedSkills, setSelectedSkills }) => {
+const SkillSelector = ({ selectedSkills, setSelectedSkills, showLabel = true }) => {
   const [allSkills, setAllSkills] = useState([]);
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
@@ -49,9 +49,12 @@ const SkillSelector = ({ selectedSkills, setSelectedSkills }) => {
 
   return (
     <div className="relative">
-      <label className="block text-sm font-medium text-white mb-2">
-        Required Skills (Choose from list)
-      </label>
+      {/* Opcjonalna etykieta - używana w formularzach, ukrywana w filtrach */}
+      {showLabel && (
+        <label className="block text-sm font-medium text-white mb-2">
+          Required Skills (Choose from list)
+        </label>
+      )}
 
       {/* INPUT DO WYSZUKIWANIA */}
       <div className="relative">
@@ -96,7 +99,7 @@ const SkillSelector = ({ selectedSkills, setSelectedSkills }) => {
             </button>
           </span>
         ))}
-        {selectedSkills.length === 0 && (
+        {selectedSkills.length === 0 && showLabel && (
           <span className="text-sm text-textMuted italic">No skills selected yet.</span>
         )}
       </div>
