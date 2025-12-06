@@ -3,6 +3,9 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, Clock, User, MessageCircle, Send, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
+// IMPORTUJEMY NOWY KOMPONENT
+import UserAvatar from '../components/UserAvatar'; 
+import { toast } from 'sonner';
 
 const ProjectDetails = () => {
   const { id } = useParams();
@@ -10,6 +13,7 @@ const ProjectDetails = () => {
   const navigate = useNavigate();
   
   const [project, setProject] = useState(null);
+  const [authorProfile, setAuthorProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [hasApplied, setHasApplied] = useState(false);
   const [applyLoading, setApplyLoading] = useState(false);
@@ -22,16 +26,31 @@ const ProjectDetails = () => {
 
   const fetchProjectDetails = async () => {
     try {
-      const { data, error } = await supabase
+      setLoading(true);
+      // 1. Pobierz Projekt
+      const { data: projectData, error } = await supabase
         .from('projects')
         .select('*')
         .eq('id', id)
         .single();
 
       if (error) throw error;
-      setProject(data);
+      setProject(projectData);
+
+      // 2. Pobierz Profil Autora (Lidera) na podstawie author_id z projektu
+      if (projectData.author_id) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', projectData.author_id)
+          .single();
+        
+        setAuthorProfile(profileData);
+      }
+
     } catch (error) {
       console.error("Błąd pobierania:", error);
+      toast.error("Project not found.");
     } finally {
       setLoading(false);
     }
@@ -50,13 +69,13 @@ const ProjectDetails = () => {
 
   const handleApply = async () => {
     if (!user) {
-      alert("Musisz się zalogować!");
+      toast.error("You must be logged in to apply.");
       navigate('/login');
       return;
     }
     
     if (!applicationMessage.trim()) {
-      alert("Napisz krótką wiadomość do lidera!");
+      toast.warning("Please write a short message to the leader.");
       return;
     }
 
@@ -74,11 +93,11 @@ const ProjectDetails = () => {
     setApplyLoading(false);
 
     if (error) {
-      alert("Błąd aplikowania :(");
       console.error(error);
+      toast.error("Failed to send application.");
     } else {
       setHasApplied(true);
-      alert("Zgłoszenie wysłane!");
+      toast.success("Application sent successfully!");
     }
   };
 
@@ -96,7 +115,8 @@ const ProjectDetails = () => {
       </Link>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* OPIS PROJEKTU */}
+        
+        {/* LEWA STRONA */}
         <div className="lg:col-span-2">
           <div className="bg-surface border border-white/5 rounded-2xl p-8 mb-8">
             <div className="flex justify-between items-start mb-6">
@@ -108,20 +128,30 @@ const ProjectDetails = () => {
                 <span>{project.members_current}/{project.members_max} Members</span>
               </div>
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold text-white mb-6">{project.title}</h1>
+
+            <h1 className="text-3xl md:text-4xl font-bold text-white mb-6">
+              {project.title}
+            </h1>
+
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-white mb-2">Project Description</h3>
-                <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">{project.description}</p>
+                <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">
+                  {project.description}
+                </p>
               </div>
+
               <div>
                 <h3 className="text-lg font-semibold text-white mb-3">Required Skills</h3>
                 <div className="flex flex-wrap gap-2">
                   {project.skills?.map(tag => (
-                    <span key={tag} className="px-3 py-1.5 rounded-lg bg-background border border-white/10 text-sm text-gray-300">{tag}</span>
+                    <span key={tag} className="px-3 py-1.5 rounded-lg bg-background border border-white/10 text-sm text-gray-300">
+                      {tag}
+                    </span>
                   ))}
                 </div>
               </div>
+
               <div className="flex gap-6 pt-6 border-t border-white/5 text-textMuted text-sm">
                 <div className="flex items-center gap-2"><Calendar size={16} /><span>Deadline: {project.deadline}</span></div>
                 <div className="flex items-center gap-2"><Clock size={16} /><span>Posted: {new Date(project.created_at).toLocaleDateString()}</span></div>
@@ -130,19 +160,33 @@ const ProjectDetails = () => {
           </div>
         </div>
 
-        {/* SIDEBAR AKCJI */}
+        {/* PRAWA STRONA - LIDER I AKCJE */}
         <div className="space-y-6">
+          
           <div className="bg-surface border border-white/5 rounded-2xl p-6">
             <h3 className="text-lg font-bold text-white mb-4">Team Leader</h3>
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-xl font-bold text-white uppercase">
-                {project.author ? project.author.charAt(0) : '?'}
-              </div>
+              
+              {/* UŻYWAMY NASZEGO NOWEGO KOMPONENTU */}
+              <UserAvatar 
+                avatarUrl={authorProfile?.avatar_url} 
+                name={authorProfile?.full_name || project.author} 
+                className="w-14 h-14" 
+                textSize="text-xl"
+              />
+              
               <div>
-                <div className="font-bold text-white">{project.author}</div>
+                {/* Wyświetlamy imię z profilu (jeśli jest), a jak nie to z projektu */}
+                <div className="font-bold text-white text-lg">
+                  {authorProfile?.full_name || project.author}
+                </div>
                 <div className="text-sm text-textMuted">{project.role}</div>
+                {authorProfile?.university && (
+                  <div className="text-xs text-primary mt-0.5">{authorProfile.university}</div>
+                )}
               </div>
             </div>
+            
             {!isAuthor && (
               <button className="w-full py-3 rounded-xl border border-white/10 text-white font-medium hover:bg-white/5 transition-all flex items-center justify-center gap-2">
                 <MessageCircle size={18} />
@@ -160,8 +204,8 @@ const ProjectDetails = () => {
               <div className="mt-4 p-4 bg-primary/10 border border-primary/20 rounded-xl text-primary text-sm flex items-start gap-3">
                 <AlertCircle size={20} className="shrink-0 mt-0.5" />
                 <div>
-                  <strong>To jest Twój projekt.</strong><br/>
-                  Przejdź do zakładki "My Projects", aby zarządzać zgłoszeniami.
+                  <strong>Your Project</strong><br/>
+                  Manage applications in your dashboard.
                 </div>
               </div>
             ) : hasApplied ? (

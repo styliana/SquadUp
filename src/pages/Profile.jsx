@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { User, Mail, Github, Linkedin, Edit2, Save, GraduationCap, Loader2 } from 'lucide-react';
+import { User, Mail, Github, Edit2, Save, GraduationCap, Loader2 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import SkillSelector from '../components/SkillSelector';
-import { toast } from 'sonner'; // <--- Importujemy funkcję toast
+import AvatarUpload from '../components/AvatarUpload'; 
+import { toast } from 'sonner';
 
 const Profile = () => {
   const { user } = useAuth();
@@ -17,11 +18,13 @@ const Profile = () => {
     email: "",
     website: "",
     skills: [],
+    avatar_url: "", 
     stats_projects: 0,
     stats_applications: 0,
     stats_completed: 0
   });
 
+  // 1. POBIERANIE DANYCH PRZY STARCIE
   useEffect(() => {
     if (user) getProfile();
   }, [user]);
@@ -39,11 +42,13 @@ const Profile = () => {
       if (data) setProfile(data);
     } catch (error) {
       console.error('Błąd ładowania profilu:', error);
+      toast.error("Failed to load profile data.");
     } finally {
       setLoading(false);
     }
   };
 
+  // 2. ZAPISYWANIE DANYCH (UPDATE)
   const updateProfile = async () => {
     try {
       setLoading(true);
@@ -55,7 +60,8 @@ const Profile = () => {
           university: profile.university,
           bio: profile.bio,
           website: profile.website,
-          skills: profile.skills, // Teraz to zadziała, bo dodaliśmy kolumnę w SQL
+          skills: profile.skills,
+          avatar_url: profile.avatar_url, 
           updated_at: new Date(),
         })
         .eq('id', user.id);
@@ -63,27 +69,26 @@ const Profile = () => {
       if (error) throw error;
       
       setIsEditing(false);
-      // TU BYŁ ALERT -> TERAZ JEST TOAST
       toast.success('Profile updated successfully! 🔥');
       
     } catch (error) {
       console.error(error);
-      // TU TEŻ JEST TOAST BŁĘDU
       toast.error('Failed to update profile.');
     } finally {
       setLoading(false);
     }
   };
 
-  // --- RESZTA KOMPONENTU BEZ ZMIAN ---
-  // (Poniżej wklejam resztę, żebyś miał pewność, że wszystko pasuje)
-
   if (loading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-primary" size={40} /></div>;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      
+      {/* HEADER: TYTUŁ I PRZYCISK EDYCJI */}
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-white">Your <span className="text-primary">Profile</span></h1>
+        <h1 className="text-3xl font-bold text-white">
+          Your <span className="text-primary">Profile</span>
+        </h1>
         <button 
           onClick={() => isEditing ? updateProfile() : setIsEditing(true)}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-medium transition-all ${
@@ -97,55 +102,125 @@ const Profile = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* LEWA KOLUMNA: GŁÓWNE DANE */}
         <div className="lg:col-span-2 space-y-6">
+          
           <div className="bg-surface border border-white/5 rounded-2xl p-8">
             <div className="flex items-center gap-2 text-white font-semibold mb-6">
-              <User size={20} className="text-primary" /> Basic Information
+              <User size={20} className="text-primary" />
+              Basic Information
             </div>
+
             <div className="flex flex-col md:flex-row gap-8 items-start">
-              <div className="w-32 h-32 rounded-3xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-5xl font-bold text-white shadow-2xl shadow-primary/20 shrink-0 uppercase">
-                {profile.email ? profile.email.charAt(0) : 'U'}
+              
+              {/* --- SEKCJA AVATARA --- */}
+              <div className="shrink-0">
+                {isEditing ? (
+                   // TRYB EDYCJI: Pokazujemy komponent do wgrywania
+                   <AvatarUpload 
+                     url={profile.avatar_url} 
+                     onUpload={(url) => setProfile({ ...profile, avatar_url: url })} 
+                   />
+                ) : (
+                   // TRYB PODGLĄDU: Pokazujemy tylko zdjęcie lub inicjał
+                   profile.avatar_url ? (
+                     <img 
+                       src={profile.avatar_url} 
+                       alt="Profile" 
+                       className="w-32 h-32 rounded-3xl object-cover border-4 border-surface shadow-2xl shadow-primary/20" 
+                     />
+                   ) : (
+                     <div className="w-32 h-32 rounded-3xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-5xl font-bold text-white shadow-2xl shadow-primary/20 shrink-0 uppercase">
+                       {profile.email ? profile.email.charAt(0) : 'U'}
+                     </div>
+                   )
+                )}
               </div>
+
+              {/* --- SEKCJA PÓL TEKSTOWYCH --- */}
               <div className="flex-grow w-full space-y-5">
                 <div>
                   <label className="text-xs text-textMuted uppercase font-bold tracking-wider block mb-1">Full Name</label>
                   {isEditing ? (
-                    <input type="text" value={profile.full_name || ''} onChange={e => setProfile({...profile, full_name: e.target.value})} className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary" />
-                  ) : <h2 className="text-2xl font-bold text-white">{profile.full_name || 'Anonymous User'}</h2>}
+                    <input 
+                      type="text" 
+                      value={profile.full_name || ''} 
+                      onChange={e => setProfile({...profile, full_name: e.target.value})}
+                      className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary"
+                    />
+                  ) : (
+                    <h2 className="text-2xl font-bold text-white">{profile.full_name || 'Anonymous User'}</h2>
+                  )}
                 </div>
+
                 <div>
                   <label className="text-xs text-textMuted uppercase font-bold tracking-wider block mb-1">University</label>
                   {isEditing ? (
-                    <input type="text" value={profile.university || ''} onChange={e => setProfile({...profile, university: e.target.value})} className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary" placeholder="University..." />
-                  ) : <div className="flex items-center gap-2 text-gray-300"><GraduationCap size={18} />{profile.university || 'Not specified'}</div>}
+                    <input 
+                      type="text" 
+                      value={profile.university || ''} 
+                      onChange={e => setProfile({...profile, university: e.target.value})}
+                      className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary"
+                      placeholder="e.g. Warsaw University of Technology"
+                    />
+                  ) : (
+                    <div className="flex items-center gap-2 text-gray-300">
+                      <GraduationCap size={18} />
+                      {profile.university || 'Not specified'}
+                    </div>
+                  )}
                 </div>
+
                 <div>
                   <label className="text-xs text-textMuted uppercase font-bold tracking-wider block mb-1">Bio</label>
                   {isEditing ? (
-                    <textarea rows={3} value={profile.bio || ''} onChange={e => setProfile({...profile, bio: e.target.value})} className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary resize-none" placeholder="Tell us about yourself..." />
-                  ) : <p className="text-textMuted leading-relaxed">{profile.bio || 'No bio yet.'}</p>}
+                    <textarea 
+                      rows={3}
+                      value={profile.bio || ''} 
+                      onChange={e => setProfile({...profile, bio: e.target.value})}
+                      className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary resize-none"
+                      placeholder="Tell us about yourself..."
+                    />
+                  ) : (
+                    <p className="text-textMuted leading-relaxed">
+                      {profile.bio || 'No bio yet.'}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
           </div>
 
+          {/* --- SEKCJA UMIEJĘTNOŚCI --- */}
           <div className="bg-surface border border-white/5 rounded-2xl p-8">
             <div className="flex items-center gap-2 text-white font-semibold mb-6">
-              <span className="text-primary">⚡</span> Skills
+              <span className="text-primary">⚡</span>
+              Skills
             </div>
+            
             {isEditing ? (
-              <SkillSelector selectedSkills={profile.skills || []} setSelectedSkills={(newSkills) => setProfile({...profile, skills: newSkills})} />
+              <SkillSelector 
+                selectedSkills={profile.skills || []} 
+                setSelectedSkills={(newSkills) => setProfile({...profile, skills: newSkills})} 
+              />
             ) : (
               <div className="flex flex-wrap gap-2">
                 {profile.skills?.map(skill => (
-                  <span key={skill} className="px-3 py-1.5 rounded-lg bg-background border border-white/10 text-gray-300 text-sm">{skill}</span>
+                  <span key={skill} className="px-3 py-1.5 rounded-lg bg-background border border-white/10 text-gray-300 text-sm">
+                    {skill}
+                  </span>
                 ))}
-                {(!profile.skills || profile.skills.length === 0) && <span className="text-textMuted italic">No skills added yet.</span>}
+                {(!profile.skills || profile.skills.length === 0) && (
+                  <span className="text-textMuted italic">No skills added yet.</span>
+                )}
               </div>
             )}
           </div>
+
         </div>
 
+        {/* PRAWA KOLUMNA: KONTAKT I STATYSTYKI */}
         <div className="space-y-6">
           <div className="bg-surface border border-white/5 rounded-2xl p-6">
             <h3 className="font-bold text-white mb-6">Contact</h3>
@@ -157,19 +232,28 @@ const Profile = () => {
               <div className="flex items-center gap-3 text-sm">
                 <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-textMuted"><Github size={16} /></div>
                 {isEditing ? (
-                   <input type="text" value={profile.website || ''} onChange={e => setProfile({...profile, website: e.target.value})} className="flex-grow bg-background border border-white/10 rounded px-2 py-1 text-white text-sm" placeholder="Website URL" />
-                ) : <span className="text-primary cursor-pointer hover:underline truncate">{profile.website || 'Not set'}</span>}
+                   <input type="text" value={profile.website || ''} onChange={e => setProfile({...profile, website: e.target.value})} className="flex-grow bg-background border border-white/10 rounded px-2 py-1 text-white text-sm" placeholder="Your Website/GitHub URL" />
+                ) : (
+                  <span className="text-primary cursor-pointer hover:underline truncate">{profile.website || 'Not set'}</span>
+                )}
               </div>
             </div>
           </div>
+
           <div className="bg-surface border border-white/5 rounded-2xl p-6">
             <h3 className="font-bold text-white mb-6">Statistics</h3>
             <div className="space-y-4">
-              <div className="flex justify-between items-center"><span className="text-textMuted">Projects</span><span className="font-bold text-white text-lg">{profile.stats_projects}</span></div>
-              <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden"><div className="h-full bg-primary w-1/4"></div></div>
+              <div className="flex justify-between items-center">
+                <span className="text-textMuted">Projects</span>
+                <span className="font-bold text-white text-lg">{profile.stats_projects}</span>
+              </div>
+              <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                <div className="h-full bg-primary w-1/4"></div>
+              </div>
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );
