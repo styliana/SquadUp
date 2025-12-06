@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
@@ -16,9 +16,25 @@ const CreateProject = () => {
     teamSize: 4,
     deadline: ''
   });
+  
+  // NOWE: Dynamiczne kategorie
+  const [categories, setCategories] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const projectTypes = ['Hackathon', 'Competition', 'Portfolio', 'Startup'];
+  // Pobierz kategorie przy starcie
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const { data } = await supabase.from('categories').select('name');
+      if (data) {
+        setCategories(data.map(c => c.name));
+        // Ustaw pierwszy typ jako domyślny, jeśli jeszcze nie wybrany
+        if (data.length > 0 && !formData.type) {
+          setFormData(prev => ({ ...prev, type: data[0].name }));
+        }
+      }
+    };
+    fetchCategories();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -85,7 +101,7 @@ const CreateProject = () => {
           <div>
             <label className="block text-sm font-medium text-white mb-3">Project Type *</label>
             <div className="flex flex-wrap gap-3">
-              {projectTypes.map(type => (
+              {categories.length > 0 ? categories.map(type => (
                 <button
                   type="button"
                   key={type}
@@ -98,7 +114,9 @@ const CreateProject = () => {
                 >
                   {type}
                 </button>
-              ))}
+              )) : (
+                <p className="text-sm text-textMuted">Loading categories...</p>
+              )}
             </div>
           </div>
 
@@ -115,6 +133,7 @@ const CreateProject = () => {
         </div>
 
         <div className="pt-6 border-t border-white/5">
+          {/* Ulepszony SkillSelector z popularnymi skillami */}
           <SkillSelector 
             selectedSkills={formData.skills} 
             setSelectedSkills={(newSkills) => setFormData({...formData, skills: newSkills})} 

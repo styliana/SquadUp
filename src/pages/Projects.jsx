@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Search, Filter, Loader2, X } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import ProjectCard from '../components/ProjectCard';
-import SkillSelector from '../components/SkillSelector'; 
+import SkillSelector from '../components/SkillSelector'; // Twój nowy selektor
 
 const Projects = () => {
   const [projects, setProjects] = useState([]);
@@ -12,23 +12,40 @@ const Projects = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState('All');
   const [selectedSkills, setSelectedSkills] = useState([]);
-  const [showFilters, setShowFilters] = useState(false); 
+  const [showFilters, setShowFilters] = useState(false); // Do chowania panelu skilli
+  
+  // NOWE: Dynamiczne kategorie z bazy
+  const [categories, setCategories] = useState(['All']);
 
+  // POBIERANIE DANYCH (Projekty + Kategorie)
   useEffect(() => {
-    fetchProjects();
+    const fetchData = async () => {
+      setLoading(true);
+      
+      // 1. Pobierz kategorie
+      const { data: catsData } = await supabase
+        .from('categories')
+        .select('name')
+        .order('name');
+      
+      if (catsData) {
+        setCategories(['All', ...catsData.map(c => c.name)]);
+      }
+
+      // 2. Pobierz projekty
+      const { data: projData, error } = await supabase
+        .from('projects')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) console.error('Błąd:', error);
+      else setProjects(projData || []);
+      
+      setLoading(false);
+    };
+
+    fetchData();
   }, []);
-
-  const fetchProjects = async () => {
-    setLoading(true);
-    let { data, error } = await supabase
-      .from('projects')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) console.error('Błąd:', error);
-    else setProjects(data || []);
-    setLoading(false);
-  };
 
   // --- LOGIKA FILTROWANIA ---
   const filteredProjects = projects.filter(project => {
@@ -37,11 +54,10 @@ const Projects = () => {
       project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       project.description.toLowerCase().includes(searchTerm.toLowerCase());
 
-    // 2. Filtr Typu
+    // 2. Filtr Typu (Kategorii)
     const matchesType = selectedType === 'All' || project.type === selectedType;
 
     // 3. Filtr Skilli (Projekt musi zawierać WSZYSTKIE wybrane skille)
-    // Jeśli nie wybrano żadnych skilli, warunek jest spełniony (true)
     const matchesSkills = selectedSkills.length === 0 || 
       selectedSkills.every(skill => project.skills?.includes(skill));
 
@@ -63,22 +79,22 @@ const Projects = () => {
         {/* --- PASEK FILTRÓW --- */}
         <div className="flex flex-col gap-6 bg-surface border border-white/5 p-6 rounded-2xl shadow-xl">
           
-          {/* GÓRA: Wyszukiwarka i Typy */}
+          {/* GÓRA: Wyszukiwarka i Kategorie */}
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-grow">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
               <input 
                 type="text" 
                 placeholder="Search by keywords..." 
-                className="w-full bg-background border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none focus:border-primary transition-all"
+                className="w-full bg-background border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none focus:border-primary transition-all placeholder:text-gray-600"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
             
-            {/* Typy Projektów */}
+            {/* Typy Projektów (Dynamiczne z bazy) */}
             <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
-              {['All', 'Hackathon', 'Competition', 'Portfolio', 'Startup'].map((filter) => (
+              {categories.map((filter) => (
                 <button 
                   key={filter}
                   onClick={() => setSelectedType(filter)}
@@ -96,9 +112,14 @@ const Projects = () => {
 
           {/* DÓŁ: Filtr po Skillach (Rozwijany) */}
           <div>
-            <div className="flex items-center gap-2 mb-3 cursor-pointer" onClick={() => setShowFilters(!showFilters)}>
+            <div 
+              className="flex items-center gap-2 mb-3 cursor-pointer w-fit" 
+              onClick={() => setShowFilters(!showFilters)}
+            >
               <Filter size={18} className={showFilters ? 'text-primary' : 'text-textMuted'} />
-              <span className="text-sm font-medium text-white">Filter by Skills</span>
+              <span className={`text-sm font-medium transition-colors ${showFilters ? 'text-white' : 'text-textMuted'}`}>
+                Filter by Skills
+              </span>
               {selectedSkills.length > 0 && (
                 <span className="bg-primary text-white text-[10px] px-1.5 py-0.5 rounded-full ml-1">
                   {selectedSkills.length}
@@ -106,19 +127,19 @@ const Projects = () => {
               )}
             </div>
 
-            {/* Panel Skilli */}
+            {/* Panel Skilli - Używamy naszego komponentu */}
             {(showFilters || selectedSkills.length > 0) && (
               <div className="animate-in fade-in slide-in-from-top-2 duration-200">
                 <SkillSelector 
                   selectedSkills={selectedSkills} 
                   setSelectedSkills={setSelectedSkills} 
-                  showLabel={false} // Ukrywamy etykietę, bo mamy własny nagłówek
+                  showLabel={false} // Ukrywamy etykietę "Required Skills", bo tu nie pasuje
                 />
               </div>
             )}
           </div>
 
-          {/* Aktywne filtry (tylko info) */}
+          {/* Aktywne filtry (tylko info + czyszczenie) */}
           <div className="flex justify-between items-center text-xs text-textMuted border-t border-white/5 pt-4">
             <span>Showing {filteredProjects.length} projects</span>
             {(searchTerm || selectedType !== 'All' || selectedSkills.length > 0) && (
@@ -144,7 +165,7 @@ const Projects = () => {
           <Loader2 size={40} className="animate-spin" />
         </div>
       ) : filteredProjects.length === 0 ? (
-        <div className="text-center py-20">
+        <div className="text-center py-20 bg-surface/30 rounded-2xl border border-dashed border-white/5">
           <p className="text-xl text-white mb-2">No projects found 🧐</p>
           <p className="text-textMuted">Try adjusting your filters or search terms.</p>
         </div>
