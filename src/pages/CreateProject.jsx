@@ -39,7 +39,7 @@ const CreateProject = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user) {
-      alert("Musisz być zalogowany!");
+      toast.warning('You must be logged in to create a project.');
       return;
     }
     
@@ -71,9 +71,9 @@ const CreateProject = () => {
 
     if (error) {
       console.error(error);
-      alert('Błąd podczas dodawania projektu.');
+      toast.error('Failed to create project. Please try again.');
     } else {
-      alert('Projekt dodany pomyślnie! 🎉');
+      toast.success('Project created successfully! 🎉');
       navigate('/projects');
     }
   };
