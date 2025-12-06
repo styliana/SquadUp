@@ -1,36 +1,24 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, X } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import SkillSelector from '../components/SkillSelector';
 
 const CreateProject = () => {
   const navigate = useNavigate();
-  const { user } = useAuth(); // Potrzebujemy danych autora
+  const { user } = useAuth();
   
   const [formData, setFormData] = useState({
     title: '',
     type: 'Hackathon',
     description: '',
-    skills: [],
-    skillInput: '',
+    skills: [], // Tutaj SkillSelector będzie wrzucał wybrane
     teamSize: 4,
     deadline: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const projectTypes = ['Hackathon', 'Competition', 'Portfolio', 'Startup'];
-  const popularSkills = ['React', 'Python', 'Figma', 'Node.js', 'TypeScript'];
-
-  const handleAddSkill = (skill) => {
-    if (skill && !formData.skills.includes(skill)) {
-      setFormData({ ...formData, skills: [...formData.skills, skill], skillInput: '' });
-    }
-  };
-
-  const handleRemoveSkill = (skillToRemove) => {
-    setFormData({ ...formData, skills: formData.skills.filter(skill => skill !== skillToRemove) });
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -39,9 +27,13 @@ const CreateProject = () => {
       return;
     }
     
+    if (formData.skills.length === 0) {
+      alert("Please select at least one skill!");
+      return;
+    }
+
     setIsSubmitting(true);
 
-    // Wysyłamy dane do Supabase
     const { error } = await supabase
       .from('projects')
       .insert([
@@ -51,10 +43,10 @@ const CreateProject = () => {
           description: formData.description,
           skills: formData.skills,
           members_max: formData.teamSize,
-          members_current: 1, // Zawsze zaczynamy od autora
+          members_current: 1,
           deadline: formData.deadline || 'Flexible',
-          author: user.email.split('@')[0], // Uproszczenie: Bierzemy część maila jako nick
-          role: 'Leader' // Domyślna rola
+          author: user.email.split('@')[0], 
+          role: 'Leader'
         }
       ]);
 
@@ -78,6 +70,7 @@ const CreateProject = () => {
 
       <form onSubmit={handleSubmit} className="bg-surface border border-white/5 rounded-2xl p-8 space-y-8">
         
+        {/* INFO O PROJEKCIE */}
         <div className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-white mb-2">Project Title *</label>
@@ -122,53 +115,15 @@ const CreateProject = () => {
           </div>
         </div>
 
-        <div className="pt-6 border-t border-white/5 space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-white mb-2">Required Skills</label>
-            <div className="flex gap-2 mb-3">
-              <input 
-                type="text" 
-                className="flex-grow bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary"
-                placeholder="Type a skill..."
-                value={formData.skillInput}
-                onChange={e => setFormData({...formData, skillInput: e.target.value})}
-                onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddSkill(formData.skillInput))}
-              />
-              <button 
-                type="button"
-                onClick={() => handleAddSkill(formData.skillInput)}
-                className="bg-white/5 border border-white/10 text-white px-4 rounded-xl hover:bg-white/10"
-              >
-                <Plus size={24} />
-              </button>
-            </div>
-            
-            <div className="flex flex-wrap gap-2">
-              {popularSkills.map(skill => (
-                <button 
-                  key={skill} 
-                  type="button" 
-                  onClick={() => handleAddSkill(skill)}
-                  className="text-xs text-textMuted hover:text-primary transition-colors"
-                >
-                  + {skill}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex flex-wrap gap-2 mt-3">
-              {formData.skills.map(skill => (
-                <span key={skill} className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-primary/10 border border-primary/20 text-primary text-sm">
-                  {skill}
-                  <button type="button" onClick={() => handleRemoveSkill(skill)}>
-                    <X size={14} className="hover:text-white" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          </div>
+        {/* SKILLS - TERAZ UŻYWAMY NASZEGO SELEKTORA */}
+        <div className="pt-6 border-t border-white/5">
+          <SkillSelector 
+            selectedSkills={formData.skills} 
+            setSelectedSkills={(newSkills) => setFormData({...formData, skills: newSkills})} 
+          />
         </div>
 
+        {/* DETALE */}
         <div className="pt-6 border-t border-white/5 grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-white mb-2">Team Size</label>

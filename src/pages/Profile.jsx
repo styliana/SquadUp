@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { User, Mail, Github, Linkedin, Edit2, Save, GraduationCap, Loader2 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import SkillSelector from '../components/SkillSelector'; // <--- TEGO BRAKOWAŁO
 
 const Profile = () => {
   const { user } = useAuth();
@@ -14,15 +15,12 @@ const Profile = () => {
     university: "",
     bio: "",
     email: "",
-    website: "", // Użyjemy jako github/linkedin w jednym polu dla uproszczenia lub dodamy więcej
+    website: "", 
     skills: [],
     stats_projects: 0,
     stats_applications: 0,
     stats_completed: 0
   });
-
-  // Nowy skill input
-  const [newSkill, setNewSkill] = useState("");
 
   // 1. POBIERANIE DANYCH
   useEffect(() => {
@@ -74,18 +72,6 @@ const Profile = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Obsługa skillsów
-  const addSkill = () => {
-    if (newSkill && !profile.skills?.includes(newSkill)) {
-      setProfile({ ...profile, skills: [...(profile.skills || []), newSkill] });
-      setNewSkill("");
-    }
-  };
-
-  const removeSkill = (skillToRemove) => {
-    setProfile({ ...profile, skills: profile.skills.filter(s => s !== skillToRemove) });
   };
 
   if (loading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-primary" size={40} /></div>;
@@ -181,37 +167,30 @@ const Profile = () => {
             </div>
           </div>
 
-          {/* SKILLSY */}
+          {/* SKILLSY - TERAZ Z UŻYCIEM SELEKTORA */}
           <div className="bg-surface border border-white/5 rounded-2xl p-8">
             <div className="flex items-center gap-2 text-white font-semibold mb-6">
               <span className="text-primary">⚡</span>
               Skills
             </div>
             
-            <div className="flex flex-wrap gap-2 mb-4">
-              {profile.skills?.map(skill => (
-                <span key={skill} className="px-3 py-1.5 rounded-lg bg-background border border-white/10 text-gray-300 text-sm flex items-center gap-2">
-                  {skill}
-                  {isEditing && (
-                    <button onClick={() => removeSkill(skill)} className="hover:text-red-400">×</button>
-                  )}
-                </span>
-              ))}
-            </div>
-
-            {isEditing && (
-              <div className="flex gap-2">
-                <input 
-                  type="text" 
-                  value={newSkill}
-                  onChange={(e) => setNewSkill(e.target.value)}
-                  placeholder="Add a skill..."
-                  className="bg-background border border-white/10 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-primary"
-                  onKeyDown={(e) => e.key === 'Enter' && addSkill()}
-                />
-                <button onClick={addSkill} className="px-3 py-1.5 rounded-lg border border-dashed border-white/20 text-textMuted text-sm hover:text-white hover:border-white/40">
-                  Add
-                </button>
+            {isEditing ? (
+              // TRYB EDYCJI
+              <SkillSelector 
+                selectedSkills={profile.skills || []} 
+                setSelectedSkills={(newSkills) => setProfile({...profile, skills: newSkills})} 
+              />
+            ) : (
+              // TRYB PODGLĄDU
+              <div className="flex flex-wrap gap-2">
+                {profile.skills?.map(skill => (
+                  <span key={skill} className="px-3 py-1.5 rounded-lg bg-background border border-white/10 text-gray-300 text-sm">
+                    {skill}
+                  </span>
+                ))}
+                {(!profile.skills || profile.skills.length === 0) && (
+                  <span className="text-textMuted italic">No skills added yet.</span>
+                )}
               </div>
             )}
           </div>
