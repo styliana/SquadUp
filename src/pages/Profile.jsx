@@ -1,13 +1,20 @@
 import { useState, useEffect } from 'react';
-import { User, Mail, Github, Edit2, Save, GraduationCap, Loader2 } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { User, Mail, Github, Edit2, Save, GraduationCap, Loader2, ArrowLeft } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import SkillSelector from '../components/SkillSelector';
-import AvatarUpload from '../components/AvatarUpload'; 
+import AvatarUpload from '../components/AvatarUpload';
 import { toast } from 'sonner';
 
 const Profile = () => {
   const { user } = useAuth();
+  const { id: urlUserId } = useParams();
+  const navigate = useNavigate(); 
+
+  const targetUserId = urlUserId || user?.id; 
+  const isOwner = user && targetUserId === user.id; 
+
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   
@@ -18,28 +25,30 @@ const Profile = () => {
     email: "",
     website: "",
     skills: [],
-    avatar_url: "", 
+    avatar_url: "",
     stats_projects: 0,
     stats_applications: 0,
     stats_completed: 0
   });
 
-  // 1. POBIERANIE DANYCH PRZY STARCIE
   useEffect(() => {
-    if (user) getProfile();
-  }, [user]);
+    if (targetUserId) {
+      getProfile(targetUserId);
+    }
+  }, [targetUserId]);
 
-  const getProfile = async () => {
+  const getProfile = async (userId) => {
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user.id)
+        .eq('id', userId)
         .single();
 
       if (error) throw error;
       if (data) setProfile(data);
+      
     } catch (error) {
       console.error('Błąd ładowania profilu:', error);
       toast.error("Failed to load profile data.");
@@ -48,8 +57,9 @@ const Profile = () => {
     }
   };
 
-  // 2. ZAPISYWANIE DANYCH (UPDATE)
   const updateProfile = async () => {
+    if (!isOwner) return;
+
     try {
       setLoading(true);
       
@@ -61,7 +71,7 @@ const Profile = () => {
           bio: profile.bio,
           website: profile.website,
           skills: profile.skills,
-          avatar_url: profile.avatar_url, 
+          avatar_url: profile.avatar_url,
           updated_at: new Date(),
         })
         .eq('id', user.id);
@@ -78,27 +88,48 @@ const Profile = () => {
       setLoading(false);
     }
   };
-
+  
+  if (!user && !urlUserId) return <div className="text-center text-textMuted p-20">Please log in to view your profile.</div>;
   if (loading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-primary" size={40} /></div>;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       
-      {/* HEADER: TYTUŁ I PRZYCISK EDYCJI */}
+      {/* HEADER */}
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-white">
-          Your <span className="text-primary">Profile</span>
-        </h1>
-        <button 
-          onClick={() => isEditing ? updateProfile() : setIsEditing(true)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-medium transition-all ${
-            isEditing 
-              ? 'bg-primary text-white border-primary hover:bg-primary/90' 
-              : 'border-white/10 text-white hover:bg-white/5'
-          }`}
-        >
-          {isEditing ? <><Save size={18} /> Save Changes</> : <><Edit2 size={18} /> Edit Profile</>}
-        </button>
+        
+        {/* LEWA STRONA: PRZYCISK BACK + TYTUŁ */}
+        <div className="flex items-center gap-4">
+          
+          {/* PRZYCISK BACK (TYLKO GDY PRZEGLĄDAMY CZYJŚ PROFIL) */}
+          {!isOwner && (
+            <button
+              onClick={() => navigate(-1)}
+              className="p-2 text-textMuted hover:text-white transition-colors rounded-lg bg-surface/50 border border-white/10"
+              title="Go Back"
+            >
+              <ArrowLeft size={20} />
+            </button>
+          )}
+
+          <h1 className="text-3xl font-bold text-white">
+            {isOwner ? 'Your' : `${profile.full_name || profile.email}'s`} <span className="text-primary">Profile</span>
+          </h1>
+        </div>
+
+        {/* PRAWA STRONA: PRZYCISK EDYCJI */}
+        {isOwner && (
+          <button 
+            onClick={() => isEditing ? updateProfile() : setIsEditing(true)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-medium transition-all ${
+              isEditing 
+                ? 'bg-primary text-white border-primary hover:bg-primary/90' 
+                : 'border-white/10 text-white hover:bg-white/5'
+            }`}
+          >
+            {isEditing ? <><Save size={18} /> Save Changes</> : <><Edit2 size={18} /> Edit Profile</>}
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -117,13 +148,11 @@ const Profile = () => {
               {/* --- SEKCJA AVATARA --- */}
               <div className="shrink-0">
                 {isEditing ? (
-                   // TRYB EDYCJI: Pokazujemy komponent do wgrywania
                    <AvatarUpload 
                      url={profile.avatar_url} 
                      onUpload={(url) => setProfile({ ...profile, avatar_url: url })} 
                    />
                 ) : (
-                   // TRYB PODGLĄDU: Pokazujemy tylko zdjęcie lub inicjał
                    profile.avatar_url ? (
                      <img 
                        src={profile.avatar_url} 
@@ -143,50 +172,22 @@ const Profile = () => {
                 <div>
                   <label className="text-xs text-textMuted uppercase font-bold tracking-wider block mb-1">Full Name</label>
                   {isEditing ? (
-                    <input 
-                      type="text" 
-                      value={profile.full_name || ''} 
-                      onChange={e => setProfile({...profile, full_name: e.target.value})}
-                      className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary"
-                    />
-                  ) : (
-                    <h2 className="text-2xl font-bold text-white">{profile.full_name || 'Anonymous User'}</h2>
-                  )}
+                    <input type="text" value={profile.full_name || ''} onChange={e => setProfile({...profile, full_name: e.target.value})} className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary" />
+                  ) : (<h2 className="text-2xl font-bold text-white">{profile.full_name || 'Anonymous User'}</h2>)}
                 </div>
 
                 <div>
                   <label className="text-xs text-textMuted uppercase font-bold tracking-wider block mb-1">University</label>
                   {isEditing ? (
-                    <input 
-                      type="text" 
-                      value={profile.university || ''} 
-                      onChange={e => setProfile({...profile, university: e.target.value})}
-                      className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary"
-                      placeholder="e.g. Warsaw University of Technology"
-                    />
-                  ) : (
-                    <div className="flex items-center gap-2 text-gray-300">
-                      <GraduationCap size={18} />
-                      {profile.university || 'Not specified'}
-                    </div>
-                  )}
+                    <input type="text" value={profile.university || ''} onChange={e => setProfile({...profile, university: e.target.value})} className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary" placeholder="e.g. Warsaw University of Technology" />
+                  ) : (<div className="flex items-center gap-2 text-gray-300"><GraduationCap size={18} />{profile.university || 'Not specified'}</div>)}
                 </div>
 
                 <div>
                   <label className="text-xs text-textMuted uppercase font-bold tracking-wider block mb-1">Bio</label>
                   {isEditing ? (
-                    <textarea 
-                      rows={3}
-                      value={profile.bio || ''} 
-                      onChange={e => setProfile({...profile, bio: e.target.value})}
-                      className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary resize-none"
-                      placeholder="Tell us about yourself..."
-                    />
-                  ) : (
-                    <p className="text-textMuted leading-relaxed">
-                      {profile.bio || 'No bio yet.'}
-                    </p>
-                  )}
+                    <textarea rows={3} value={profile.bio || ''} onChange={e => setProfile({...profile, bio: e.target.value})} className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary resize-none" placeholder="Tell us about yourself..." />
+                  ) : (<p className="text-textMuted leading-relaxed">{profile.bio || 'No bio yet.'}</p>)}
                 </div>
               </div>
             </div>
@@ -199,21 +200,15 @@ const Profile = () => {
               Skills
             </div>
             
-            {isEditing ? (
+            {(isEditing && isOwner) ? (
               <SkillSelector 
                 selectedSkills={profile.skills || []} 
                 setSelectedSkills={(newSkills) => setProfile({...profile, skills: newSkills})} 
               />
             ) : (
               <div className="flex flex-wrap gap-2">
-                {profile.skills?.map(skill => (
-                  <span key={skill} className="px-3 py-1.5 rounded-lg bg-background border border-white/10 text-gray-300 text-sm">
-                    {skill}
-                  </span>
-                ))}
-                {(!profile.skills || profile.skills.length === 0) && (
-                  <span className="text-textMuted italic">No skills added yet.</span>
-                )}
+                {profile.skills?.map(skill => (<span key={skill} className="px-3 py-1.5 rounded-lg bg-background border border-white/10 text-gray-300 text-sm">{skill}</span>))}
+                {(!profile.skills || profile.skills.length === 0) && (<span className="text-textMuted italic">No skills added yet.</span>)}
               </div>
             )}
           </div>
@@ -231,7 +226,7 @@ const Profile = () => {
               </div>
               <div className="flex items-center gap-3 text-sm">
                 <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-textMuted"><Github size={16} /></div>
-                {isEditing ? (
+                {(isEditing && isOwner) ? (
                    <input type="text" value={profile.website || ''} onChange={e => setProfile({...profile, website: e.target.value})} className="flex-grow bg-background border border-white/10 rounded px-2 py-1 text-white text-sm" placeholder="Your Website/GitHub URL" />
                 ) : (
                   <span className="text-primary cursor-pointer hover:underline truncate">{profile.website || 'Not set'}</span>

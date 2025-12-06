@@ -110,7 +110,7 @@ const MyProjects = () => {
       {activeTab === 'published' && (
         <div className="space-y-8 animate-in fade-in slide-in-from-left-4 duration-300">
           {createdProjects.length === 0 ? (
-            <div className="text-center py-20 bg-surface/30 rounded-2xl border border-dashed border-white/10"><p className="text-textMuted mb-4">No projects yet.</p><Link to="/create-project" className="text-primary hover:underline">Create one!</Link></div>
+            <div className="text-center py-20 bg-surface/30 rounded-2xl border border-dashed border-white/10"><p className="text-textMuted mb-4">You haven't created any projects yet.</p><Link to="/create-project" className="text-primary hover:underline">Create one now!</Link></div>
           ) : (
             createdProjects.map(project => (
               <div key={project.id} className="bg-surface border border-white/5 rounded-2xl overflow-hidden">
@@ -130,8 +130,6 @@ const MyProjects = () => {
                       {project.applications.map(app => (
                         <div key={app.id} className="bg-background border border-white/10 rounded-xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
                           <div className="flex items-start gap-4 flex-grow">
-                            
-                            {/* --- TUTAJ JEST ZMIANA AVATARA --- */}
                             <div className="shrink-0">
                               {app.profiles?.avatar_url ? (
                                 <img src={app.profiles.avatar_url} className="w-10 h-10 rounded-full object-cover" alt="User" />
@@ -156,7 +154,7 @@ const MyProjects = () => {
                             ) : <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase border ${app.status === 'accepted' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>{app.status}</span>}
                             <div className="w-px h-8 bg-white/10 mx-1"></div>
                             <Link to="/chat" className="p-2 text-textMuted hover:text-white"><MessageCircle size={18} /></Link>
-                            <Link to={`/profile`} className="p-2 text-textMuted hover:text-white"><User size={18} /></Link>
+                            <Link to={`/profile/${app.profiles?.id}`} className="p-2 text-textMuted hover:text-white"><User size={18} /></Link> {/* <--- KLUCZOWA ZMIANA Z LINKIEM */}
                           </div>
                         </div>
                       ))}
@@ -169,7 +167,6 @@ const MyProjects = () => {
         </div>
       )}
       
-      {/* WIDOK APPLIED POZOSTAJE BEZ ZMIAN (TAM NIE MA AVATARÓW) */}
       {activeTab === 'applied' && (
         <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
           {appliedProjects.map(app => (

@@ -26,10 +26,11 @@ function App() {
           <Route path="/projects/:id" element={<ProjectDetails />} />
           
           <Route path="/create-project" element={<CreateProject />} />
-          <Route path="/edit-project/:id" element={<EditProject />} /> 
+          <Route path="/edit-project/:id" element={<EditProject />} />
           <Route path="/my-projects" element={<MyProjects />} />
           
-          <Route path="/profile" element={<Profile />} />
+          <Route path="/profile/:id?" element={<Profile />} /> 
+          
           <Route path="/chat" element={<Chat />} />
           
           <Route path="/login" element={<Login />} />
