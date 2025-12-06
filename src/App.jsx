@@ -3,6 +3,7 @@ import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Projects from './pages/Projects';
 import ProjectDetails from './pages/ProjectDetails';
+import CreateProject from './pages/CreateProject';
 
 function App() {
   return (
@@ -10,15 +11,13 @@ function App() {
       <div className="min-h-screen bg-background text-textMain">
         <Navbar />
         <Routes>
-          {/* Strona główna */}
           <Route path="/" element={<Home />} />
-          
-          {/* Strona z projektami */}
           <Route path="/projects" element={<Projects />} />
           <Route path="/projects/:id" element={<ProjectDetails />} />
           
-          {/* Placeholdery dla reszty stron */}
-          <Route path="/create-project" element={<div className="p-10 text-center text-2xl text-gray-400 mt-10">Create Project Page (Coming Soon) 🚀</div>} />
+          {/* NOWA TRASA */}
+          <Route path="/create-project" element={<CreateProject />} />
+          
           <Route path="/chat" element={<div className="p-10 text-center text-2xl text-gray-400 mt-10">Chat Page (Coming Soon) 💬</div>} />
           <Route path="/profile" element={<div className="p-10 text-center text-2xl text-gray-400 mt-10">Profile Page (Coming Soon) 👤</div>} />
         </Routes>
