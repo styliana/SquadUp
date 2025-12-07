@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { User, Mail, Github, Edit2, Save, GraduationCap, Loader2, ArrowLeft } from 'lucide-react';
+// Dodajemy ikonę Linkedin i Globe (dla ogólnej strony www)
+import { User, Mail, Github, Linkedin, Globe, Edit2, Save, GraduationCap, Loader2, ArrowLeft } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import SkillSelector from '../components/SkillSelector';
@@ -16,15 +17,17 @@ const Profile = () => {
   const isOwner = user && targetUserId === user.id; 
 
   const [isEditing, setIsEditing] = useState(false);
-  const [loading, setLoading] = useState(true); // Ładowanie początkowe
-  const [isSaving, setIsSaving] = useState(false); // NOWE: Stan tylko dla zapisywania
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   
   const [profile, setProfile] = useState({
     full_name: "",
     university: "",
     bio: "",
     email: "",
-    website: "",
+    website: "",      // Zostawiamy jako ogólne Portfolio
+    github_url: "",   // NOWE
+    linkedin_url: "", // NOWE
     skills: [],
     avatar_url: "",
     stats_projects: 0,
@@ -58,11 +61,43 @@ const Profile = () => {
     }
   };
 
+  // --- WALIDACJA LINKÓW ---
+  const validateLinks = () => {
+    const { github_url, linkedin_url, website } = profile;
+
+    // 1. Walidacja GitHuba
+    if (github_url && !github_url.match(/^https:\/\/(www\.)?github\.com\/[\w-]+\/?$/)) {
+      toast.error("Invalid GitHub URL", {
+        description: "Link must look like: https://github.com/username"
+      });
+      return false;
+    }
+
+    // 2. Walidacja LinkedIna
+    if (linkedin_url && !linkedin_url.match(/^https:\/\/(www\.)?linkedin\.com\/in\/[\w-]+\/?/)) {
+      toast.error("Invalid LinkedIn URL", {
+        description: "Link must look like: https://linkedin.com/in/username"
+      });
+      return false;
+    }
+
+    // 3. Walidacja ogólnego URL (prosta)
+    if (website && !website.match(/^https?:\/\/.+/)) {
+        toast.error("Invalid Website URL", { description: "Must start with http:// or https://" });
+        return false;
+    }
+
+    return true;
+  };
+
   const updateProfile = async () => {
     if (!isOwner) return;
 
+    // Najpierw walidacja
+    if (!validateLinks()) return;
+
     try {
-      setIsSaving(true); // Ustawiamy stan zapisywania, a nie całej strony
+      setIsSaving(true);
       
       const { error } = await supabase
         .from('profiles')
@@ -71,6 +106,8 @@ const Profile = () => {
           university: profile.university,
           bio: profile.bio,
           website: profile.website,
+          github_url: profile.github_url,     // Zapisujemy nowe pola
+          linkedin_url: profile.linkedin_url, // Zapisujemy nowe pola
           skills: profile.skills,
           avatar_url: profile.avatar_url,
           updated_at: new Date(),
@@ -86,7 +123,7 @@ const Profile = () => {
       console.error(error);
       toast.error('Failed to update profile.');
     } finally {
-      setIsSaving(false); // Odblokowujemy przycisk
+      setIsSaving(false);
     }
   };
   
@@ -98,11 +135,7 @@ const Profile = () => {
       
       {/* HEADER */}
       <div className="flex justify-between items-center mb-8">
-        
-        {/* LEWA STRONA: PRZYCISK BACK + TYTUŁ */}
         <div className="flex items-center gap-4">
-          
-          {/* PRZYCISK BACK */}
           {!isOwner && (
             <button
               onClick={() => navigate(-1)}
@@ -112,17 +145,15 @@ const Profile = () => {
               <ArrowLeft size={20} />
             </button>
           )}
-
           <h1 className="text-3xl font-bold text-white">
             {isOwner ? 'Your' : `${profile.full_name || profile.email}'s`} <span className="text-primary">Profile</span>
           </h1>
         </div>
 
-        {/* PRAWA STRONA: PRZYCISK EDYCJI */}
         {isOwner && (
           <button 
             onClick={() => isEditing ? updateProfile() : setIsEditing(true)}
-            disabled={isSaving} // Blokujemy podczas zapisu
+            disabled={isSaving}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
               isEditing 
                 ? 'bg-primary text-white border-primary hover:bg-primary/90' 
@@ -144,7 +175,6 @@ const Profile = () => {
         
         {/* LEWA KOLUMNA: GŁÓWNE DANE */}
         <div className="lg:col-span-2 space-y-6">
-          
           <div className="bg-surface border border-white/5 rounded-2xl p-8">
             <div className="flex items-center gap-2 text-white font-semibold mb-6">
               <User size={20} className="text-primary" />
@@ -152,8 +182,6 @@ const Profile = () => {
             </div>
 
             <div className="flex flex-col md:flex-row gap-8 items-start">
-              
-              {/* --- SEKCJA AVATARA --- */}
               <div className="shrink-0">
                 {isEditing ? (
                    <AvatarUpload 
@@ -175,7 +203,6 @@ const Profile = () => {
                 )}
               </div>
 
-              {/* --- SEKCJA PÓL TEKSTOWYCH --- */}
               <div className="flex-grow w-full space-y-5">
                 <div>
                   <label className="text-xs text-textMuted uppercase font-bold tracking-wider block mb-1">Full Name</label>
@@ -201,7 +228,6 @@ const Profile = () => {
             </div>
           </div>
 
-          {/* --- SEKCJA UMIEJĘTNOŚCI --- */}
           <div className="bg-surface border border-white/5 rounded-2xl p-8">
             <div className="flex items-center gap-2 text-white font-semibold mb-6">
               <span className="text-primary">⚡</span>
@@ -220,26 +246,56 @@ const Profile = () => {
               </div>
             )}
           </div>
-
         </div>
 
-        {/* PRAWA KOLUMNA: KONTAKT I STATYSTYKI */}
+        {/* PRAWA KOLUMNA: KONTAKT */}
         <div className="space-y-6">
           <div className="bg-surface border border-white/5 rounded-2xl p-6">
             <h3 className="font-bold text-white mb-6">Contact</h3>
             <div className="space-y-4">
+              
+              {/* EMAIL */}
               <div className="flex items-center gap-3 text-sm">
                 <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-textMuted"><Mail size={16} /></div>
-                <span className="text-gray-300">{profile.email}</span>
+                <span className="text-gray-300 truncate">{profile.email}</span>
               </div>
+
+              {/* GITHUB */}
               <div className="flex items-center gap-3 text-sm">
                 <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-textMuted"><Github size={16} /></div>
                 {(isEditing && isOwner) ? (
-                   <input type="text" value={profile.website || ''} onChange={e => setProfile({...profile, website: e.target.value})} className="flex-grow bg-background border border-white/10 rounded px-2 py-1 text-white text-sm" placeholder="Your Website/GitHub URL" />
+                   <input type="text" value={profile.github_url || ''} onChange={e => setProfile({...profile, github_url: e.target.value})} className="flex-grow bg-background border border-white/10 rounded px-2 py-1 text-white text-sm focus:border-primary outline-none" placeholder="https://github.com/username" />
                 ) : (
-                  <span className="text-primary cursor-pointer hover:underline truncate">{profile.website || 'Not set'}</span>
+                  profile.github_url ? 
+                    <a href={profile.github_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">GitHub Profile</a> : 
+                    <span className="text-textMuted italic">No GitHub</span>
                 )}
               </div>
+
+              {/* LINKEDIN */}
+              <div className="flex items-center gap-3 text-sm">
+                <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-textMuted"><Linkedin size={16} /></div>
+                {(isEditing && isOwner) ? (
+                   <input type="text" value={profile.linkedin_url || ''} onChange={e => setProfile({...profile, linkedin_url: e.target.value})} className="flex-grow bg-background border border-white/10 rounded px-2 py-1 text-white text-sm focus:border-primary outline-none" placeholder="https://linkedin.com/in/user" />
+                ) : (
+                  profile.linkedin_url ? 
+                    <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">LinkedIn Profile</a> : 
+                    <span className="text-textMuted italic">No LinkedIn</span>
+                )}
+              </div>
+
+              {/* WEBSITE / PORTFOLIO */}
+              <div className="flex items-center gap-3 text-sm">
+                <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-textMuted"><Globe size={16} /></div>
+                {(isEditing && isOwner) ? (
+                   <input type="text" value={profile.website || ''} onChange={e => setProfile({...profile, website: e.target.value})} className="flex-grow bg-background border border-white/10 rounded px-2 py-1 text-white text-sm focus:border-primary outline-none" placeholder="https://myportfolio.com" />
+                ) : (
+                  profile.website ? 
+                    <a href={profile.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">Portfolio</a> : 
+                    <span className="text-textMuted italic">No Website</span>
+                )}
+              </div>
+
             </div>
           </div>
 
