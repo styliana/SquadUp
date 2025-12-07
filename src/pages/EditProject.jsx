@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 
 const EditProject = () => {
-  const { id } = useParams(); // Pobieramy ID projektu z adresu URL
+  const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   
@@ -24,15 +24,12 @@ const EditProject = () => {
     deadline: ''
   });
 
-  // 1. POBIERZ DANE PROJEKTU I KATEGORIE PRZY STARCIE
   useEffect(() => {
     const initData = async () => {
       try {
-        // Pobierz kategorie
         const { data: cats } = await supabase.from('categories').select('name');
         if (cats) setCategories(cats.map(c => c.name));
 
-        // Pobierz projekt
         const { data: project, error } = await supabase
           .from('projects')
           .select('*')
@@ -41,14 +38,12 @@ const EditProject = () => {
 
         if (error) throw error;
 
-        // Zabezpieczenie: Czy to Twój projekt?
         if (project.author_id !== user.id) {
           toast.error("You don't have permission to edit this project.");
           navigate('/my-projects');
           return;
         }
 
-        // Wypełnij formularz danymi z bazy
         setFormData({
           title: project.title,
           type: project.type,
@@ -70,7 +65,6 @@ const EditProject = () => {
     if (user) initData();
   }, [user, id, navigate]);
 
-  // 2. ZAPISZ ZMIANY (UPDATE)
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -85,19 +79,19 @@ const EditProject = () => {
           skills: formData.skills,
           members_max: formData.teamSize,
           deadline: formData.deadline || 'Flexible',
-          // Nie aktualizujemy author_id ani members_current
         })
         .eq('id', id);
 
       if (error) throw error;
 
+      // SUKCES: Nie odblokowujemy przycisku, bo zaraz zniknie strona
       toast.success('Project updated successfully! 🚀');
       navigate('/my-projects');
 
     } catch (error) {
+      // BŁĄD: Tylko tutaj odblokowujemy
       console.error(error);
       toast.error('Failed to update project.');
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -197,7 +191,7 @@ const EditProject = () => {
           <button 
             type="submit"
             disabled={isSubmitting}
-            className="px-8 py-3 rounded-xl bg-gradient-to-r from-primary to-blue-600 text-white font-bold hover:shadow-primary/25 disabled:opacity-50"
+            className="px-8 py-3 rounded-xl bg-gradient-to-r from-primary to-blue-600 text-white font-bold hover:shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? 'Saving...' : 'Save Changes'}
           </button>

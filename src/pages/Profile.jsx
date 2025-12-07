@@ -16,7 +16,8 @@ const Profile = () => {
   const isOwner = user && targetUserId === user.id; 
 
   const [isEditing, setIsEditing] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Ładowanie początkowe
+  const [isSaving, setIsSaving] = useState(false); // NOWE: Stan tylko dla zapisywania
   
   const [profile, setProfile] = useState({
     full_name: "",
@@ -61,7 +62,7 @@ const Profile = () => {
     if (!isOwner) return;
 
     try {
-      setLoading(true);
+      setIsSaving(true); // Ustawiamy stan zapisywania, a nie całej strony
       
       const { error } = await supabase
         .from('profiles')
@@ -85,7 +86,7 @@ const Profile = () => {
       console.error(error);
       toast.error('Failed to update profile.');
     } finally {
-      setLoading(false);
+      setIsSaving(false); // Odblokowujemy przycisk
     }
   };
   
@@ -101,7 +102,7 @@ const Profile = () => {
         {/* LEWA STRONA: PRZYCISK BACK + TYTUŁ */}
         <div className="flex items-center gap-4">
           
-          {/* PRZYCISK BACK (TYLKO GDY PRZEGLĄDAMY CZYJŚ PROFIL) */}
+          {/* PRZYCISK BACK */}
           {!isOwner && (
             <button
               onClick={() => navigate(-1)}
@@ -121,13 +122,20 @@ const Profile = () => {
         {isOwner && (
           <button 
             onClick={() => isEditing ? updateProfile() : setIsEditing(true)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-medium transition-all ${
+            disabled={isSaving} // Blokujemy podczas zapisu
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
               isEditing 
                 ? 'bg-primary text-white border-primary hover:bg-primary/90' 
                 : 'border-white/10 text-white hover:bg-white/5'
             }`}
           >
-            {isEditing ? <><Save size={18} /> Save Changes</> : <><Edit2 size={18} /> Edit Profile</>}
+            {isSaving ? (
+               <><Loader2 size={18} className="animate-spin" /> Saving...</>
+            ) : isEditing ? (
+               <><Save size={18} /> Save Changes</>
+            ) : (
+               <><Edit2 size={18} /> Edit Profile</>
+            )}
           </button>
         )}
       </div>

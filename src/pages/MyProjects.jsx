@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
-import { Loader2, MessageSquare, Briefcase, MessageCircle, User, Check, X, Trash2, Edit2 } from 'lucide-react'; 
+import { Loader2, Briefcase, MessageCircle, User, Check, X, Trash2, Edit2 } from 'lucide-react'; 
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -21,27 +21,25 @@ const MyProjects = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
+      // 1. ZOPTYMALIZOWANE ZAPYTANIE (Eager Loading)
+      // Pobieramy projekty ORAZ ich aplikacje ORAZ profile aplikujących w JEDNYM strzale.
+      // To eliminuje problem "N+1 zapytań".
       const { data: myProjects, error: err1 } = await supabase
         .from('projects')
-        .select('*')
+        .select(`
+          *,
+          applications (
+            *,
+            profiles:applicant_id (*)
+          )
+        `)
         .eq('author_id', user.id)
         .order('created_at', { ascending: false });
 
       if (err1) throw err1;
+      setCreatedProjects(myProjects || []);
 
-      if (myProjects && myProjects.length > 0) {
-        const projectsWithApps = await Promise.all(myProjects.map(async (project) => {
-          const { data: applications } = await supabase
-            .from('applications')
-            .select('*, profiles!applicant_id(*)') 
-            .eq('project_id', project.id);
-          return { ...project, applications: applications || [] };
-        }));
-        setCreatedProjects(projectsWithApps);
-      } else {
-        setCreatedProjects([]);
-      }
-
+      // 2. Pobieramy aplikacje użytkownika (gdzie on aplikował)
       const { data: myApplications, error: err2 } = await supabase
         .from('applications')
         .select('*, projects!project_id(*)')
@@ -59,11 +57,16 @@ const MyProjects = () => {
   };
 
   const handleDeleteProject = async (projectId) => {
-    if (!confirm("Are you sure? This will delete the project and all applications.")) return;
+    // Używamy natywnego confirm (lub można custom modal), tutaj zostawiam confirm dla prostoty
+    if (!window.confirm("Are you sure? This will delete the project and all applications.")) return;
+    
     try {
+      // Najpierw usuwamy aplikacje (choć w bazie CASCADE by to załatwiło, warto być bezpiecznym)
       await supabase.from('applications').delete().eq('project_id', projectId);
+      
       const { error } = await supabase.from('projects').delete().eq('id', projectId);
       if (error) throw error;
+      
       setCreatedProjects(prev => prev.filter(p => p.id !== projectId));
       toast.success("Project deleted successfully.");
     } catch (error) {
@@ -72,19 +75,26 @@ const MyProjects = () => {
     }
   };
 
-  const handleStatusChange = async (applicationId, newStatus) => {
+  const handleStatusChange = async (applicationId, projectId, newStatus) => {
     try {
       const { error } = await supabase
         .from('applications')
         .update({ status: newStatus })
         .eq('id', applicationId);
+        
       if (error) throw error;
-      setCreatedProjects(prev => prev.map(project => ({
-        ...project,
-        applications: project.applications.map(app => 
-          app.id === applicationId ? { ...app, status: newStatus } : app
-        )
-      })));
+
+      // Aktualizacja stanu lokalnego (optymistyczna lub po sukcesie)
+      setCreatedProjects(prev => prev.map(project => {
+        if (project.id !== projectId) return project;
+        return {
+          ...project,
+          applications: project.applications.map(app => 
+            app.id === applicationId ? { ...app, status: newStatus } : app
+          )
+        };
+      }));
+      
       toast.success(`Application ${newStatus}!`);
     } catch (error) {
       console.error(error);
@@ -123,8 +133,8 @@ const MyProjects = () => {
                 </div>
 
                 <div className="p-5">
-                  <h3 className="text-sm font-bold text-textMuted uppercase tracking-wider mb-4">Candidates ({project.applications.length})</h3>
-                  {project.applications.length === 0 ? <p className="text-textMuted text-sm italic py-2">No applications yet.</p> : (
+                  <h3 className="text-sm font-bold text-textMuted uppercase tracking-wider mb-4">Candidates ({project.applications?.length || 0})</h3>
+                  {(!project.applications || project.applications.length === 0) ? <p className="text-textMuted text-sm italic py-2">No applications yet.</p> : (
                     <div className="grid gap-4">
                       {project.applications.map(app => (
                         <div key={app.id} className="bg-background border border-white/10 rounded-xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
@@ -137,20 +147,20 @@ const MyProjects = () => {
                               )}
                             </div>
                             <div className="flex-grow">
-                              <div className="font-bold text-white text-sm">{app.profiles?.full_name || 'User'} <span className="ml-2 text-xs font-normal text-textMuted">• {app.profiles?.university}</span></div>
+                              <div className="font-bold text-white text-sm">{app.profiles?.full_name || 'User'} <span className="ml-2 text-xs font-normal text-textMuted">• {app.profiles?.university || 'Student'}</span></div>
                               <div className="mt-2 bg-surface/50 rounded-lg p-2 text-sm text-gray-300 relative inline-block max-w-xl"><span className="text-primary font-bold text-xs mr-2">Note:</span><span className="italic">"{app.message}"</span></div>
                             </div>
                           </div>
                           <div className="flex items-center gap-3 shrink-0">
                             {app.status === 'pending' ? (
                               <>
-                                <button onClick={() => handleStatusChange(app.id, 'accepted')} className="p-2 bg-green-500/10 text-green-400 rounded-lg border border-green-500/20" aria-label="Accept Applicant"><Check size={18} /></button> {/* ZMIANA */}
-                                <button onClick={() => handleStatusChange(app.id, 'rejected')} className="p-2 bg-red-500/10 text-red-400 rounded-lg border border-red-500/20" aria-label="Reject Applicant"><X size={18} /></button> {/* ZMIANA */}
+                                <button onClick={() => handleStatusChange(app.id, project.id, 'accepted')} className="p-2 bg-green-500/10 text-green-400 rounded-lg border border-green-500/20 hover:bg-green-500/20" aria-label="Accept"><Check size={18} /></button>
+                                <button onClick={() => handleStatusChange(app.id, project.id, 'rejected')} className="p-2 bg-red-500/10 text-red-400 rounded-lg border border-red-500/20 hover:bg-red-500/20" aria-label="Reject"><X size={18} /></button>
                               </>
                             ) : <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase border ${app.status === 'accepted' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>{app.status}</span>}
                             <div className="w-px h-8 bg-white/10 mx-1"></div>
-                            <Link to="/chat" className="p-2 text-textMuted hover:text-white" aria-label="Start Chat"><MessageCircle size={18} /></Link> {/* ZMIANA */}
-                            <Link to={`/profile/${app.profiles?.id}`} className="p-2 text-textMuted hover:text-white" aria-label={`View ${app.profiles?.full_name || 'User'}'s Profile`}><User size={18} /></Link> {/* ZMIANA */}
+                            <Link to="/chat" className="p-2 text-textMuted hover:text-white" aria-label="Chat"><MessageCircle size={18} /></Link>
+                            <Link to={`/profile/${app.profiles?.id}`} className="p-2 text-textMuted hover:text-white" aria-label="Profile"><User size={18} /></Link>
                           </div>
                         </div>
                       ))}
@@ -165,16 +175,20 @@ const MyProjects = () => {
       
       {activeTab === 'applied' && (
         <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-          {appliedProjects.map(app => (
-            <div key={app.id} className="bg-surface border border-white/5 rounded-xl p-5 flex flex-col md:flex-row gap-6 items-center justify-between hover:border-white/10 transition-colors">
-              <div className="flex-grow">
-                <h3 className="text-lg font-bold text-white mb-1">{app.projects?.title}</h3>
-                <div className="flex gap-3 text-sm text-textMuted mb-2"><span className="bg-white/5 px-2 rounded">{app.projects?.type}</span><span>Applied: {new Date(app.created_at).toLocaleDateString()}</span></div>
-                <div className="text-sm text-gray-400 bg-background/50 p-2 rounded border border-white/5 inline-block"><span className="text-primary text-xs font-bold mr-2">YOUR NOTE:</span><span className="italic">"{app.message}"</span></div>
+          {appliedProjects.length === 0 ? (
+             <div className="text-center py-20 text-textMuted">You haven't applied to any projects yet.</div>
+          ) : (
+            appliedProjects.map(app => (
+              <div key={app.id} className="bg-surface border border-white/5 rounded-xl p-5 flex flex-col md:flex-row gap-6 items-center justify-between hover:border-white/10 transition-colors">
+                <div className="flex-grow">
+                  <h3 className="text-lg font-bold text-white mb-1">{app.projects?.title || 'Unknown Project'}</h3>
+                  <div className="flex gap-3 text-sm text-textMuted mb-2"><span className="bg-white/5 px-2 rounded">{app.projects?.type}</span><span>Applied: {new Date(app.created_at).toLocaleDateString()}</span></div>
+                  <div className="text-sm text-gray-400 bg-background/50 p-2 rounded border border-white/5 inline-block"><span className="text-primary text-xs font-bold mr-2">YOUR NOTE:</span><span className="italic">"{app.message}"</span></div>
+                </div>
+                <Link to={`/projects/${app.project_id}`} className="px-5 py-2.5 border border-white/10 rounded-lg text-white text-sm hover:bg-white/5" aria-label="View Project">View Project</Link>
               </div>
-              <Link to={`/projects/${app.project_id}`} className="px-5 py-2.5 border border-white/10 rounded-lg text-white text-sm hover:bg-white/5" aria-label={`View ${app.projects?.title} Project Details`}>View Project</Link> {/* ZMIANA */}
-            </div>
-          ))}
+            ))
+          )}
         </div>
       )}
     </div>
