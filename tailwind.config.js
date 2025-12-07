@@ -1,38 +1,28 @@
 /** @type {import('tailwindcss').Config} */
-import tailwindAnimate from "tailwindcss-animate";
-
-export default {
-  darkMode: ["class"],
+module.exports = {
+  // Wskaż pliki, które Tailwind ma skanować
   content: [
     "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}", // <--- TA LINIJKA JEST KLUCZOWA
+    "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
-    container: {
-      center: true,
-      padding: "2rem",
-      screens: {
-        "2xl": "1400px",
-      },
-    },
+    // Rozszerzamy domyślny motyw
     extend: {
-      fontFamily: {
-        sans: ['Inter', 'sans-serif'],
-      },
+      // PALETA KOLORÓW (dla estetyki ciemnego motywu)
       colors: {
-        background: '#0B1120', 
-        surface: '#1e293b',    
-        primary: '#06b6d4',    
-        secondary: '#a855f7',  
-        textMain: '#f8fafc',   
-        textMuted: '#94a3b8',
-        
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        foreground: "#f8fafc",
+        'primary': '#06b6d4',      // Jasny Turkus (Akcent)
+        'secondary': '#8b5cf6',    // Fiolet (Dodatkowy Akcent)
+        'background': '#111827',   // Bardzo Ciemne Tło
+        'surface': '#1f2937',      // Powierzchnia Kart / Paneli
+        'textMain': '#f9fafb',     // Biały/Jasny Tekst Główny
+        'textMuted': '#9ca3af',    // Szary Tekst Wyciszony
+      },
+      // DEFINIOWANIE FONTU
+      fontFamily: {
+        // Manrope jako domyślny font dla 'sans' (dla całej aplikacji)
+        sans: ['Manrope', 'sans-serif'], 
       },
     },
   },
-  plugins: [tailwindAnimate],
+  plugins: [],
 }

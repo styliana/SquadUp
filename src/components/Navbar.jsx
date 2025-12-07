@@ -36,7 +36,8 @@ const Navbar = () => {
     <nav className="border-b border-white/10 bg-background/80 backdrop-blur-md sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <Link to="/" className="flex items-center gap-2 group">
+          
+          <Link to="/" className="flex items-center gap-2 group" aria-label="Go to Home Page">
             <div className="bg-gradient-to-br from-primary to-blue-600 p-1.5 rounded-lg group-hover:shadow-[0_0_15px_rgba(6,182,212,0.5)] transition-all duration-300">
                <Users className="w-6 h-6 text-white" />
             </div>
@@ -47,6 +48,7 @@ const Navbar = () => {
 
           <div className="hidden md:flex items-center space-x-8">
             <NavLink to="/projects" icon={<Megaphone size={18} />} text="Find Projects" active={isActive('/projects')} />
+            
             {user && (
               <>
                 <NavLink to="/create-project" icon={<PlusCircle size={18} />} text="Create Project" active={isActive('/create-project')} />
@@ -59,8 +61,7 @@ const Navbar = () => {
           <div className="flex items-center gap-4">
             {user ? (
               <>
-                <Link to="/profile" className="flex items-center gap-2 group">
-                  {/* UŻYCIE KOMPONENTU AVATAR - czysto i elegancko */}
+                <Link to="/profile" className="flex items-center gap-2 group" aria-label="Go to Profile Settings">
                   <UserAvatar 
                     avatarUrl={avatarUrl} 
                     name={user.email} 
@@ -71,12 +72,25 @@ const Navbar = () => {
                     Profile
                   </span>
                 </Link>
-                <button onClick={handleLogout} className="p-2 text-textMuted hover:text-red-400 transition-colors" title="Log out"><LogOut size={20} /></button>
+                
+                <button 
+                  onClick={handleLogout}
+                  className="p-2 text-textMuted hover:text-red-400 transition-colors"
+                  title="Log out"
+                  aria-label="Log out" 
+                >
+                  <LogOut size={20} />
+                </button>
               </>
             ) : (
-              <Link to="/login"><button className="bg-gradient-to-r from-primary to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white font-medium py-2 px-5 rounded-lg transition-all shadow-[0_0_10px_rgba(6,182,212,0.3)]">Sign In</button></Link>
+              <Link to="/login">
+                <button className="bg-gradient-to-r from-primary to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white font-medium py-2 px-5 rounded-lg transition-all duration-300 shadow-[0_0_10px_rgba(6,182,212,0.3)] hover:shadow-[0_0_20px_rgba(6,182,212,0.5)]">
+                  Sign In
+                </button>
+              </Link>
             )}
           </div>
+
         </div>
       </div>
     </nav>
@@ -84,8 +98,15 @@ const Navbar = () => {
 };
 
 const NavLink = ({ to, icon, text, active }) => (
-  <Link to={to} className={`flex items-center gap-2 text-sm font-medium transition-colors duration-200 ${active ? 'text-primary' : 'text-gray-300 hover:text-white'}`}>
-    {icon} <span>{text}</span>
+  <Link 
+    to={to} 
+    className={`flex items-center gap-2 text-sm font-medium transition-colors duration-200 ${
+      active ? 'text-primary' : 'text-gray-300 hover:text-white'
+    }`}
+    aria-label={text} 
+  >
+    {icon}
+    <span>{text}</span>
   </Link>
 );
 
