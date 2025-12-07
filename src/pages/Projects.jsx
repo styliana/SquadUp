@@ -60,7 +60,7 @@ const Projects = () => {
 
       // A. Wyszukiwanie (Tytuł LUB Opis)
       if (searchTerm) {
-        query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
+        query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,skills.ilike.%${searchTerm}%`);
       }
 
       // B. Typ projektu
