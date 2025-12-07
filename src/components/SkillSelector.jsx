@@ -1,44 +1,53 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { X, Sparkles } from 'lucide-react';
+import { X, Sparkles, Search } from 'lucide-react';
 
 const SkillSelector = ({ selectedSkills, setSelectedSkills, showLabel = true }) => {
-  const [allSkills, setAllSkills] = useState([]);
-  const [popularSkills, setPopularSkills] = useState([]); // Nowy stan
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [popularSkills, setPopularSkills] = useState([]);
+  const [loading, setLoading] = useState(false);
 
+  // 1. Pobierz popularne skille TYLKO RAZ przy montowaniu
   useEffect(() => {
-    fetchSkills();
+    const fetchPopular = async () => {
+      const { data } = await supabase
+        .from('skills')
+        .select('name')
+        .eq('is_popular', true)
+        .limit(10); // Limit dla bezpieczeństwa
+      
+      if (data) setPopularSkills(data.map(i => i.name));
+    };
+    fetchPopular();
   }, []);
 
-  const fetchSkills = async () => {
-    // Pobieramy wszystkie skille + informację czy są popularne
-    const { data, error } = await supabase
-      .from('skills')
-      .select('*')
-      .order('name');
-    
-    if (!error && data) {
-      setAllSkills(data.map(item => item.name));
-      // Filtrujemy te, które mają flagę is_popular
-      setPopularSkills(data.filter(item => item.is_popular).map(item => item.name));
-    }
-    setLoading(false);
-  };
-
+  // 2. Wyszukiwanie Server-Side z opóźnieniem (Debounce)
   useEffect(() => {
-    if (query.length > 0) {
-      const filtered = allSkills.filter(skill => 
-        skill.toLowerCase().includes(query.toLowerCase()) && 
-        !selectedSkills.includes(skill)
-      );
-      setSuggestions(filtered);
-    } else {
-      setSuggestions([]);
-    }
-  }, [query, allSkills, selectedSkills]);
+    const fetchSuggestions = async () => {
+      if (query.length < 2) {
+        setSuggestions([]);
+        return;
+      }
+
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('skills')
+        .select('name')
+        .ilike('name', `%${query}%`) // Szukaj fragmentu tekstu
+        .limit(5); // Pobierz tylko 5 pasujących
+
+      if (!error && data) {
+        // Filtruj te, które już są wybrane
+        setSuggestions(data.map(item => item.name).filter(s => !selectedSkills.includes(s)));
+      }
+      setLoading(false);
+    };
+
+    const timeoutId = setTimeout(fetchSuggestions, 300); // Czekaj 300ms po ostatnim znaku
+    return () => clearTimeout(timeoutId);
+
+  }, [query, selectedSkills]);
 
   const addSkill = (skill) => {
     if (!selectedSkills.includes(skill)) {
@@ -62,23 +71,33 @@ const SkillSelector = ({ selectedSkills, setSelectedSkills, showLabel = true }) 
 
       {/* INPUT */}
       <div className="relative">
+        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-textMuted">
+            <Search size={16} />
+        </div>
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder={loading ? "Loading..." : "Search skills..."}
-          className="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary transition-colors placeholder:text-gray-600"
+          placeholder="Type to search skills (e.g. React)..."
+          className="w-full bg-background border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-primary transition-colors placeholder:text-gray-600"
         />
         
+        {/* Loader wewnątrz inputa */}
+        {loading && (
+             <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+             </div>
+        )}
+
         {/* DROPDOWN WYNIKÓW */}
         {suggestions.length > 0 && (
-          <div className="absolute z-20 w-full mt-1 bg-surface border border-white/10 rounded-xl shadow-xl max-h-60 overflow-y-auto">
+          <div className="absolute z-20 w-full mt-1 bg-surface border border-white/10 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
             {suggestions.map(skill => (
               <button
                 key={skill}
                 type="button"
                 onClick={() => addSkill(skill)}
-                className="w-full text-left px-4 py-2 text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
+                className="w-full text-left px-4 py-2 text-gray-300 hover:bg-primary/20 hover:text-white transition-colors block"
               >
                 {skill}
               </button>
@@ -87,19 +106,19 @@ const SkillSelector = ({ selectedSkills, setSelectedSkills, showLabel = true }) 
         )}
       </div>
 
-      {/* SUGEROWANE (POPULARNE) - Tylko jeśli nie ma wybranych skilli (dla czystości) */}
-      {selectedSkills.length === 0 && popularSkills.length > 0 && (
-        <div className="mt-3">
+      {/* SUGEROWANE (POPULARNE) - Tylko jeśli nie szukamy */}
+      {query.length === 0 && selectedSkills.length === 0 && popularSkills.length > 0 && (
+        <div className="mt-3 animate-in fade-in">
           <div className="text-xs text-textMuted mb-2 flex items-center gap-1">
             <Sparkles size={12} className="text-primary" /> Popular:
           </div>
           <div className="flex flex-wrap gap-2">
-            {popularSkills.slice(0, 7).map(skill => (
+            {popularSkills.map(skill => (
               <button
                 key={skill}
                 type="button"
                 onClick={() => addSkill(skill)}
-                className="px-2 py-1 rounded bg-white/5 border border-white/5 text-xs text-gray-400 hover:text-white hover:border-white/20 transition-all"
+                className="px-2.5 py-1 rounded-md bg-white/5 border border-white/5 text-xs text-gray-400 hover:text-white hover:border-white/20 hover:bg-white/10 transition-all"
               >
                 + {skill}
               </button>
@@ -113,7 +132,7 @@ const SkillSelector = ({ selectedSkills, setSelectedSkills, showLabel = true }) 
         {selectedSkills.map(skill => (
           <span key={skill} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-primary text-sm font-medium animate-in fade-in zoom-in duration-200">
             {skill}
-            <button type="button" onClick={() => removeSkill(skill)} className="hover:text-white">
+            <button type="button" onClick={() => removeSkill(skill)} className="hover:text-white transition-colors">
               <X size={14} />
             </button>
           </span>

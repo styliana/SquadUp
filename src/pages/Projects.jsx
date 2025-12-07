@@ -1,93 +1,144 @@
-import { useEffect, useState } from 'react';
-import { Search, Filter, Loader2, X, Sparkles } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { Search, Filter, Loader2, X, Sparkles, ArrowDownCircle } from 'lucide-react';
 import { supabase } from '../supabaseClient';
-import { useAuth } from '../context/AuthContext'; // Potrzebujemy Usera
+import { useAuth } from '../context/AuthContext';
 import ProjectCard from '../components/ProjectCard';
 import SkillSelector from '../components/SkillSelector';
+import { toast } from 'sonner';
+
+const PAGE_SIZE = 6;
 
 const Projects = () => {
   const { user } = useAuth();
-  const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
   
-  // STANY FILTRÓW
+  // Dane
+  const [projects, setProjects] = useState([]);
+  const [categories, setCategories] = useState(['All']);
+  const [userSkills, setUserSkills] = useState([]);
+  
+  // Stany ładowania i paginacji
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+
+  // Filtry
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState('All');
   const [selectedSkills, setSelectedSkills] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
-  const [categories, setCategories] = useState(['All']);
-  
-  // NOWE: Stan rekomendacji
   const [showRecommended, setShowRecommended] = useState(false);
-  const [userSkills, setUserSkills] = useState([]);
 
+  // 1. Inicjalizacja (Kategorie i Skille usera)
   useEffect(() => {
-    const initData = async () => {
-      setLoading(true);
-      await Promise.all([fetchCategories(), fetchProjects(), fetchUserSkills()]);
-      setLoading(false);
+    const fetchInitialData = async () => {
+      // Kategorie
+      const { data: catData } = await supabase.from('categories').select('name');
+      if (catData) setCategories(['All', ...catData.map(c => c.name)]);
+
+      // Skille usera (do rekomendacji)
+      if (user) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('skills')
+          .eq('id', user.id)
+          .single();
+        if (profileData?.skills) setUserSkills(profileData.skills);
+      }
     };
-    initData();
+    fetchInitialData();
   }, [user]);
 
-  const fetchCategories = async () => {
-    const { data } = await supabase.from('categories').select('name');
-    if (data) setCategories(['All', ...data.map(c => c.name)]);
-  };
+  // 2. Główna funkcja pobierająca projekty (Server-Side)
+  const fetchProjects = useCallback(async (pageIndex, isReset = false) => {
+    try {
+      setLoading(true);
+      
+      // Budowanie zapytania
+      let query = supabase
+        .from('projects')
+        .select('*', { count: 'exact' }); // count potrzebny do paginacji
 
-  const fetchProjects = async () => {
-    let { data, error } = await supabase
-      .from('projects')
-      .select('*')
-      .order('created_at', { ascending: false });
+      // A. Wyszukiwanie (Tytuł LUB Opis)
+      if (searchTerm) {
+        query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
+      }
 
-    if (error) console.error('Błąd:', error);
-    else setProjects(data || []);
-  };
+      // B. Typ projektu
+      if (selectedType !== 'All') {
+        query = query.eq('type', selectedType);
+      }
 
-  // Pobierz skille zalogowanego usera
-  const fetchUserSkills = async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('profiles')
-      .select('skills')
-      .eq('id', user.id)
-      .single();
-    
-    if (data?.skills) {
-      setUserSkills(data.skills);
+      // C. Skille (Czy projekt zawiera wymagane skille)
+      if (selectedSkills.length > 0) {
+        query = query.contains('skills', selectedSkills);
+      }
+
+      // D. Sortowanie i Paginacja
+      // Domyślnie sortujemy od najnowszych
+      query = query
+        .order('created_at', { ascending: false })
+        .range(pageIndex * PAGE_SIZE, (pageIndex + 1) * PAGE_SIZE - 1);
+
+      const { data, error, count } = await query;
+
+      if (error) throw error;
+
+      // Logika rekomendacji (Sortowanie po stronie klienta pobranej partii)
+      // Uwaga: Idealna rekomendacja wymagałaby funkcji RPC w bazie danych, 
+      // ale na potrzeby inżynierki sortowanie 'strony' jest akceptowalnym kompromisem UX.
+      let processedData = data || [];
+      if (showRecommended && userSkills.length > 0) {
+        processedData = processedData.map(p => {
+          const matchCount = p.skills?.filter(s => userSkills.includes(s)).length || 0;
+          return { ...p, matchScore: matchCount };
+        }).sort((a, b) => b.matchScore - a.matchScore);
+      }
+
+      // Aktualizacja stanu
+      if (isReset) {
+        setProjects(processedData);
+      } else {
+        setProjects(prev => [...prev, ...processedData]);
+      }
+
+      // Sprawdzenie czy jest więcej danych
+      if (count !== null) {
+        setHasMore((pageIndex + 1) * PAGE_SIZE < count);
+      }
+
+    } catch (error) {
+      console.error('Błąd pobierania:', error);
+      toast.error("Nie udało się pobrać projektów.");
+    } finally {
+      setLoading(false);
     }
+  }, [searchTerm, selectedType, selectedSkills, showRecommended, userSkills]);
+
+  // 3. Resetowanie i pobieranie przy zmianie filtrów
+  useEffect(() => {
+    // Resetujemy stronę na 0 i czyścimy listę przy każdej zmianie filtra
+    setPage(0);
+    setHasMore(true);
+    // Debounce dla search term mógłby być dodany, ale tutaj dla czytelności robimy bezpośrednio
+    const timeoutId = setTimeout(() => {
+      fetchProjects(0, true);
+    }, 300); // Mały delay żeby nie strzelać przy każdej literze
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, selectedType, selectedSkills, showRecommended, fetchProjects]);
+
+  // 4. Obsługa "Load More"
+  const handleLoadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchProjects(nextPage, false);
   };
 
-  // --- LOGIKA FILTROWANIA I SORTOWANIA ---
-  const getProcessedProjects = () => {
-    // 1. Najpierw filtrujemy
-    let filtered = projects.filter(project => {
-      const matchesSearch = 
-        project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        project.description.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesType = selectedType === 'All' || project.type === selectedType;
-      const matchesSkills = selectedSkills.length === 0 || 
-        selectedSkills.every(skill => project.skills?.includes(skill));
-
-      return matchesSearch && matchesType && matchesSkills;
-    });
-
-    // 2. Jeśli włączone rekomendacje -> Sortuj po dopasowaniu
-    if (showRecommended && userSkills.length > 0) {
-      filtered = filtered.map(p => {
-        // Policz punkty: +1 za każdy wspólny skill
-        const matchCount = p.skills?.filter(s => userSkills.includes(s)).length || 0;
-        return { ...p, matchScore: matchCount };
-      })
-      // Sortuj: najpierw te z największą liczbą punktów, potem najnowsze
-      .sort((a, b) => b.matchScore - a.matchScore || new Date(b.created_at) - new Date(a.created_at));
-    }
-
-    return filtered;
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedType('All');
+    setSelectedSkills([]);
+    setShowRecommended(false);
   };
-
-  const finalProjects = getProcessedProjects();
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -116,7 +167,7 @@ const Projects = () => {
               />
             </div>
             
-            <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
+            <div className="flex gap-2 overflow-x-autoXH pb-2 md:pb-0 scrollbar-hide">
               {categories.map((filter) => (
                 <button 
                   key={filter}
@@ -137,7 +188,7 @@ const Projects = () => {
             {/* Lewa strona: Filtr Skilli */}
             <div>
               <div 
-                className="flex items-center gap-2 cursor-pointer w-fit" 
+                className="flex items-center gap-2 cursor-pointer w-fit select-none" 
                 onClick={() => setShowFilters(!showFilters)}
               >
                 <Filter size={18} className={showFilters ? 'text-primary' : 'text-textMuted'} />
@@ -152,7 +203,7 @@ const Projects = () => {
               </div>
 
               {(showFilters || selectedSkills.length > 0) && (
-                <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-200 min-w-[300px]">
+                <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-200 min-w-[300px] max-w-full">
                   <SkillSelector 
                     selectedSkills={selectedSkills} 
                     setSelectedSkills={setSelectedSkills} 
@@ -178,54 +229,65 @@ const Projects = () => {
             )}
           </div>
 
-          <div className="flex justify-between items-center text-xs text-textMuted border-t border-white/5 pt-4">
-            <span>
-              Showing {finalProjects.length} projects
-              {showRecommended && <span className="text-primary ml-1">(Sorted by best match)</span>}
-            </span>
-            {(searchTerm || selectedType !== 'All' || selectedSkills.length > 0 || showRecommended) && (
+          {(searchTerm || selectedType !== 'All' || selectedSkills.length > 0 || showRecommended) && (
+            <div className="flex justify-between items-center text-xs text-textMuted border-t border-white/5 pt-4">
+              <span>
+                {/* Opcjonalny licznik wyników */}
+              </span>
               <button 
-                onClick={() => {
-                  setSearchTerm('');
-                  setSelectedType('All');
-                  setSelectedSkills([]);
-                  setShowRecommended(false);
-                }}
+                onClick={clearFilters}
                 className="text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors"
               >
                 <X size={14} /> Clear all filters
               </button>
-            )}
-          </div>
+            </div>
+          )}
 
         </div>
       </div>
 
       {/* WYNIKI */}
-      {loading ? (
+      {loading && projects.length === 0 ? (
         <div className="flex justify-center py-20 text-primary">
           <Loader2 size={40} className="animate-spin" />
         </div>
-      ) : finalProjects.length === 0 ? (
+      ) : projects.length === 0 ? (
         <div className="text-center py-20 bg-surface/30 rounded-2xl border border-dashed border-white/5">
           <p className="text-xl text-white mb-2">No projects found 🧐</p>
           <p className="text-textMuted">Try adjusting your filters or search terms.</p>
+          <button onClick={clearFilters} className="mt-4 text-primary hover:underline">Reset filters</button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
-          {finalProjects.map((project) => (
-            <ProjectCard 
-              key={project.id} 
-              project={{
-                ...project,
-                tags: project.skills || [],
-                timePosted: new Date(project.created_at).toLocaleDateString(),
-                membersCurrent: project.members_current,
-                membersMax: project.members_max
-              }} 
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
+            {projects.map((project) => (
+              <ProjectCard 
+                key={project.id} 
+                project={{
+                  ...project,
+                  tags: project.skills || [],
+                  timePosted: new Date(project.created_at).toLocaleDateString(),
+                  membersCurrent: project.members_current,
+                  membersMax: project.members_max
+                }} 
+              />
+            ))}
+          </div>
+
+          {/* Przycisk Load More */}
+          {hasMore && (
+            <div className="flex justify-center mt-12">
+              <button 
+                onClick={handleLoadMore}
+                disabled={loading}
+                className="flex items-center gap-2 px-8 py-3 bg-surface border border-white/10 rounded-xl text-white hover:bg-white/5 hover:border-white/20 transition-all disabled:opacity-50"
+              >
+                {loading ? <Loader2 className="animate-spin" size={20} /> : <ArrowDownCircle size={20} />}
+                {loading ? 'Loading...' : 'Load More Projects'}
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
