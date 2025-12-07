@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import SkillSelector from '../components/SkillSelector';
+import { toast } from 'sonner';
 
 const CreateProject = () => {
   const navigate = useNavigate();
@@ -17,17 +18,14 @@ const CreateProject = () => {
     deadline: ''
   });
   
-  // NOWE: Dynamiczne kategorie
   const [categories, setCategories] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Pobierz kategorie przy starcie
   useEffect(() => {
     const fetchCategories = async () => {
       const { data } = await supabase.from('categories').select('name');
       if (data) {
         setCategories(data.map(c => c.name));
-        // Ustaw pierwszy typ jako domyślny, jeśli jeszcze nie wybrany
         if (data.length > 0 && !formData.type) {
           setFormData(prev => ({ ...prev, type: data[0].name }));
         }
@@ -38,43 +36,50 @@ const CreateProject = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
     if (!user) {
       toast.warning('You must be logged in to create a project.');
       return;
     }
     
     if (formData.skills.length === 0) {
-      alert("Please select at least one skill!");
+      toast.warning("Please select at least one skill!");
       return;
     }
 
+    // 1. Blokujemy przycisk
     setIsSubmitting(true);
 
-    const { error } = await supabase
-      .from('projects')
-      .insert([
-        {
-          title: formData.title,
-          type: formData.type,
-          description: formData.description,
-          skills: formData.skills,
-          members_max: formData.teamSize,
-          members_current: 1,
-          deadline: formData.deadline || 'Flexible',
-          author: user.email.split('@')[0], 
-          role: 'Leader',
-          author_id: user.id
-        }
-      ]);
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .insert([
+          {
+            title: formData.title,
+            type: formData.type,
+            description: formData.description,
+            skills: formData.skills,
+            members_max: formData.teamSize,
+            members_current: 1,
+            deadline: formData.deadline || 'Flexible',
+            author: user.email.split('@')[0], 
+            role: 'Leader',
+            author_id: user.id
+          }
+        ]);
 
-    setIsSubmitting(false);
+      if (error) throw error;
 
-    if (error) {
+      // 2. SUKCES: Nie odblokowujemy przycisku (zostaje disabled),
+      // wyświetlamy komunikat i przekierowujemy
+      toast.success('Project created successfully! 🎉');
+      navigate('/my-projects'); // ZMIANA: Przekierowanie do My Projects
+
+    } catch (error) {
+      // 3. BŁĄD: Tutaj odblokowujemy przycisk, żeby user mógł spróbować ponownie
       console.error(error);
       toast.error('Failed to create project. Please try again.');
-    } else {
-      toast.success('Project created successfully! 🎉');
-      navigate('/projects');
+      setIsSubmitting(false); 
     }
   };
 
@@ -133,7 +138,6 @@ const CreateProject = () => {
         </div>
 
         <div className="pt-6 border-t border-white/5">
-          {/* Ulepszony SkillSelector z popularnymi skillami */}
           <SkillSelector 
             selectedSkills={formData.skills} 
             setSelectedSkills={(newSkills) => setFormData({...formData, skills: newSkills})} 
@@ -173,8 +177,8 @@ const CreateProject = () => {
           </button>
           <button 
             type="submit"
-            disabled={isSubmitting}
-            className="px-8 py-3 rounded-xl bg-gradient-to-r from-primary to-blue-600 text-white font-bold hover:shadow-primary/25 disabled:opacity-50"
+            disabled={isSubmitting} // To teraz działa poprawnie do momentu przekierowania
+            className="px-8 py-3 rounded-xl bg-gradient-to-r from-primary to-blue-600 text-white font-bold hover:shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? 'Publishing...' : 'Publish Listing'}
           </button>
