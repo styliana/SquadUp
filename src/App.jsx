@@ -12,6 +12,7 @@ import Profile from './pages/Profile';
 import Chat from './pages/Chat';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ProtectedRoute from './components/ProtectedRoute'; // Import strażnika
 
 function App() {
   return (
@@ -21,20 +22,22 @@ function App() {
       <div className="min-h-screen bg-background text-textMain">
         <Navbar />
         <Routes>
+          {/* TRASY PUBLICZNE */}
           <Route path="/" element={<Home />} />
           <Route path="/projects" element={<Projects />} />
           <Route path="/projects/:id" element={<ProjectDetails />} />
-          
-          <Route path="/create-project" element={<CreateProject />} />
-          <Route path="/edit-project/:id" element={<EditProject />} />
-          <Route path="/my-projects" element={<MyProjects />} />
-          
-          <Route path="/profile/:id?" element={<Profile />} /> 
-          
-          <Route path="/chat" element={<Chat />} />
-          
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+
+          {/* TRASY CHRONIONE (Tylko dla zalogowanych) */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/create-project" element={<CreateProject />} />
+            <Route path="/edit-project/:id" element={<EditProject />} />
+            <Route path="/my-projects" element={<MyProjects />} />
+            <Route path="/profile/:id?" element={<Profile />} /> 
+            <Route path="/chat" element={<Chat />} />
+          </Route>
+
         </Routes>
       </div>
     </Router>
