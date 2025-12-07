@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { User, Mail, Github, Linkedin, Edit2, Save, GraduationCap, Loader2, ArrowLeft, TrendingUp, Send, CheckCircle } from 'lucide-react';
+import { User, Mail, Github, Linkedin, Edit2, Save, GraduationCap, Loader2, ArrowLeft, TrendingUp, Send, CheckCircle, Bookmark, Target } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import SkillSelector from '../components/SkillSelector';
@@ -19,6 +19,9 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   
+  // NOWE: Dostępne kategorie do wyboru
+  const [availableCategories, setAvailableCategories] = useState([]);
+
   const [profile, setProfile] = useState({
     full_name: "",
     university: "",
@@ -27,10 +30,10 @@ const Profile = () => {
     github_url: "",
     linkedin_url: "",
     skills: [],
+    preferred_categories: [], // NOWE POLE
     avatar_url: "",
   });
 
-  // NOWE: Stan na statystyki
   const [stats, setStats] = useState({
     created: 0,
     applied: 0,
@@ -38,6 +41,13 @@ const Profile = () => {
   });
 
   useEffect(() => {
+    // Pobierz listę wszystkich możliwych kategorii (tylko raz)
+    const fetchCats = async () => {
+      const { data } = await supabase.from('categories').select('name');
+      if (data) setAvailableCategories(data.map(c => c.name));
+    };
+    fetchCats();
+
     if (targetUserId) {
       fetchProfileData(targetUserId);
     }
@@ -47,7 +57,6 @@ const Profile = () => {
     try {
       setLoading(true);
       
-      // 1. Pobierz dane profilu
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -55,15 +64,19 @@ const Profile = () => {
         .single();
 
       if (profileError) throw profileError;
-      if (profileData) setProfile(profileData);
+      
+      // Upewniamy się, że preferred_categories to tablica (fallback)
+      if (profileData) {
+        setProfile({
+          ...profileData,
+          preferred_categories: profileData.preferred_categories || []
+        });
+      }
 
-      // 2. Pobierz statystyki (używając naszej funkcji RPC z bazy)
       const { data: statsData, error: statsError } = await supabase
         .rpc('get_user_stats', { target_user_id: userId });
 
-      if (statsError) {
-        console.error("Error fetching stats:", statsError);
-      } else if (statsData) {
+      if (!statsError && statsData) {
         setStats(statsData);
       }
       
@@ -75,14 +88,26 @@ const Profile = () => {
     }
   };
 
+  // Obsługa kliknięcia w kategorię (toggle)
+  const toggleCategory = (category) => {
+    setProfile(prev => {
+      const current = prev.preferred_categories || [];
+      if (current.includes(category)) {
+        return { ...prev, preferred_categories: current.filter(c => c !== category) };
+      } else {
+        return { ...prev, preferred_categories: [...current, category] };
+      }
+    });
+  };
+
   const validateLinks = () => {
     const { github_url, linkedin_url } = profile;
     if (github_url && !github_url.match(/^https:\/\/(www\.)?github\.com\/[\w-]+\/?/)) {
-      toast.error("Invalid GitHub URL", { description: "Link must look like: https://github.com/username" });
+      toast.error("Invalid GitHub URL");
       return false;
     }
     if (linkedin_url && !linkedin_url.match(/^https:\/\/(www\.)?linkedin\.com\/in\/[\w-]+\/?/)) {
-      toast.error("Invalid LinkedIn URL", { description: "Link must look like: https://linkedin.com/in/username" });
+      toast.error("Invalid LinkedIn URL");
       return false;
     }
     return true;
@@ -103,6 +128,7 @@ const Profile = () => {
           github_url: profile.github_url,
           linkedin_url: profile.linkedin_url,
           skills: profile.skills,
+          preferred_categories: profile.preferred_categories, // Zapisujemy preferencje
           avatar_url: profile.avatar_url,
           updated_at: new Date(),
         })
@@ -209,6 +235,48 @@ const Profile = () => {
               </div>
             )}
           </div>
+
+          {/* NOWE: SEKCJA PREFEROWANYCH KATEGORII */}
+          <div className="bg-surface border border-white/5 rounded-2xl p-8">
+            <div className="flex items-center gap-2 text-white font-semibold mb-6">
+              <Target size={20} className="text-primary" /> Preferred Project Types
+            </div>
+            <p className="text-sm text-textMuted mb-4">Select types of projects you are interested in. This helps us recommend the best teams for you.</p>
+            
+            <div className="flex flex-wrap gap-3">
+              {(isEditing && isOwner) ? (
+                // TRYB EDYCJI: Klikalne przyciski do wyboru
+                availableCategories.map(cat => {
+                  const isSelected = profile.preferred_categories?.includes(cat);
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => toggleCategory(cat)}
+                      className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
+                        isSelected 
+                          ? 'bg-secondary/20 border-secondary text-secondary shadow-[0_0_10px_rgba(139,92,246,0.2)]' 
+                          : 'bg-background border-white/10 text-gray-400 hover:text-white hover:border-white/30'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  );
+                })
+              ) : (
+                // TRYB PODGLĄDU: Tylko wyświetlanie wybranych
+                profile.preferred_categories && profile.preferred_categories.length > 0 ? (
+                  profile.preferred_categories.map(cat => (
+                    <span key={cat} className="px-4 py-2 rounded-xl bg-secondary/10 border border-secondary/20 text-secondary text-sm font-medium">
+                      {cat}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-textMuted italic">No preferences set.</span>
+                )
+              )}
+            </div>
+          </div>
+
         </div>
 
         {/* PRAWA STRONA */}
@@ -239,11 +307,9 @@ const Profile = () => {
             </div>
           </div>
 
-          {/* NOWE: STATYSTYKI */}
           <div className="bg-surface border border-white/5 rounded-2xl p-6">
             <h3 className="font-bold text-white mb-6">Activity</h3>
             <div className="space-y-6">
-              
               <div className="flex justify-between items-center group">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-primary/10 rounded-lg text-primary"><TrendingUp size={18} /></div>
@@ -251,7 +317,6 @@ const Profile = () => {
                 </div>
                 <span className="font-bold text-white text-lg">{stats.created}</span>
               </div>
-
               <div className="flex justify-between items-center group">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400"><Send size={18} /></div>
@@ -259,7 +324,6 @@ const Profile = () => {
                 </div>
                 <span className="font-bold text-white text-lg">{stats.applied}</span>
               </div>
-
               <div className="flex justify-between items-center group">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-green-500/10 rounded-lg text-green-400"><CheckCircle size={18} /></div>
@@ -267,7 +331,6 @@ const Profile = () => {
                 </div>
                 <span className="font-bold text-white text-lg">{stats.accepted}</span>
               </div>
-
             </div>
           </div>
         </div>

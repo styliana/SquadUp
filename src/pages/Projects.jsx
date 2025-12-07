@@ -14,9 +14,13 @@ const Projects = () => {
   // Dane
   const [projects, setProjects] = useState([]);
   const [categories, setCategories] = useState(['All']);
-  const [userSkills, setUserSkills] = useState([]);
   
-  // Stany
+  // NOWE: Dane użytkownika do rekomendacji
+  const [userProfile, setUserProfile] = useState({
+    skills: [],
+    preferred_categories: []
+  });
+  
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -35,18 +39,25 @@ const Projects = () => {
       if (catData) setCategories(['All', ...catData.map(c => c.name)]);
 
       if (user) {
+        // ZMIANA: Pobieramy teraz też preferred_categories
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('skills')
+          .select('skills, preferred_categories')
           .eq('id', user.id)
           .single();
-        if (profileData?.skills) setUserSkills(profileData.skills);
+        
+        if (profileData) {
+          setUserProfile({
+            skills: profileData.skills || [],
+            preferred_categories: profileData.preferred_categories || []
+          });
+        }
       }
     };
     fetchInitialData();
   }, [user]);
 
-  // 2. Główna funkcja pobierająca (ZAJEBISTA WERSJA)
+  // 2. Główna funkcja pobierająca
   const fetchProjects = useCallback(async (pageIndex, isReset = false) => {
     try {
       setLoading(true);
@@ -54,34 +65,25 @@ const Projects = () => {
 
       let query;
 
-      // --- LOGIKA WYSZUKIWANIA ---
+      // LOGIKA WYSZUKIWANIA (RPC)
       if (searchTerm) {
-        // Używamy naszej nowej funkcji SQL (RPC)
-        // Ona przeszukuje tytuł, opis I SKILLE (nawet fragmenty)
         query = supabase.rpc('search_projects', { keyword: searchTerm });
       } else {
-        // Standardowe pobieranie
         query = supabase.from('projects').select('*', { count: 'exact' });
       }
 
-      // --- FILTROWANIE (Łączymy RPC z resztą filtrów!) ---
-      
-      // Typ projektu
+      // FILTROWANIE
       if (selectedType !== 'All') {
         query = query.eq('type', selectedType);
       }
 
-      // Filtr Skilli (z Selectora)
       if (selectedSkills.length > 0) {
         query = query.contains('skills', selectedSkills);
       }
 
-      // Sortowanie i Paginacja
-      // Jeśli używamy RPC, sortowanie jest wewnątrz SQL, ale możemy nadpisać/doprecyzować tutaj
-      query = query
-        .range(pageIndex * PAGE_SIZE, (pageIndex + 1) * PAGE_SIZE - 1);
+      // SORTOWANIE I PAGINACJA
+      query = query.range(pageIndex * PAGE_SIZE, (pageIndex + 1) * PAGE_SIZE - 1);
 
-      // Jeśli nie ma search term, dodajemy sortowanie (dla RPC jest już w SQL, ale to nie zaszkodzi)
       if (!searchTerm) {
          query = query.order('created_at', { ascending: false });
       }
@@ -90,13 +92,25 @@ const Projects = () => {
 
       if (error) throw error;
 
-      // Logika rekomendacji (Client-side sort)
+      // --- LOGIKA REKOMENDACJI (ZAKTUALIZOWANA) ---
       let processedData = data || [];
-      if (showRecommended && userSkills.length > 0) {
+      if (showRecommended && (userProfile.skills.length > 0 || userProfile.preferred_categories.length > 0)) {
         processedData = processedData.map(p => {
-          const matchCount = p.skills?.filter(s => userSkills.includes(s)).length || 0;
-          return { ...p, matchScore: matchCount };
-        }).sort((a, b) => b.matchScore - a.matchScore);
+          let score = 0;
+          
+          // 1. Punkty za skille
+          const skillMatches = p.skills?.filter(s => userProfile.skills.includes(s)).length || 0;
+          score += skillMatches; // +1 za każdy skill
+
+          // 2. Punkty za kategorię (Bonus)
+          if (userProfile.preferred_categories.includes(p.type)) {
+            score += 2; // +2 za pasującą kategorię (waży więcej niż 1 skill, ale mniej niż 3)
+          }
+
+          return { ...p, matchScore: score };
+        })
+        // Sortuj malejąco po punktach
+        .sort((a, b) => b.matchScore - a.matchScore);
       }
 
       if (isReset) {
@@ -105,7 +119,6 @@ const Projects = () => {
         setProjects(prev => [...prev, ...processedData]);
       }
 
-      // Obsługa końca danych (dla RPC count może nie działać standardowo, więc sprawdzamy długość tablicy)
       if (data.length < PAGE_SIZE) {
         setHasMore(false);
       } else {
@@ -115,14 +128,14 @@ const Projects = () => {
     } catch (error) {
       console.error('Błąd:', error);
       if (error.code !== 'PX000' && error.name !== 'AbortError') {
-         // Cichy błąd, nie spamujemy toasta przy szybkim pisaniu
+         // Cichy błąd
       }
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, selectedType, selectedSkills, showRecommended, userSkills]);
+  }, [searchTerm, selectedType, selectedSkills, showRecommended, userProfile]); // Dodano userProfile do zależności
 
-  // 3. Debounce i reszta efektów
+  // 3. Efekty
   useEffect(() => {
     setPage(0);
     setHasMore(true);
@@ -145,6 +158,8 @@ const Projects = () => {
     setShowRecommended(false);
   };
 
+  const hasPreferences = userProfile.skills.length > 0 || userProfile.preferred_categories.length > 0;
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       
@@ -160,7 +175,6 @@ const Projects = () => {
         {/* --- KONSOLA STEROWANIA --- */}
         <div className="bg-surface border border-white/5 p-6 rounded-2xl shadow-xl space-y-6">
           
-          {/* SEARCH BAR & TYPE FILTER */}
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-grow group">
               <div className={`absolute inset-0 bg-primary/20 rounded-xl blur-md transition-opacity ${searchTerm ? 'opacity-100' : 'opacity-0'}`}></div>
@@ -198,7 +212,6 @@ const Projects = () => {
             </div>
           </div>
 
-          {/* ADVANCED FILTERS */}
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <div 
@@ -229,7 +242,7 @@ const Projects = () => {
               )}
             </div>
 
-            {user && userSkills.length > 0 && (
+            {user && hasPreferences && (
               <button
                 onClick={() => setShowRecommended(!showRecommended)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${
@@ -244,7 +257,6 @@ const Projects = () => {
             )}
           </div>
 
-          {/* STATUS BAR */}
           {(searchTerm || selectedType !== 'All' || selectedSkills.length > 0 || showRecommended) && (
             <div className="flex justify-between items-center text-xs text-textMuted border-t border-white/5 pt-4">
               <span className="italic">
@@ -262,7 +274,6 @@ const Projects = () => {
         </div>
       </div>
 
-      {/* WYNIKI */}
       {loading && projects.length === 0 ? (
         <div className="flex justify-center py-20 text-primary">
           <Loader2 size={40} className="animate-spin" />
@@ -293,7 +304,6 @@ const Projects = () => {
                   membersCurrent: project.members_current,
                   membersMax: project.members_max
                 }}
-                // Opcjonalnie: Przekazujemy searchTerm do karty, żeby mogła podświetlić tekst (wymaga edycji ProjectCard, ale to detail)
               />
             ))}
           </div>
