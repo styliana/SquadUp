@@ -3,7 +3,6 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, Clock, User, MessageCircle, Send, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
-// IMPORTUJEMY NOWY KOMPONENT
 import UserAvatar from '../components/UserAvatar'; 
 import { toast } from 'sonner';
 
@@ -27,7 +26,6 @@ const ProjectDetails = () => {
   const fetchProjectDetails = async () => {
     try {
       setLoading(true);
-      // 1. Pobierz Projekt
       const { data: projectData, error } = await supabase
         .from('projects')
         .select('*')
@@ -37,7 +35,6 @@ const ProjectDetails = () => {
       if (error) throw error;
       setProject(projectData);
 
-      // 2. Pobierz Profil Autora (Lidera) na podstawie author_id z projektu
       if (projectData.author_id) {
         const { data: profileData } = await supabase
           .from('profiles')
@@ -99,6 +96,27 @@ const ProjectDetails = () => {
       setHasApplied(true);
       toast.success("Application sent successfully!");
     }
+  };
+
+  // NOWE: Funkcja rozpoczynająca czat z liderem
+  const handleSendMessage = () => {
+    if (!user) {
+      toast.error("Please log in to send a message.");
+      navigate('/login');
+      return;
+    }
+    
+    // Przekieruj do czatu i przekaż dane lidera w stanie (state)
+    // Dzięki temu Chat.jsx będzie wiedział, kogo wybrać na starcie
+    navigate('/chat', { 
+      state: { 
+        startChatWith: authorProfile || { 
+          id: project.author_id, 
+          full_name: project.author, 
+          email: 'Leader' // Fallback
+        } 
+      } 
+    });
   };
 
   if (loading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-primary" size={40} /></div>;
@@ -165,30 +183,41 @@ const ProjectDetails = () => {
           
           <div className="bg-surface border border-white/5 rounded-2xl p-6">
             <h3 className="text-lg font-bold text-white mb-4">Team Leader</h3>
-            <div className="flex items-center gap-4 mb-6">
-              
-              {/* UŻYWAMY NASZEGO NOWEGO KOMPONENTU */}
-              <UserAvatar 
-                avatarUrl={authorProfile?.avatar_url} 
-                name={authorProfile?.full_name || project.author} 
-                className="w-14 h-14" 
-                textSize="text-xl"
-              />
-              
-              <div>
-                {/* Wyświetlamy imię z profilu (jeśli jest), a jak nie to z projektu */}
-                <div className="font-bold text-white text-lg">
-                  {authorProfile?.full_name || project.author}
+            
+            {/* LINK DO PROFILU LIDERA */}
+            {project.author_id ? (
+              <Link to={`/profile/${project.author_id}`} className="flex items-center gap-4 mb-6 hover:bg-white/5 p-2 rounded-xl transition-colors cursor-pointer group">
+                <UserAvatar 
+                  avatarUrl={authorProfile?.avatar_url} 
+                  name={authorProfile?.full_name || project.author} 
+                  className="w-14 h-14" 
+                  textSize="text-xl"
+                />
+                <div className="min-w-0">
+                  <div className="font-bold text-white text-lg truncate group-hover:text-primary transition-colors">
+                    {authorProfile?.full_name || project.author}
+                  </div>
+                  <div className="text-sm text-textMuted">{project.role}</div>
+                  {authorProfile?.university && (
+                    <div className="text-xs text-primary mt-0.5 truncate">{authorProfile.university}</div>
+                  )}
                 </div>
-                <div className="text-sm text-textMuted">{project.role}</div>
-                {authorProfile?.university && (
-                  <div className="text-xs text-primary mt-0.5">{authorProfile.university}</div>
-                )}
+              </Link>
+            ) : (
+              <div className="flex items-center gap-4 mb-6 p-2">
+                 <UserAvatar name={project.author} className="w-14 h-14" textSize="text-xl" />
+                 <div>
+                    <div className="font-bold text-white text-lg">{project.author}</div>
+                    <div className="text-sm text-textMuted">{project.role}</div>
+                 </div>
               </div>
-            </div>
+            )}
             
             {!isAuthor && (
-              <button className="w-full py-3 rounded-xl border border-white/10 text-white font-medium hover:bg-white/5 transition-all flex items-center justify-center gap-2">
+              <button 
+                onClick={handleSendMessage} // PODPIĘTA FUNKCJA
+                className="w-full py-3 rounded-xl border border-white/10 text-white font-medium hover:bg-white/5 transition-all flex items-center justify-center gap-2"
+              >
                 <MessageCircle size={18} />
                 Send Message
               </button>

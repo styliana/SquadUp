@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Send, User, MoreHorizontal } from 'lucide-react'; // Dodałem ikonkę kropek
+import { useLocation } from 'react-router-dom';
+import { Search, Send, MoreHorizontal } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 
 const Chat = () => {
   const { user } = useAuth();
+  const location = useLocation();
   
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -12,12 +14,11 @@ const Chat = () => {
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   
-  // NOWE: Stan dla wskaźnika "ktoś pisze"
   const [isTyping, setIsTyping] = useState(false);
-  const typingTimeoutRef = useRef(null); // Do czyszczenia timera
+  const typingTimeoutRef = useRef(null);
   
   const messagesEndRef = useRef(null);
-  const channelRef = useRef(null); // Przechowujemy referencję do kanału, żeby do niego wysyłać
+  const channelRef = useRef(null);
 
   // 1. POBIERZ LISTĘ USERÓW
   useEffect(() => {
@@ -28,22 +29,29 @@ const Chat = () => {
         .neq('id', user.id); 
 
       if (error) console.error(error);
-      else setUsers(data);
+      else setUsers(data || []);
       setLoading(false);
     };
 
     if (user) fetchUsers();
   }, [user]);
 
-  // 2. SUBSKRYPCJA DO KANAŁU ROZMOWY
+  // OBSŁUGA ROZPOCZĘCIA CZATU Z INNEJ STRONY
+  useEffect(() => {
+    if (location.state?.startChatWith) {
+      setSelectedUser(location.state.startChatWith);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
+  // 2. SUBSKRYPCJA I OZNACZANIE JAKO PRZECZYTANE
   useEffect(() => {
     if (!selectedUser) return;
 
-    // Reset stanów przy zmianie usera
     setMessages([]);
     setIsTyping(false);
 
-    // A. Pobierz historię z bazy
+    // A. Pobierz wiadomości
     const fetchMessages = async () => {
       const { data, error } = await supabase
         .from('messages')
@@ -53,37 +61,50 @@ const Chat = () => {
 
       if (error) console.error(error);
       else setMessages(data);
+
+      // B. Oznacz jako przeczytane (Gdy otwieramy czat)
+      if (data && data.length > 0) {
+        const unreadIds = data
+          .filter(m => m.receiver_id === user.id && !m.is_read)
+          .map(m => m.id);
+        
+        if (unreadIds.length > 0) {
+          await supabase
+            .from('messages')
+            .update({ is_read: true })
+            .in('id', unreadIds);
+        }
+      }
     };
     fetchMessages();
 
-    // B. Ustal wspólne ID pokoju (sortujemy ID, żeby userA i userB mieli to samo roomID)
+    // C. Realtime
     const roomId = [user.id, selectedUser.id].sort().join('_');
-
-    // C. Subskrypcja (DB Changes + Broadcast)
     const channel = supabase.channel(`room_${roomId}`)
-      // Słuchaj nowych wiadomości w bazie
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
-          filter: `receiver_id=eq.${user.id}`, // Tylko wiadomości do mnie
+          filter: `receiver_id=eq.${user.id}`,
         },
-        (payload) => {
+        async (payload) => {
           if (payload.new.sender_id === selectedUser.id) {
             setMessages((prev) => [...prev, payload.new]);
-            setIsTyping(false); // Jak przyszła wiadomość, to przestał pisać
+            setIsTyping(false);
+            
+            // Oznacz nową wiadomość jako przeczytaną od razu, bo jesteśmy w tym czacie
+            await supabase
+              .from('messages')
+              .update({ is_read: true })
+              .eq('id', payload.new.id);
           }
         }
       )
-      // NOWE: Słuchaj sygnału "typing"
       .on('broadcast', { event: 'typing' }, (payload) => {
-        // Sprawdź czy to ten user pisze (zabezpieczenie)
         if (payload.payload.sender_id === selectedUser.id) {
           setIsTyping(true);
-          
-          // Ukryj wskaźnik po 3 sekundach braku aktywności
           if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
           typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 3000);
         }
@@ -100,9 +121,8 @@ const Chat = () => {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isTyping]); // Scrolluj też jak pojawi się wskaźnik pisania
+  }, [messages, isTyping]);
 
-  // 3. WYSYŁANIE WIADOMOŚCI
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedUser) return;
@@ -110,13 +130,13 @@ const Chat = () => {
     const msgContent = newMessage;
     setNewMessage("");
 
-    // Optymistyczne UI
     setMessages((prev) => [...prev, {
       id: Date.now(),
       sender_id: user.id,
       receiver_id: selectedUser.id,
       content: msgContent,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      is_read: false // Własne wiadomości są domyślnie nieprzeczytane przez drugą stronę
     }]);
 
     const { error } = await supabase.from('messages').insert([{
@@ -128,11 +148,8 @@ const Chat = () => {
     if (error) console.error(error);
   };
 
-  // NOWE: Obsługa wpisywania tekstu (Wysyłanie sygnału)
   const handleInputChange = (e) => {
     setNewMessage(e.target.value);
-
-    // Wyślij sygnał tylko jeśli mamy aktywny kanał
     if (channelRef.current) {
       channelRef.current.send({
         type: 'broadcast',
@@ -140,6 +157,22 @@ const Chat = () => {
         payload: { sender_id: user.id }
       });
     }
+  };
+
+  // POMOCNICZA FUNKCJA FORMATOWANIA DATY
+  const formatMessageDate = (dateString) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const isToday = date.toDateString() === today.toDateString();
+    
+    // Format godziny (np. 14:30)
+    const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    // Jeśli dzisiaj -> tylko godzina
+    if (isToday) return time;
+    
+    // Jeśli inny dzień -> Data + Godzina (np. 12 Oct 14:30)
+    return `${date.toLocaleDateString([], { day: 'numeric', month: 'short' })} ${time}`;
   };
 
   return (
@@ -186,7 +219,7 @@ const Chat = () => {
           <div className="h-16 border-b border-white/10 flex items-center gap-3 px-6 bg-surface/30 shrink-0">
             <button onClick={() => setSelectedUser(null)} className="md:hidden text-textMuted mr-2">←</button>
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold uppercase">
-              {selectedUser.email.charAt(0)}
+              {selectedUser.email ? selectedUser.email.charAt(0) : '?'}
             </div>
             <div>
               <h3 className="font-bold text-white">{selectedUser.full_name || selectedUser.email}</h3>
@@ -206,15 +239,19 @@ const Chat = () => {
                     isMe ? 'bg-gradient-to-r from-primary to-blue-600 text-white rounded-br-none' : 'bg-surface border border-white/10 text-gray-200 rounded-bl-none'
                   }`}>
                     <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-                    <div className={`text-[10px] mt-1 text-right ${isMe ? 'text-blue-100' : 'text-gray-500'}`}>
-                      {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    
+                    {/* NOWE: Wyświetlanie daty i godziny */}
+                    <div className={`text-[10px] mt-1 text-right flex items-center justify-end gap-1 ${isMe ? 'text-blue-100' : 'text-gray-500'}`}>
+                      <span>{formatMessageDate(msg.created_at)}</span>
+                      {isMe && (
+                         <span>{msg.is_read ? '✓✓' : '✓'}</span> // Opcjonalnie: status przeczytania
+                      )}
                     </div>
                   </div>
                 </div>
               );
             })}
             
-            {/* NOWE: Wskaźnik "Ktoś pisze..." */}
             {isTyping && (
               <div className="flex justify-start animate-fade-in">
                 <div className="bg-surface border border-white/10 rounded-2xl p-4 rounded-bl-none flex items-center gap-1">
@@ -233,7 +270,7 @@ const Chat = () => {
               <input 
                 type="text" 
                 value={newMessage}
-                onChange={handleInputChange} // ZMIANA: używamy nowej funkcji
+                onChange={handleInputChange} 
                 placeholder="Type a message..." 
                 className="flex-1 bg-surface border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary transition-colors"
               />
