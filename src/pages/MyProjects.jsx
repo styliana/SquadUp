@@ -4,6 +4,17 @@ import { useAuth } from '../context/AuthContext';
 import { Loader2, Briefcase, MessageCircle, User, Check, X, Trash2, Edit2, Clock, Eye, AlertCircle, Sparkles } from 'lucide-react'; 
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import UserAvatar from '../components/UserAvatar'; // Upewnij się, że masz ten import
+
+// Komponent pomocniczy do statusów (wyniesiony na zewnątrz dla bezpieczeństwa)
+const StatusBadge = ({ status }) => {
+  const styles = {
+    pending: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20 shadow-[0_0_10px_rgba(234,179,8,0.1)]",
+    accepted: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_10px_rgba(52,211,153,0.1)]",
+    rejected: "bg-red-500/10 text-red-400 border-red-500/20 shadow-[0_0_10px_rgba(248,113,113,0.1)]"
+  };
+  return <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${styles[status] || styles.pending}`}>{status}</span>;
+};
 
 const MyProjects = () => {
   const { user } = useAuth();
@@ -21,7 +32,7 @@ const MyProjects = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // 1. Projekty stworzone (z aplikacjami)
+      // 1. Projekty stworzone przez usera (z aplikacjami)
       const { data: myProjects, error: err1 } = await supabase
         .from('projects')
         .select(`
@@ -37,7 +48,7 @@ const MyProjects = () => {
       if (err1) throw err1;
       setCreatedProjects(myProjects || []);
 
-      // 2. Aplikacje wysłane
+      // 2. Aplikacje wysłane przez usera
       const { data: myApplications, error: err2 } = await supabase
         .from('applications')
         .select('*, projects!project_id(*)')
@@ -55,7 +66,6 @@ const MyProjects = () => {
     }
   };
 
-  // --- DELETE PROJECT ---
   const handleDeleteProject = async (projectId) => {
     if (!window.confirm("Are you sure? This will delete the project and all applications.")) return;
     try {
@@ -69,9 +79,7 @@ const MyProjects = () => {
     }
   };
 
-  // --- WITHDRAW APPLICATION ---
   const handleWithdrawApplication = async (applicationId) => {
-    // Używamy toasta z akcją zamiast brzydkiego window.confirm
     toast("Are you sure?", {
       action: {
         label: "Yes, Withdraw",
@@ -89,43 +97,61 @@ const MyProjects = () => {
     });
   };
 
-  // --- MANAGE STATUS ---
+  // --- LOGIKA ZAMYKANIA ZESPOŁU (RPC) ---
   const handleStatusChange = async (applicationId, projectId, newStatus) => {
     try {
-      const { error } = await supabase
-        .from('applications')
-        .update({ status: newStatus })
-        .eq('id', applicationId);
-      if (error) throw error;
+      let resultStatus = 'OPEN';
 
+      if (newStatus === 'accepted') {
+        // Używamy RPC tylko przy akceptacji
+        const { data, error } = await supabase
+          .rpc('approve_candidate', { 
+            app_id: applicationId, 
+            proj_id: projectId 
+          });
+        
+        if (error) throw error;
+        resultStatus = data; // 'FULL' lub 'OPEN'
+      } else {
+        const { error } = await supabase
+          .from('applications')
+          .update({ status: newStatus })
+          .eq('id', applicationId);
+        if (error) throw error;
+      }
+
+      // Aktualizacja stanu lokalnego
       setCreatedProjects(prev => prev.map(project => {
         if (project.id !== projectId) return project;
+        
+        const updatedApps = project.applications?.map(app => 
+          app.id === applicationId ? { ...app, status: newStatus } : app
+        ) || [];
+
+        // Jeśli RPC zwróciło FULL, zamykamy projekt w UI
+        const updatedStatus = resultStatus === 'FULL' ? 'closed' : project.status;
+        const updatedMembers = newStatus === 'accepted' ? (project.members_current || 0) + 1 : project.members_current;
+
         return {
           ...project,
-          applications: project.applications.map(app => 
-            app.id === applicationId ? { ...app, status: newStatus } : app
-          )
+          status: updatedStatus,
+          members_current: updatedMembers,
+          applications: updatedApps
         };
       }));
-      toast.success(`Application ${newStatus}!`);
+
+      // Powiadomienie
+      if (resultStatus === 'FULL') {
+        toast.success("Team complete! Project closed.");
+        // Opcjonalnie: notifyTeamComplete(projectId);
+      } else {
+        toast.success(`Application ${newStatus}!`);
+      }
+
     } catch (error) {
+      console.error(error);
       toast.error("Action failed.");
     }
-  };
-
-  // --- POMOCNICZE UI: STATUS BADGE ---
-  const StatusBadge = ({ status }) => {
-    const styles = {
-      pending: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20 shadow-[0_0_10px_rgba(234,179,8,0.1)]",
-      accepted: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_10px_rgba(52,211,153,0.1)]",
-      rejected: "bg-red-500/10 text-red-400 border-red-500/20 shadow-[0_0_10px_rgba(248,113,113,0.1)]"
-    };
-    
-    return (
-      <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${styles[status] || styles.pending}`}>
-        {status}
-      </span>
-    );
   };
 
   if (loading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-primary" size={40} /></div>;
@@ -171,14 +197,14 @@ const MyProjects = () => {
             <div className="text-center py-24 bg-surface/30 rounded-3xl border border-dashed border-white/10">
               <Sparkles className="mx-auto text-primary mb-4 opacity-50" size={48} />
               <p className="text-xl text-white font-semibold mb-2">No projects yet</p>
-              <p className="text-textMuted mb-6">Start your journey by creating your first dream team.</p>
-              <Link to="/create-project" className="px-6 py-3 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-colors">
+              <Link to="/create-project" className="px-6 py-3 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-colors inline-block">
                 Create Project
               </Link>
             </div>
           ) : (
             createdProjects.map(project => (
-              <div key={project.id} className="bg-surface border border-white/5 rounded-2xl overflow-hidden shadow-xl">
+              <div key={project.id} className={`bg-surface border border-white/5 rounded-2xl overflow-hidden shadow-xl ${project.status === 'closed' ? 'opacity-75' : ''}`}>
+                
                 {/* Project Header */}
                 <div className="p-6 border-b border-white/5 bg-white/[0.02] flex flex-col md:flex-row justify-between items-start gap-4">
                   <div>
@@ -189,23 +215,28 @@ const MyProjects = () => {
                       <span className="px-2.5 py-0.5 rounded-md bg-white/5 border border-white/10 text-xs font-medium text-textMuted">
                         {project.type}
                       </span>
+                      {project.status === 'closed' && (
+                        <span className="px-2.5 py-0.5 rounded-md bg-green-500/20 border border-green-500/30 text-xs font-bold text-green-400 flex items-center gap-1">
+                          <Check size={12} /> TEAM FULL
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-4 text-sm text-textMuted">
                       <span className="flex items-center gap-1.5"><Clock size={14} /> Created: {new Date(project.created_at).toLocaleDateString()}</span>
-                      <span className="flex items-center gap-1.5"><User size={14} /> {project.applications.length} Candidates</span>
+                      <span className="flex items-center gap-1.5"><User size={14} /> {project.members_current}/{project.members_max} Members</span>
                     </div>
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    <Link to={`/projects/${project.id}`} className="p-2 text-textMuted hover:text-white hover:bg-white/5 rounded-lg transition-colors" title="View Public Page"><Eye size={20} /></Link>
-                    <button onClick={() => navigate(`/edit-project/${project.id}`)} className="p-2 text-textMuted hover:text-primary hover:bg-primary/10 rounded-lg transition-colors" title="Edit Project"><Edit2 size={20} /></button>
-                    <button onClick={() => handleDeleteProject(project.id)} className="p-2 text-textMuted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors" title="Delete Project"><Trash2 size={20} /></button>
+                    <Link to={`/projects/${project.id}`} className="p-2 text-textMuted hover:text-white hover:bg-white/5 rounded-lg transition-colors"><Eye size={20} /></Link>
+                    <button onClick={() => navigate(`/edit-project/${project.id}`)} className="p-2 text-textMuted hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"><Edit2 size={20} /></button>
+                    <button onClick={() => handleDeleteProject(project.id)} className="p-2 text-textMuted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"><Trash2 size={20} /></button>
                   </div>
                 </div>
 
                 {/* Candidates List */}
                 <div className="p-6 bg-[#161b22]">
-                  {project.applications.length === 0 ? (
+                  {(!project.applications || project.applications.length === 0) ? (
                     <div className="flex flex-col items-center justify-center py-8 text-textMuted opacity-60">
                       <User size={32} className="mb-2" />
                       <p>Waiting for candidates...</p>
@@ -218,13 +249,12 @@ const MyProjects = () => {
                           {/* Candidate Info */}
                           <div className="flex items-center gap-4 flex-grow w-full md:w-auto">
                             <div className="shrink-0 cursor-pointer" onClick={() => navigate(`/profile/${app.profiles?.id}`)}>
-                              {app.profiles?.avatar_url ? (
-                                <img src={app.profiles.avatar_url} className="w-12 h-12 rounded-full object-cover border border-white/10" alt="User" />
-                              ) : (
-                                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-700 to-gray-600 flex items-center justify-center text-white font-bold text-lg uppercase">
-                                  {app.profiles?.full_name?.charAt(0) || '?'}
-                                </div>
-                              )}
+                              {/* Zabezpieczenie przed brakiem UserAvatar */}
+                              <UserAvatar 
+                                avatarUrl={app.profiles?.avatar_url} 
+                                name={app.profiles?.full_name} 
+                                className="w-12 h-12" 
+                              />
                             </div>
                             <div className="flex-grow min-w-0">
                               <div className="flex items-baseline gap-2">
@@ -256,7 +286,7 @@ const MyProjects = () => {
                             
                             <div className="w-px h-8 bg-white/5 mx-2 hidden md:block"></div>
                             
-                            <Link to="/chat" state={{ startChatWith: app.profiles }} className="p-2 text-textMuted hover:text-white hover:bg-white/5 rounded-lg transition-colors" title="Message">
+                            <Link to="/chat" state={{ startChatWith: app.profiles }} className="p-2 text-textMuted hover:text-white hover:bg-white/5 rounded-lg transition-colors">
                               <MessageCircle size={20} />
                             </Link>
                           </div>
@@ -271,7 +301,7 @@ const MyProjects = () => {
         </div>
       )}
       
-      {/* --- CONTENT: APPLICATIONS SENT (TO ZOSTAŁO PRZEBUDOWANE NAJBARDZIEJ) --- */}
+      {/* --- CONTENT: APPLICATIONS SENT --- */}
       {activeTab === 'applied' && (
         <div className="grid grid-cols-1 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {appliedProjects.length === 0 ? (
@@ -282,7 +312,7 @@ const MyProjects = () => {
             appliedProjects.map(app => (
               <div key={app.id} className="group bg-surface border border-white/5 rounded-2xl p-6 hover:border-primary/30 transition-all duration-300 shadow-lg relative overflow-hidden">
                 
-                {/* TŁO STATUSU (Delikatny pasek po lewej) */}
+                {/* TŁO STATUSU */}
                 <div className={`absolute left-0 top-0 bottom-0 w-1 ${
                   app.status === 'accepted' ? 'bg-emerald-500' : 
                   app.status === 'rejected' ? 'bg-red-500' : 'bg-yellow-500'
@@ -290,7 +320,6 @@ const MyProjects = () => {
 
                 <div className="flex flex-col md:flex-row justify-between items-start gap-6 pl-2">
                   
-                  {/* LEWA: Info o projekcie */}
                   <div className="flex-grow">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-xl font-bold text-white group-hover:text-primary transition-colors">
@@ -309,14 +338,12 @@ const MyProjects = () => {
                       </span>
                     </div>
 
-                    {/* TWOJA NOTATKA */}
                     <div className="relative pl-4 border-l-2 border-white/10">
                       <p className="text-xs font-bold text-textMuted uppercase mb-1">Your Application Note</p>
                       <p className="text-sm text-gray-300 italic">"{app.message}"</p>
                     </div>
                   </div>
 
-                  {/* PRAWA: Akcje */}
                   <div className="flex flex-col items-end gap-3 min-w-[140px]">
                     <Link 
                       to={`/projects/${app.project_id}`} 
@@ -330,7 +357,6 @@ const MyProjects = () => {
                       <button 
                         onClick={() => handleWithdrawApplication(app.id)}
                         className="w-full py-2 px-4 rounded-xl text-textMuted text-sm font-medium hover:text-red-400 hover:bg-red-500/10 transition-all flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 focus:opacity-100"
-                        title="Withdraw Application"
                       >
                         <Trash2 size={16} />
                         Withdraw

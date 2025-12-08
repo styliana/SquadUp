@@ -15,12 +15,13 @@ const Projects = () => {
   const [projects, setProjects] = useState([]);
   const [categories, setCategories] = useState(['All']);
   
-  // NOWE: Dane użytkownika do rekomendacji
+  // Dane profilu zalogowanego użytkownika (do rekomendacji)
   const [userProfile, setUserProfile] = useState({
     skills: [],
     preferred_categories: []
   });
   
+  // Stany UI
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -32,14 +33,15 @@ const Projects = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showRecommended, setShowRecommended] = useState(false);
 
-  // 1. Inicjalizacja
+  // 1. Inicjalizacja (Pobranie kategorii i profilu usera)
   useEffect(() => {
     const fetchInitialData = async () => {
+      // Kategorie
       const { data: catData } = await supabase.from('categories').select('name');
       if (catData) setCategories(['All', ...catData.map(c => c.name)]);
 
+      // Profil usera (Skille + Preferencje)
       if (user) {
-        // ZMIANA: Pobieramy teraz też preferred_categories
         const { data: profileData } = await supabase
           .from('profiles')
           .select('skills, preferred_categories')
@@ -57,7 +59,7 @@ const Projects = () => {
     fetchInitialData();
   }, [user]);
 
-  // 2. Główna funkcja pobierająca
+  // 2. Główna funkcja pobierająca projekty
   const fetchProjects = useCallback(async (pageIndex, isReset = false) => {
     try {
       setLoading(true);
@@ -65,14 +67,18 @@ const Projects = () => {
 
       let query;
 
-      // LOGIKA WYSZUKIWANIA (RPC)
+      // A. LOGIKA WYSZUKIWANIA (RPC vs Standard)
       if (searchTerm) {
+        // Używamy funkcji SQL do przeszukiwania tytułu, opisu i tagów
         query = supabase.rpc('search_projects', { keyword: searchTerm });
       } else {
         query = supabase.from('projects').select('*', { count: 'exact' });
       }
 
-      // FILTROWANIE
+      // B. FILTR STATUSU (Tylko otwarte projekty - poziom bazy danych)
+      query = query.eq('status', 'open');
+
+      // C. FILTROWANIE POZOSTAŁE
       if (selectedType !== 'All') {
         query = query.eq('type', selectedType);
       }
@@ -81,7 +87,7 @@ const Projects = () => {
         query = query.contains('skills', selectedSkills);
       }
 
-      // SORTOWANIE I PAGINACJA
+      // D. SORTOWANIE I PAGINACJA
       query = query.range(pageIndex * PAGE_SIZE, (pageIndex + 1) * PAGE_SIZE - 1);
 
       if (!searchTerm) {
@@ -92,33 +98,39 @@ const Projects = () => {
 
       if (error) throw error;
 
-      // --- LOGIKA REKOMENDACJI (ZAKTUALIZOWANA) ---
-      let processedData = data || [];
-      if (showRecommended && (userProfile.skills.length > 0 || userProfile.preferred_categories.length > 0)) {
-        processedData = processedData.map(p => {
+      // --- E. PODWÓJNE ZABEZPIECZENIE (Filtr Frontendowy) ---
+      // Nawet jeśli baza zwróci projekt jako 'open', ukrywamy go, jeśli jest pełny.
+      let filteredData = (data || []).filter(p => p.members_current < p.members_max);
+
+      // F. LOGIKA REKOMENDACJI (Client-side Sorting)
+      const hasPreferences = userProfile.skills.length > 0 || userProfile.preferred_categories.length > 0;
+
+      if (showRecommended && hasPreferences) {
+        filteredData = filteredData.map(p => {
           let score = 0;
           
-          // 1. Punkty za skille
+          // 1. Punkty za pasujące skille (+1)
           const skillMatches = p.skills?.filter(s => userProfile.skills.includes(s)).length || 0;
-          score += skillMatches; // +1 za każdy skill
+          score += skillMatches; 
 
-          // 2. Punkty za kategorię (Bonus)
+          // 2. Punkty za pasującą kategorię (+2)
           if (userProfile.preferred_categories.includes(p.type)) {
-            score += 2; // +2 za pasującą kategorię (waży więcej niż 1 skill, ale mniej niż 3)
+            score += 2;
           }
 
           return { ...p, matchScore: score };
         })
-        // Sortuj malejąco po punktach
         .sort((a, b) => b.matchScore - a.matchScore);
       }
 
+      // G. AKTUALIZACJA STANU
       if (isReset) {
-        setProjects(processedData);
+        setProjects(filteredData);
       } else {
-        setProjects(prev => [...prev, ...processedData]);
+        setProjects(prev => [...prev, ...filteredData]);
       }
 
+      // Sprawdzenie czy jest więcej danych
       if (data.length < PAGE_SIZE) {
         setHasMore(false);
       } else {
@@ -133,18 +145,21 @@ const Projects = () => {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, selectedType, selectedSkills, showRecommended, userProfile]); // Dodano userProfile do zależności
+  }, [searchTerm, selectedType, selectedSkills, showRecommended, userProfile]);
 
-  // 3. Efekty
+  // 3. Efekty - wywoływanie pobierania przy zmianie filtrów
   useEffect(() => {
     setPage(0);
     setHasMore(true);
+    
     const timeoutId = setTimeout(() => {
       fetchProjects(0, true);
     }, 300);
+    
     return () => clearTimeout(timeoutId);
   }, [searchTerm, selectedType, selectedSkills, showRecommended, fetchProjects]);
 
+  // 4. Obsługa przycisków
   const handleLoadMore = () => {
     const nextPage = page + 1;
     setPage(nextPage);
@@ -158,7 +173,7 @@ const Projects = () => {
     setShowRecommended(false);
   };
 
-  const hasPreferences = userProfile.skills.length > 0 || userProfile.preferred_categories.length > 0;
+  const hasUserPreferences = userProfile.skills.length > 0 || userProfile.preferred_categories.length > 0;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -176,6 +191,7 @@ const Projects = () => {
         <div className="bg-surface border border-white/5 p-6 rounded-2xl shadow-xl space-y-6">
           
           <div className="flex flex-col md:flex-row gap-4">
+            {/* Search Bar */}
             <div className="relative flex-grow group">
               <div className={`absolute inset-0 bg-primary/20 rounded-xl blur-md transition-opacity ${searchTerm ? 'opacity-100' : 'opacity-0'}`}></div>
               <div className="relative bg-background rounded-xl border border-white/10 flex items-center overflow-hidden focus-within:border-primary transition-colors">
@@ -195,6 +211,7 @@ const Projects = () => {
               </div>
             </div>
             
+            {/* Kategorie (Pigułki) */}
             <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
               {categories.map((filter) => (
                 <button 
@@ -213,6 +230,7 @@ const Projects = () => {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-4">
+            {/* Filtr Skilli */}
             <div>
               <div 
                 className="flex items-center gap-2 cursor-pointer w-fit select-none group" 
@@ -242,7 +260,8 @@ const Projects = () => {
               )}
             </div>
 
-            {user && hasPreferences && (
+            {/* Przycisk "For You" */}
+            {user && hasUserPreferences && (
               <button
                 onClick={() => setShowRecommended(!showRecommended)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${
@@ -257,6 +276,7 @@ const Projects = () => {
             )}
           </div>
 
+          {/* Status filtrów */}
           {(searchTerm || selectedType !== 'All' || selectedSkills.length > 0 || showRecommended) && (
             <div className="flex justify-between items-center text-xs text-textMuted border-t border-white/5 pt-4">
               <span className="italic">
@@ -274,6 +294,7 @@ const Projects = () => {
         </div>
       </div>
 
+      {/* WYNIKI */}
       {loading && projects.length === 0 ? (
         <div className="flex justify-center py-20 text-primary">
           <Loader2 size={40} className="animate-spin" />

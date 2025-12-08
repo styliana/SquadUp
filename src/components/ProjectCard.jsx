@@ -2,13 +2,20 @@ import { Calendar, Clock, User, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const ProjectCard = ({ project }) => {
-  const getTypeColor = (type) => {
-    switch (type) {
-      case 'Hackathon': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-      case 'Competition': return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
-      case 'Portfolio': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
-      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
-    }
+  
+  // Mapa kolorów dla różnych typów projektów
+  const typeColors = {
+    'Hackathon': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    'Competition': 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+    'Portfolio': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+    'Startup': 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+    'Research': 'bg-pink-500/20 text-pink-400 border-pink-500/30',
+    'Non-profit': 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+  };
+
+  // Funkcja bezpiecznie pobierająca kolor (fallback do szarego)
+  const getBadgeStyle = (type) => {
+    return typeColors[type] || 'bg-gray-500/20 text-gray-400 border-gray-500/30';
   };
 
   return (
@@ -16,7 +23,7 @@ const ProjectCard = ({ project }) => {
       
       {/* HEADER */}
       <div className="flex justify-between items-start mb-4">
-        <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getTypeColor(project.type)}`}>
+        <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getBadgeStyle(project.type)}`}>
           {project.type}
         </span>
         <div className="flex items-center gap-2 text-textMuted text-sm">
@@ -26,7 +33,7 @@ const ProjectCard = ({ project }) => {
       </div>
 
       {/* TEXT */}
-      <h3 className="text-xl font-bold text-white mb-3 group-hover:text-primary transition-colors">
+      <h3 className="text-xl font-bold text-white mb-3 group-hover:text-primary transition-colors line-clamp-1">
         {project.title}
       </h3>
       <p className="text-textMuted text-sm leading-relaxed mb-6 line-clamp-3 flex-grow">
@@ -35,11 +42,16 @@ const ProjectCard = ({ project }) => {
 
       {/* TAGS */}
       <div className="flex flex-wrap gap-2 mb-6">
-        {project.tags.map((tag) => (
+        {project.tags.slice(0, 4).map((tag) => ( // Pokazujemy max 4 tagi żeby nie rozjeżdżało karty
           <span key={tag} className="px-2.5 py-1 rounded-md bg-background border border-white/10 text-xs text-gray-300">
             {tag}
           </span>
         ))}
+        {project.tags.length > 4 && (
+          <span className="px-2.5 py-1 rounded-md bg-background border border-white/10 text-xs text-gray-500">
+            +{project.tags.length - 4}
+          </span>
+        )}
       </div>
 
       {/* FOOTER */}
@@ -49,7 +61,7 @@ const ProjectCard = ({ project }) => {
           <span>{project.deadline}</span>
         </div>
         
-        {/* BUTTON - TERAZ JEST LINKIEM */}
+        {/* BUTTON */}
         <Link to={`/projects/${project.id}`} className="flex items-center gap-2 text-white font-medium text-sm group/btn cursor-pointer hover:text-primary transition-colors">
            Details
            <ArrowRight size={16} className="group-hover/btn:translate-x-1 transition-transform" />
