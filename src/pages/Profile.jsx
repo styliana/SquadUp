@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { User, Mail, Github, Linkedin, Edit2, Save, GraduationCap, Loader2, ArrowLeft, TrendingUp, Send, CheckCircle, Bookmark, Target } from 'lucide-react';
+import { User, Mail, Github, Linkedin, Edit2, Save, GraduationCap, Loader2, ArrowLeft, TrendingUp, Send, CheckCircle, Target, AlertTriangle, Trash2, X } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import SkillSelector from '../components/SkillSelector';
@@ -8,7 +8,7 @@ import AvatarUpload from '../components/AvatarUpload';
 import { toast } from 'sonner';
 
 const Profile = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { id: urlUserId } = useParams();
   const navigate = useNavigate(); 
 
@@ -19,7 +19,10 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   
-  // NOWE: Dostępne kategorie do wyboru
+  // NOWE: Stany do obsługi modala usuwania
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  
   const [availableCategories, setAvailableCategories] = useState([]);
 
   const [profile, setProfile] = useState({
@@ -30,7 +33,7 @@ const Profile = () => {
     github_url: "",
     linkedin_url: "",
     skills: [],
-    preferred_categories: [], // NOWE POLE
+    preferred_categories: [],
     avatar_url: "",
   });
 
@@ -41,7 +44,6 @@ const Profile = () => {
   });
 
   useEffect(() => {
-    // Pobierz listę wszystkich możliwych kategorii (tylko raz)
     const fetchCats = async () => {
       const { data } = await supabase.from('categories').select('name');
       if (data) setAvailableCategories(data.map(c => c.name));
@@ -65,7 +67,6 @@ const Profile = () => {
 
       if (profileError) throw profileError;
       
-      // Upewniamy się, że preferred_categories to tablica (fallback)
       if (profileData) {
         setProfile({
           ...profileData,
@@ -88,7 +89,6 @@ const Profile = () => {
     }
   };
 
-  // Obsługa kliknięcia w kategorię (toggle)
   const toggleCategory = (category) => {
     setProfile(prev => {
       const current = prev.preferred_categories || [];
@@ -128,7 +128,7 @@ const Profile = () => {
           github_url: profile.github_url,
           linkedin_url: profile.linkedin_url,
           skills: profile.skills,
-          preferred_categories: profile.preferred_categories, // Zapisujemy preferencje
+          preferred_categories: profile.preferred_categories,
           avatar_url: profile.avatar_url,
           updated_at: new Date(),
         })
@@ -144,12 +144,39 @@ const Profile = () => {
       setIsSaving(false);
     }
   };
+
+  // --- LOGIKA USUWANIA KONTA (Z MODALEM) ---
+  
+  const handleDeleteClick = () => {
+    setDeleteConfirmation('');
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteAccount = async () => {
+    if (deleteConfirmation !== 'DELETE') return;
+
+    try {
+      setLoading(true);
+      const { error } = await supabase.rpc('delete_user_account');
+      
+      if (error) throw error;
+
+      setIsDeleteModalOpen(false);
+      toast.success("Account deleted. Goodbye! 👋");
+      await signOut();
+      navigate('/');
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to delete account.", { description: error.message });
+      setLoading(false);
+    }
+  };
   
   if (!user && !urlUserId) return <div className="text-center text-textMuted p-20">Please log in to view your profile.</div>;
-  if (loading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-primary" size={40} /></div>;
+  if (loading && !isDeleteModalOpen) return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-primary" size={40} /></div>;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 relative">
       
       {/* HEADER */}
       <div className="flex justify-between items-center mb-8">
@@ -236,47 +263,23 @@ const Profile = () => {
             )}
           </div>
 
-          {/* NOWE: SEKCJA PREFEROWANYCH KATEGORII */}
           <div className="bg-surface border border-white/5 rounded-2xl p-8">
             <div className="flex items-center gap-2 text-white font-semibold mb-6">
               <Target size={20} className="text-primary" /> Preferred Project Types
             </div>
-            <p className="text-sm text-textMuted mb-4">Select types of projects you are interested in. This helps us recommend the best teams for you.</p>
-            
+            <p className="text-sm text-textMuted mb-4">Select types of projects you are interested in.</p>
             <div className="flex flex-wrap gap-3">
               {(isEditing && isOwner) ? (
-                // TRYB EDYCJI: Klikalne przyciski do wyboru
-                availableCategories.map(cat => {
-                  const isSelected = profile.preferred_categories?.includes(cat);
-                  return (
-                    <button
-                      key={cat}
-                      onClick={() => toggleCategory(cat)}
-                      className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
-                        isSelected 
-                          ? 'bg-secondary/20 border-secondary text-secondary shadow-[0_0_10px_rgba(139,92,246,0.2)]' 
-                          : 'bg-background border-white/10 text-gray-400 hover:text-white hover:border-white/30'
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  );
-                })
+                availableCategories.map(cat => (
+                  <button key={cat} onClick={() => toggleCategory(cat)} className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${profile.preferred_categories?.includes(cat) ? 'bg-secondary/20 border-secondary text-secondary' : 'bg-background border-white/10 text-gray-400'}`}>
+                    {cat}
+                  </button>
+                ))
               ) : (
-                // TRYB PODGLĄDU: Tylko wyświetlanie wybranych
-                profile.preferred_categories && profile.preferred_categories.length > 0 ? (
-                  profile.preferred_categories.map(cat => (
-                    <span key={cat} className="px-4 py-2 rounded-xl bg-secondary/10 border border-secondary/20 text-secondary text-sm font-medium">
-                      {cat}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-textMuted italic">No preferences set.</span>
-                )
+                profile.preferred_categories?.map(cat => <span key={cat} className="px-4 py-2 rounded-xl bg-secondary/10 border border-secondary/20 text-secondary text-sm font-medium">{cat}</span>)
               )}
             </div>
           </div>
-
         </div>
 
         {/* PRAWA STRONA */}
@@ -311,31 +314,100 @@ const Profile = () => {
             <h3 className="font-bold text-white mb-6">Activity</h3>
             <div className="space-y-6">
               <div className="flex justify-between items-center group">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-lg text-primary"><TrendingUp size={18} /></div>
-                  <span className="text-gray-300 text-sm">Created Projects</span>
-                </div>
+                <div className="flex items-center gap-3"><div className="p-2 bg-primary/10 rounded-lg text-primary"><TrendingUp size={18} /></div><span className="text-gray-300 text-sm">Created Projects</span></div>
                 <span className="font-bold text-white text-lg">{stats.created}</span>
               </div>
               <div className="flex justify-between items-center group">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400"><Send size={18} /></div>
-                  <span className="text-gray-300 text-sm">Applications Sent</span>
-                </div>
+                <div className="flex items-center gap-3"><div className="p-2 bg-blue-500/10 rounded-lg text-blue-400"><Send size={18} /></div><span className="text-gray-300 text-sm">Applications Sent</span></div>
                 <span className="font-bold text-white text-lg">{stats.applied}</span>
               </div>
               <div className="flex justify-between items-center group">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-500/10 rounded-lg text-green-400"><CheckCircle size={18} /></div>
-                  <span className="text-gray-300 text-sm">Joined Teams</span>
-                </div>
+                <div className="flex items-center gap-3"><div className="p-2 bg-green-500/10 rounded-lg text-green-400"><CheckCircle size={18} /></div><span className="text-gray-300 text-sm">Joined Teams</span></div>
                 <span className="font-bold text-white text-lg">{stats.accepted}</span>
               </div>
             </div>
           </div>
-        </div>
 
+          {/* DANGER ZONE */}
+          {isOwner && (
+            <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-6 mt-8">
+              <h3 className="font-bold text-red-400 mb-2 flex items-center gap-2">
+                <AlertTriangle size={20} /> Danger Zone
+              </h3>
+              <p className="text-xs text-textMuted mb-4">
+                Deleting your account is permanent. All your data will be removed.
+              </p>
+              <button 
+                onClick={handleDeleteClick} // OTWIERA MODAL
+                className="w-full py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2"
+              >
+                <Trash2 size={16} /> Delete Account
+              </button>
+            </div>
+          )}
+
+        </div>
       </div>
+
+      {/* --- MODAL USUWANIA KONTA --- */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-surface border border-white/10 rounded-2xl max-w-md w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200 relative">
+            
+            <button 
+              onClick={() => setIsDeleteModalOpen(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="text-center mb-6">
+              <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500">
+                <AlertTriangle size={24} />
+              </div>
+              <h2 className="text-xl font-bold text-white mb-2">Delete Account</h2>
+              <p className="text-textMuted text-sm">
+                This action cannot be undone. This will permanently delete your account, projects, and messages.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-textMuted uppercase mb-1.5 block">
+                  Type <span className="text-white select-all">DELETE</span> to confirm
+                </label>
+                <input 
+                  type="text" 
+                  value={deleteConfirmation}
+                  onChange={(e) => setDeleteConfirmation(e.target.value)}
+                  className="w-full bg-background border border-white/10 rounded-xl py-3 px-4 text-white focus:border-red-500 focus:outline-none transition-colors placeholder:text-gray-600 text-center tracking-widest font-bold"
+                  placeholder="DELETE"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button 
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white font-medium rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={confirmDeleteAccount}
+                  disabled={deleteConfirmation !== 'DELETE' || loading}
+                  className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {loading ? <Loader2 className="animate-spin" size={18} /> : <Trash2 size={18} />}
+                  Delete
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
