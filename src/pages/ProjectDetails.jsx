@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Calendar, Clock, User, MessageCircle, Send, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, User, MessageCircle, Send, Loader2, CheckCircle, AlertCircle, Users } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import UserAvatar from '../components/UserAvatar'; 
 import { toast } from 'sonner';
-// IMPORT NOWEGO HOOKA
 import { useProjectDetails } from '../hooks/useProjectDetails';
+import { formatDate } from '../utils/formatDate';
 
 const ProjectDetails = () => {
   const { id } = useParams();
@@ -14,10 +14,10 @@ const ProjectDetails = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // UŻYCIE HOOKA - Zamiast useState/useEffect do pobierania
+  // Pobieranie danych z Hooka
   const { project, loading } = useProjectDetails(id);
 
-  // Pozostałe stany lokalne dla logiki aplikacji (Application Logic)
+  // Stan lokalny dla formularza aplikacji
   const [hasApplied, setHasApplied] = useState(false);
   const [applyLoading, setApplyLoading] = useState(false);
   const [applicationMessage, setApplicationMessage] = useState("");
@@ -25,7 +25,7 @@ const ProjectDetails = () => {
   const backPath = location.state?.from || '/projects';
   const backLabel = backPath === '/my-projects' ? 'Back to My Projects' : 'Back to projects';
 
-  // Sprawdzanie statusu aplikacji (to można w przyszłości też wydzielić do hooka)
+  // Sprawdzanie czy user już aplikował
   useEffect(() => {
     if (user && id) {
       checkApplicationStatus();
@@ -81,7 +81,6 @@ const ProjectDetails = () => {
       return;
     }
     
-    // project.profiles pochodzi teraz z naszego serwisu
     navigate('/chat', { 
       state: { 
         startChatWith: project.profiles || { 
@@ -98,7 +97,6 @@ const ProjectDetails = () => {
 
   const openSpots = project.members_max - project.members_current;
   const isAuthor = user && project.author_id === user.id;
-  // Wyciągamy dane autora z relacji (zwróconej przez serwis)
   const author = project.profiles; 
 
   return (
@@ -110,7 +108,7 @@ const ProjectDetails = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* LEWA STRONA */}
+        {/* LEWA STRONA - SZCZEGÓŁY */}
         <div className="lg:col-span-2">
           <div className="bg-surface border border-white/5 rounded-2xl p-8 mb-8">
             <div className="flex justify-between items-start mb-6">
@@ -148,15 +146,16 @@ const ProjectDetails = () => {
 
               <div className="flex gap-6 pt-6 border-t border-white/5 text-textMuted text-sm">
                 <div className="flex items-center gap-2"><Calendar size={16} /><span>Deadline: {project.deadline}</span></div>
-                <div className="flex items-center gap-2"><Clock size={16} /><span>Posted: {new Date(project.created_at).toLocaleDateString()}</span></div>
+                <div className="flex items-center gap-2"><Clock size={16} /><span>Posted: {formatDate(project.created_at)}</span></div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* PRAWA STRONA - LIDER I AKCJE */}
+        {/* PRAWA STRONA - LIDER, SQUAD, AKCJE */}
         <div className="space-y-6">
           
+          {/* TEAM LEADER CARD */}
           <div className="bg-surface border border-white/5 rounded-2xl p-6">
             <h3 className="text-lg font-bold text-white mb-4">Team Leader</h3>
             
@@ -199,13 +198,59 @@ const ProjectDetails = () => {
             )}
           </div>
 
+          {/* SQUAD & APPLICATION CARD */}
           <div className="bg-surface border border-white/5 rounded-2xl p-6">
             <h3 className="text-lg font-bold text-white mb-2">
               {openSpots > 0 ? `${openSpots} Open Spots` : 'Team Full'}
             </h3>
+
+            {/* --- THE SQUAD SECTION --- */}
+            <div className="mb-6 pt-4 border-t border-white/5">
+              <h4 className="text-sm font-semibold text-textMuted mb-3 flex items-center gap-2">
+                <Users size={16} /> The Squad
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {/* 1. Lider */}
+                <div className="relative group cursor-pointer" title="Leader">
+                  <UserAvatar 
+                    avatarUrl={author?.avatar_url} 
+                    name={author?.full_name} 
+                    className="w-10 h-10 border-2 border-primary" 
+                  />
+                  <span className="absolute -bottom-1 -right-1 bg-primary text-black text-[9px] font-bold px-1 rounded-full">L</span>
+                </div>
+
+                {/* 2. Zaakceptowani członkowie */}
+                {project.applications
+                  ?.filter(app => app.status === 'accepted')
+                  .map(app => (
+                    <Link 
+                      key={app.id} 
+                      to={`/profile/${app.profiles?.id}`}
+                      className="relative group transition-transform hover:scale-105"
+                      title={app.profiles?.full_name}
+                    >
+                      <UserAvatar 
+                        avatarUrl={app.profiles?.avatar_url} 
+                        name={app.profiles?.full_name} 
+                        className="w-10 h-10" 
+                      />
+                    </Link>
+                  ))
+                }
+
+                {/* 3. Puste sloty */}
+                {[...Array(Math.max(0, project.members_max - project.members_current))].map((_, i) => (
+                  <div key={i} className="w-10 h-10 rounded-full border border-dashed border-white/20 flex items-center justify-center text-white/20">
+                    <User size={16} />
+                  </div>
+                ))}
+              </div>
+            </div>
             
+            {/* ACTION BUTTONS */}
             {isAuthor ? (
-              <div className="mt-4 p-4 bg-primary/10 border border-primary/20 rounded-xl text-primary text-sm flex items-start gap-3">
+              <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl text-primary text-sm flex items-start gap-3">
                 <AlertCircle size={20} className="shrink-0 mt-0.5" />
                 <div>
                   <strong>Your Project</strong><br/>

@@ -1,19 +1,16 @@
 import { useState, useEffect } from 'react';
 import { getProjectById } from '../services/projectService';
 import { toast } from 'sonner';
+import useThrowAsyncError from './useThrowAsyncError';
 
-/**
- * Hook do pobierania i zarządzania stanem szczegółów projektu.
- * * @param {string} projectId - ID projektu do pobrania
- * @returns {Object} - { project, loading, error }
- */
 export const useProjectDetails = (projectId) => {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  
+  // Most do Error Boundary
+  const throwAsyncError = useThrowAsyncError();
 
   useEffect(() => {
-    // Jeśli nie ma ID, nie próbuj pobierać
     if (!projectId) return;
 
     const fetchProject = async () => {
@@ -22,16 +19,16 @@ export const useProjectDetails = (projectId) => {
         const data = await getProjectById(projectId);
         setProject(data);
       } catch (err) {
-        console.error("Błąd w useProjectDetails:", err);
-        setError(err);
-        toast.error("Project not found.");
+        console.error("Error in useProjectDetails:", err);
+        // Przekazujemy błąd krytyczny do globalnego Error Boundary
+        throwAsyncError(err);
       } finally {
         setLoading(false);
       }
     };
 
     fetchProject();
-  }, [projectId]);
+  }, [projectId]); // throwAsyncError jest stabilne
 
-  return { project, loading, error };
+  return { project, loading };
 };
