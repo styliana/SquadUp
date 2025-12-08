@@ -1,18 +1,22 @@
 import { useEffect, useState } from 'react';
 import { Search, Filter, Loader2, X, Sparkles, ArrowDownCircle } from 'lucide-react';
-import { supabase } from '../supabaseClient'; // Potrzebne tylko do pobrania kategorii
+import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import ProjectCard from '../components/ProjectCard';
 import SkillSelector from '../components/SkillSelector';
-import { useProjects } from '../hooks/useProjects'; // Importujemy nasz nowy hook
+import { useProjects } from '../hooks/useProjects';
+// IMPORTY DO UX I ERROR HANDLINGU
+import ProjectCardSkeleton from '../components/skeletons/ProjectCardSkeleton';
+import useThrowAsyncError from '../hooks/useThrowAsyncError';
 
 const Projects = () => {
   const { user } = useAuth();
+  const throwAsyncError = useThrowAsyncError();
   
-  // Używamy Custom Hooka - cała logika danych jest tutaj
+  // Custom Hook obsługuje logikę pobierania projektów i ich błędy
   const { projects, loading, hasMore, fetchProjects, userProfile } = useProjects(user);
 
-  // Stan lokalny widoku (filtry UI)
+  // Stan lokalny widoku
   const [categories, setCategories] = useState(['All']);
   const [page, setPage] = useState(0);
   
@@ -23,17 +27,24 @@ const Projects = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showRecommended, setShowRecommended] = useState(false);
 
-  // 1. Pobranie kategorii (tylko raz, prosta logika UI)
+  // 1. Pobranie kategorii z obsługą błędów
   useEffect(() => {
     const fetchCategories = async () => {
-      const { data } = await supabase.from('categories').select('name');
-      if (data) setCategories(['All', ...catData.map(c => c.name)]); // catData -> data (poprawka literówki)
-      if (data) setCategories(['All', ...data.map(c => c.name)]);
+      try {
+        const { data, error } = await supabase.from('categories').select('name');
+        if (error) throw error;
+        if (data) setCategories(['All', ...data.map(c => c.name)]);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+        // Błąd kategorii nie jest aż tak krytyczny, by ubijać całą aplikację,
+        // ale można go rzucić, jeśli chcemy być rygorystyczni.
+        // Tutaj zostawiamy console.error, by lista projektów mogła się załadować mimo to.
+      }
     };
     fetchCategories();
   }, []);
 
-  // 2. Reakcja na zmianę filtrów (Debounce logic moved to effect trigger)
+  // 2. Reakcja na zmianę filtrów (Debounce logic)
   useEffect(() => {
     setPage(0);
     
@@ -44,7 +55,7 @@ const Projects = () => {
         selectedType,
         selectedSkills,
         showRecommended
-      }, true); // true = reset listy
+      }, true); // true = reset listy (nowe wyszukiwanie)
     }, 300);
     
     return () => clearTimeout(timeoutId);
@@ -60,7 +71,7 @@ const Projects = () => {
       selectedType,
       selectedSkills,
       showRecommended
-    }, false); // false = append to list
+    }, false); // false = dołącz do istniejącej listy
   };
 
   const clearFilters = () => {
@@ -75,7 +86,7 @@ const Projects = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       
-      {/* HEADER */}
+      {/* HEADER & FILTERS */}
       <div className="mb-10">
         <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">
           Find a <span className="text-primary">Project</span>
@@ -187,10 +198,13 @@ const Projects = () => {
         </div>
       </div>
 
-      {/* WYNIKI */}
+      {/* --- WYNIKI Z SKELETON LOADERS --- */}
       {loading && projects.length === 0 ? (
-        <div className="flex justify-center py-20 text-primary">
-          <Loader2 size={40} className="animate-spin" />
+        // Wyświetlamy siatkę 6 szkieletów zamiast jednego spinnera
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <ProjectCardSkeleton key={i} />
+          ))}
         </div>
       ) : projects.length === 0 ? (
         <div className="text-center py-20 bg-surface/30 rounded-2xl border border-dashed border-white/5">
