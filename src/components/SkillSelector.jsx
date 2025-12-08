@@ -1,31 +1,37 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { X, Sparkles, Search } from 'lucide-react';
+import { useDebounce } from '../hooks/useDebounce'; // Importujemy hook
 
 const SkillSelector = ({ selectedSkills, setSelectedSkills, showLabel = true }) => {
   const [query, setQuery] = useState('');
+  
+  // Użycie hooka: debouncedQuery zaktualizuje się dopiero 300ms po przestaniu pisania
+  const debouncedQuery = useDebounce(query, 300);
+  
   const [suggestions, setSuggestions] = useState([]);
   const [popularSkills, setPopularSkills] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // 1. Pobierz popularne skille TYLKO RAZ przy montowaniu
+  // 1. Pobierz popularne skille (tylko raz)
   useEffect(() => {
     const fetchPopular = async () => {
       const { data } = await supabase
         .from('skills')
         .select('name')
         .eq('is_popular', true)
-        .limit(10); // Limit dla bezpieczeństwa
+        .limit(10);
       
       if (data) setPopularSkills(data.map(i => i.name));
     };
     fetchPopular();
   }, []);
 
-  // 2. Wyszukiwanie Server-Side z opóźnieniem (Debounce)
+  // 2. Wyszukiwanie z użyciem Debounce
   useEffect(() => {
     const fetchSuggestions = async () => {
-      if (query.length < 2) {
+      // Jeśli query jest za krótkie, czyścimy i kończymy
+      if (debouncedQuery.length < 2) {
         setSuggestions([]);
         return;
       }
@@ -34,20 +40,19 @@ const SkillSelector = ({ selectedSkills, setSelectedSkills, showLabel = true }) 
       const { data, error } = await supabase
         .from('skills')
         .select('name')
-        .ilike('name', `%${query}%`) // Szukaj fragmentu tekstu
-        .limit(5); // Pobierz tylko 5 pasujących
+        .ilike('name', `%${debouncedQuery}%`)
+        .limit(5);
 
       if (!error && data) {
-        // Filtruj te, które już są wybrane
         setSuggestions(data.map(item => item.name).filter(s => !selectedSkills.includes(s)));
       }
       setLoading(false);
     };
 
-    const timeoutId = setTimeout(fetchSuggestions, 300); // Czekaj 300ms po ostatnim znaku
-    return () => clearTimeout(timeoutId);
-
-  }, [query, selectedSkills]);
+    fetchSuggestions();
+    
+    // Efekt zależy teraz od debouncedQuery, a nie od query
+  }, [debouncedQuery, selectedSkills]);
 
   const addSkill = (skill) => {
     if (!selectedSkills.includes(skill)) {
@@ -82,14 +87,12 @@ const SkillSelector = ({ selectedSkills, setSelectedSkills, showLabel = true }) 
           className="w-full bg-background border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-primary transition-colors placeholder:text-gray-600"
         />
         
-        {/* Loader wewnątrz inputa */}
         {loading && (
              <div className="absolute right-3 top-1/2 -translate-y-1/2">
                 <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
              </div>
         )}
 
-        {/* DROPDOWN WYNIKÓW */}
         {suggestions.length > 0 && (
           <div className="absolute z-20 w-full mt-1 bg-surface border border-white/10 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
             {suggestions.map(skill => (
@@ -106,7 +109,6 @@ const SkillSelector = ({ selectedSkills, setSelectedSkills, showLabel = true }) 
         )}
       </div>
 
-      {/* SUGEROWANE (POPULARNE) - Tylko jeśli nie szukamy */}
       {query.length === 0 && selectedSkills.length === 0 && popularSkills.length > 0 && (
         <div className="mt-3 animate-in fade-in">
           <div className="text-xs text-textMuted mb-2 flex items-center gap-1">
@@ -127,7 +129,6 @@ const SkillSelector = ({ selectedSkills, setSelectedSkills, showLabel = true }) 
         </div>
       )}
 
-      {/* WYBRANE SKILLSY */}
       <div className="flex flex-wrap gap-2 mt-4">
         {selectedSkills.map(skill => (
           <span key={skill} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-primary text-sm font-medium animate-in fade-in zoom-in duration-200">
