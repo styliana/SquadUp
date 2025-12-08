@@ -10,6 +10,7 @@ const Home = () => {
     matches: 0
   });
 
+  // Pobieranie statystyk z bazy
   useEffect(() => {
     const fetchStats = async () => {
       const { data, error } = await supabase.rpc('get_landing_stats');
@@ -19,6 +20,13 @@ const Home = () => {
     };
     fetchStats();
   }, []);
+
+  // Lista technologii do animowanego paska
+  const technologies = [
+    'React', 'Python', 'Node.js', 'TypeScript', 'Figma', 'Docker', 
+    'AWS', 'Flutter', 'Go', 'Supabase', 'Next.js', 'PostgreSQL', 
+    'Tailwind', 'AI/ML', 'Rust', 'GraphQL', 'Swift', 'Kotlin'
+  ];
 
   return (
     <div className="relative overflow-hidden min-h-[calc(100vh-64px)] flex flex-col justify-center">
@@ -44,17 +52,27 @@ const Home = () => {
           </h1>
 
           {/* OPIS */}
-          <p className="text-xl text-textMuted mb-10 max-w-2xl mx-auto leading-relaxed animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-200">
+          <p className="text-xl text-textMuted mb-16 max-w-2xl mx-auto leading-relaxed animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-200">
             Don't waste time searching. Squad Up is a dynamic network where ambitious students connect instantly for hackathons, competitions, and portfolio projects.
           </p>
 
-          {/* TAGI UMIEJĘTNOŚCI */}
-          <div className="flex flex-wrap justify-center gap-3 mb-12 animate-in fade-in zoom-in duration-1000 delay-300">
-            {['React', 'Python', 'Figma', 'Node.js', 'Flutter', 'AI/ML'].map((skill) => (
-              <span key={skill} className="px-4 py-1.5 rounded-full text-sm font-medium bg-surface border border-white/10 text-gray-300 hover:border-primary/50 hover:text-primary transition-all cursor-default hover:scale-105">
-                {skill}
-              </span>
-            ))}
+          {/* --- INFINITE MARQUEE (Nowy Pasek Technologii) --- */}
+          <div className="mb-20 w-full overflow-hidden relative fade-sides animate-in fade-in zoom-in duration-1000 delay-300">
+            {/* Gradientowe nakładki po bokach dla płynnego znikania */}
+            <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-background to-transparent z-10" />
+            <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-background to-transparent z-10" />
+
+            <div className="flex w-max animate-scroll gap-4">
+              {/* Renderujemy listę podwójnie, żeby pętla była nieskończona i płynna */}
+              {[...technologies, ...technologies].map((tech, i) => (
+                <div 
+                  key={i}
+                  className="px-6 py-3 rounded-2xl bg-white/5 border border-white/5 text-gray-400 font-medium text-lg whitespace-nowrap hover:text-white hover:border-white/20 transition-colors cursor-default"
+                >
+                  {tech}
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* PRZYCISKI (CTA) */}
@@ -77,7 +95,7 @@ const Home = () => {
             </Link>
           </div>
 
-          {/* STATYSTYKI (DYNAMICZNE) */}
+          {/* STATYSTYKI (Dynamiczne) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 border-t border-white/10 pt-10 animate-in fade-in duration-1000 delay-700">
             <StatItem 
               icon={<Briefcase className="text-primary mb-2" />} 
@@ -108,11 +126,11 @@ const StatItem = ({ icon, end, label }) => {
 
   useEffect(() => {
     let start = 0;
-    // Jeśli liczba jest duża, przyspieszamy krok
-    const duration = 2000; // 2 sekundy
-    const increment = end / (duration / 16); // 60 FPS
-
+    const duration = 2000; // Czas trwania animacji
+    
     if (end === 0) return;
+    
+    const increment = end / (duration / 16); // 60 klatek na sekundę
 
     const timer = setInterval(() => {
       start += increment;
