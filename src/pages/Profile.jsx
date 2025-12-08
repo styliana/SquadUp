@@ -6,11 +6,16 @@ import { useAuth } from '../context/AuthContext';
 import SkillSelector from '../components/SkillSelector';
 import AvatarUpload from '../components/AvatarUpload';
 import { toast } from 'sonner';
+// IMPORT HOOKA DO OBSŁUGI BŁĘDÓW
+import useThrowAsyncError from '../hooks/useThrowAsyncError';
 
 const Profile = () => {
   const { user, signOut } = useAuth();
   const { id: urlUserId } = useParams();
   const navigate = useNavigate(); 
+  
+  // INICJALIZACJA "MOSTU" DO ERROR BOUNDARY
+  const throwAsyncError = useThrowAsyncError();
 
   const targetUserId = urlUserId || user?.id; 
   const isOwner = user && targetUserId === user.id; 
@@ -19,7 +24,6 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   
-  // NOWE: Stany do obsługi modala usuwania
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   
@@ -45,7 +49,9 @@ const Profile = () => {
 
   useEffect(() => {
     const fetchCats = async () => {
-      const { data } = await supabase.from('categories').select('name');
+      // Błędy w kategoriach nie są krytyczne dla całego profilu, więc logujemy tylko console.error
+      const { data, error } = await supabase.from('categories').select('name');
+      if (error) console.error("Error fetching categories:", error);
       if (data) setAvailableCategories(data.map(c => c.name));
     };
     fetchCats();
@@ -59,6 +65,7 @@ const Profile = () => {
     try {
       setLoading(true);
       
+      // 1. Pobieranie danych profilu
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -74,16 +81,19 @@ const Profile = () => {
         });
       }
 
+      // 2. Pobieranie statystyk (RPC)
       const { data: statsData, error: statsError } = await supabase
         .rpc('get_user_stats', { target_user_id: userId });
 
+      // Statystyki nie są aż tak krytyczne, by wysadzać aplikację, ale jeśli profil nie działa, to statystyki też nie
       if (!statsError && statsData) {
         setStats(statsData);
       }
       
     } catch (error) {
-      console.error('Błąd ładowania:', error);
-      toast.error("Failed to load profile data.");
+      console.error('Critical Profile Error:', error);
+      // PRZEKAZANIE BŁĘDU DO ERROR BOUNDARY
+      throwAsyncError(error);
     } finally {
       setLoading(false);
     }
@@ -145,8 +155,6 @@ const Profile = () => {
     }
   };
 
-  // --- LOGIKA USUWANIA KONTA (Z MODALEM) ---
-  
   const handleDeleteClick = () => {
     setDeleteConfirmation('');
     setIsDeleteModalOpen(true);
@@ -338,7 +346,7 @@ const Profile = () => {
                 Deleting your account is permanent. All your data will be removed.
               </p>
               <button 
-                onClick={handleDeleteClick} // OTWIERA MODAL
+                onClick={handleDeleteClick} 
                 className="w-full py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2"
               >
                 <Trash2 size={16} /> Delete Account

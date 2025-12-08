@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import { toast } from 'sonner';
+// IMPORT HOOKA
+import useThrowAsyncError from './useThrowAsyncError';
 
 const PAGE_SIZE = 6;
 
@@ -9,33 +11,41 @@ export const useProjects = (user) => {
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   
+  // INICJALIZACJA
+  const throwAsyncError = useThrowAsyncError();
+  
   const [userProfile, setUserProfile] = useState({
     skills: [],
     preferred_categories: []
   });
 
-  // 1. Pobierz profil usera (do rekomendacji)
   useEffect(() => {
     if (user) {
       const fetchProfile = async () => {
-        const { data } = await supabase
-          .from('profiles')
-          .select('skills, preferred_categories')
-          .eq('id', user.id)
-          .single();
-        
-        if (data) {
-          setUserProfile({
-            skills: data.skills || [],
-            preferred_categories: data.preferred_categories || []
-          });
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('skills, preferred_categories')
+            .eq('id', user.id)
+            .single();
+          
+          if (error) throw error; // To nie jest krytyczne dla listy projektów, ale warto logować
+          
+          if (data) {
+            setUserProfile({
+              skills: data.skills || [],
+              preferred_categories: data.preferred_categories || []
+            });
+          }
+        } catch (err) {
+          console.error("Error fetching user preferences:", err);
+          // Nie rzucamy tutaj throwAsyncError, bo aplikacja może działać bez preferencji
         }
       };
       fetchProfile();
     }
   }, [user]);
 
-  // 2. Główna funkcja pobierająca
   const fetchProjects = useCallback(async ({ page, searchTerm, selectedType, selectedSkills, showRecommended }, isReset = false) => {
     try {
       setLoading(true);
@@ -43,8 +53,6 @@ export const useProjects = (user) => {
 
       let query;
 
-      // ZMIANA: Dodano embedding 'profiles:author_id(...)' do zapytań
-      // Dzięki temu pobieramy dane autora w TYM SAMYM zapytaniu co projekt
       if (searchTerm) {
         query = supabase
           .rpc('search_projects', { keyword: searchTerm })
@@ -55,7 +63,6 @@ export const useProjects = (user) => {
           .select('*, profiles:author_id(full_name, avatar_url, university)', { count: 'exact' });
       }
 
-      // Filtry bazodanowe
       query = query.eq('status', 'open');
 
       if (selectedType !== 'All') {
@@ -66,18 +73,16 @@ export const useProjects = (user) => {
         query = query.contains('skills', selectedSkills);
       }
 
-      // Paginacja
       query = query.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
-      // Sortowanie
       if (!searchTerm) {
          query = query.order('created_at', { ascending: false });
       }
 
       const { data, error } = await query;
+      
       if (error) throw error;
 
-      // Filtrowanie i Rekomendacje
       let processedData = (data || []).filter(p => p.members_current < p.members_max);
 
       const hasPreferences = userProfile.skills.length > 0 || userProfile.preferred_categories.length > 0;
@@ -94,7 +99,6 @@ export const useProjects = (user) => {
         .sort((a, b) => b.matchScore - a.matchScore);
       }
 
-      // Aktualizacja stanu
       if (isReset) {
         setProjects(processedData);
       } else {
@@ -104,14 +108,18 @@ export const useProjects = (user) => {
       setHasMore(data.length >= PAGE_SIZE);
 
     } catch (error) {
-      console.error('Błąd pobierania projektów:', error);
-      if (error.code !== 'PX000' && error.name !== 'AbortError') {
-         toast.error("Could not fetch projects");
-      }
+      console.error('Critical Project Fetch Error:', error);
+      
+      // Ignorujemy błędy abortowania (anulowania fetch)
+      if (error.name === 'AbortError') return;
+
+      // KRYTYCZNY BŁĄD -> ERROR BOUNDARY
+      throwAsyncError(error);
+      
     } finally {
       setLoading(false);
     }
-  }, [userProfile]);
+  }, [userProfile]); // throwAsyncError jest stabilne
 
   return {
     projects,
