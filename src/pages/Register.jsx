@@ -1,191 +1,79 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabaseClient';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { User, Mail, Lock, Check, X, BadgeCheck, XCircle, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
-import { useDebounce } from '../hooks/useDebounce';
+import { User, Mail, Lock, Check, X, BadgeCheck, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
+
+// --- 1. SCHEMAT WALIDACJI (ZOD) ---
+const registerSchema = z.object({
+  fullName: z.string().min(2, "Full name must be at least 2 characters"),
+  username: z.string()
+    .min(3, "Username must be at least 3 characters")
+    .regex(/^[a-zA-Z0-9_]+$/, "Only letters, numbers and underscores allowed"),
+  email: z.string().email("Invalid email address"),
+  password: z.string()
+    .min(6, "Password must be at least 6 characters")
+    .regex(/[A-Z]/, "Must contain an uppercase letter")
+    .regex(/[0-9]/, "Must contain a number")
+    .regex(/[^a-zA-Z0-9]/, "Must contain a special character"),
+  confirmPassword: z.string(),
+  termsAccepted: z.literal(true, {
+    errorMap: () => ({ message: "You must accept Terms of Service" }),
+  }),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"], // Tutaj pokaże się błąd
+});
 
 const Register = () => {
   const { signUp } = useAuth();
   const navigate = useNavigate();
-  
-  const [formData, setFormData] = useState({
-    fullName: '',
-    username: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    termsAccepted: false
-  });
-
-  // --- STANY WALIDACJI ---
   const [showPassword, setShowPassword] = useState(false);
-  const [passwordCriteria, setPasswordCriteria] = useState({
-    length: false,
-    number: false,
-    uppercase: false,
-    special: false
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // --- 2. KONFIGURACJA REACT HOOK FORM ---
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors }
+  } = useForm({
+    resolver: zodResolver(registerSchema),
+    mode: "onChange" // Walidacja w czasie rzeczywistym
   });
-  const [passwordsMatch, setPasswordsMatch] = useState(true);
 
-  // Username & Email states
-  const debouncedUsername = useDebounce(formData.username, 500);
-  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
-  const [usernameError, setUsernameError] = useState(null);
-  const [isUsernameAvailable, setIsUsernameAvailable] = useState(null);
+  // Obserwujemy hasło, żeby dynamicznie wyświetlać pasek siły (tylko do UI)
+  const passwordValue = watch("password", "");
 
-  const debouncedEmail = useDebounce(formData.email, 500);
-  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
-  const [emailError, setEmailError] = useState(null);
-  const [isEmailAvailable, setIsEmailAvailable] = useState(null);
-
-  const [loading, setLoading] = useState(false);
-
-  // --- 1. WALIDACJA HASŁA (LIVE) ---
-  useEffect(() => {
-    const pwd = formData.password;
-    const criteria = {
-      length: pwd.length >= 6,
-      number: /\d/.test(pwd),
-      uppercase: /[A-Z]/.test(pwd),
-      special: /[!@#$%^&*(),.?":{}|<>]/.test(pwd)
-    };
-    setPasswordCriteria(criteria);
-
-    // Sprawdź zgodność haseł tylko jeśli confirm nie jest puste
-    if (formData.confirmPassword) {
-      setPasswordsMatch(pwd === formData.confirmPassword);
-    }
-  }, [formData.password, formData.confirmPassword]);
-
-  // --- 2. WALIDACJA USERNAME (Backend) ---
-  useEffect(() => {
-    const checkUsername = async () => {
-      setIsUsernameAvailable(null);
-      setUsernameError(null);
-
-      if (!debouncedUsername) return;
-      
-      const usernameRegex = /^[a-zA-Z0-9_]+$/;
-      if (debouncedUsername.length < 3) {
-        setUsernameError("Min. 3 characters.");
-        return;
-      }
-      if (!usernameRegex.test(debouncedUsername)) {
-        setUsernameError("Only letters, numbers, _ allowed.");
-        return;
-      }
-
-      try {
-        setIsCheckingUsername(true);
-        const { data: isTaken, error } = await supabase
-          .rpc('check_username_availability', { username_input: debouncedUsername });
-
-        if (error) throw error;
-
-        if (isTaken) {
-          setIsUsernameAvailable(false);
-          setUsernameError("Username taken.");
-        } else {
-          setIsUsernameAvailable(true);
-        }
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setIsCheckingUsername(false);
-      }
-    };
-    checkUsername();
-  }, [debouncedUsername]);
-
-  // --- 3. WALIDACJA EMAIL (Backend) ---
-  useEffect(() => {
-    const checkEmail = async () => {
-      setIsEmailAvailable(null);
-      setEmailError(null);
-
-      if (!debouncedEmail) return;
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(debouncedEmail)) {
-        setEmailError("Invalid email format.");
-        return;
-      }
-
-      try {
-        setIsCheckingEmail(true);
-        const { data: isTaken, error } = await supabase
-          .rpc('check_email_availability', { email_input: debouncedEmail });
-
-        if (error) throw error;
-
-        if (isTaken) {
-          setIsEmailAvailable(false);
-          setEmailError("Email already registered.");
-        } else {
-          setIsEmailAvailable(true);
-        }
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setIsCheckingEmail(false);
-      }
-    };
-    checkEmail();
-  }, [debouncedEmail]);
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+  // --- 3. LOGIKA OBSŁUGI FORMULARZA ---
+  const onSubmit = async (data) => {
+    setIsSubmitting(true);
     
-    // Resetuj statusy przy pisaniu
-    if (name === 'username') {
-      setIsUsernameAvailable(null);
-      setUsernameError(null);
-    }
-    if (name === 'email') {
-      setIsEmailAvailable(null);
-      setEmailError(null);
-    }
-
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    // Ostateczna weryfikacja przed wysłaniem
-    const isPasswordValid = Object.values(passwordCriteria).every(Boolean);
-    
-    if (!isPasswordValid) {
-      toast.error("Password does not meet requirements.");
-      return;
-    }
-    if (!passwordsMatch) {
-      toast.error("Passwords do not match.");
-      return;
-    }
-    if (!formData.termsAccepted) {
-      toast.error("You must accept Terms of Service.");
-      return;
-    }
-    if (usernameError || isUsernameAvailable === false || emailError || isEmailAvailable === false) {
-      toast.error("Please fix form errors.");
-      return;
-    }
-
-    setLoading(true);
-
     try {
+      // Dodatkowe sprawdzenie unikalności na backendzie (można to też zrobić w Zod z async refine, ale tu jest bezpieczniej)
+      const { count: usernameCount } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('username', data.username);
+
+      if (usernameCount > 0) {
+        toast.error("Username already taken");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Rejestracja w Supabase Auth
       const { error } = await signUp({ 
-        email: formData.email, 
-        password: formData.password,
+        email: data.email, 
+        password: data.password,
         options: {
           data: {
-            full_name: formData.fullName,
-            username: formData.username,
+            full_name: data.fullName,
+            username: data.username,
           }
         }
       });
@@ -195,31 +83,29 @@ const Register = () => {
       toast.success('Account created successfully!', {
         description: 'Please check your email to confirm registration.'
       });
-      
       navigate('/login');
 
     } catch (error) {
       console.error(error);
-      if (error.message.includes("User already registered")) {
-        toast.error("Account already exists.");
+      if (error.message?.includes("User already registered")) {
+        toast.error("Email already registered.");
       } else {
         toast.error("Registration failed.", { description: error.message });
       }
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  // Helper UI dla statusów
-  const StatusIcon = ({ checking, available, error }) => {
-    if (checking) return <Loader2 className="animate-spin text-primary" size={18} />;
-    if (error || available === false) return <XCircle className="text-red-500" size={18} />;
-    if (available === true) return <BadgeCheck className="text-green-500" size={18} />;
-    return null;
-  };
+  // Helpery do UI
+  const checkRequirement = (regex) => regex.test(passwordValue);
+  const passwordStrength = [
+    passwordValue.length >= 6,
+    checkRequirement(/[A-Z]/),
+    checkRequirement(/[0-9]/),
+    checkRequirement(/[^a-zA-Z0-9]/)
+  ].filter(Boolean).length;
 
-  // Obliczanie siły hasła do paska postępu (0-4)
-  const passwordStrength = Object.values(passwordCriteria).filter(Boolean).length;
   const strengthColor = 
     passwordStrength <= 1 ? 'bg-red-500' : 
     passwordStrength <= 3 ? 'bg-yellow-500' : 
@@ -233,7 +119,8 @@ const Register = () => {
           <p className="text-textMuted">Join the squad and start building.</p>
         </div>
         
-        <form onSubmit={handleSubmit} className="space-y-5">
+        {/* onSubmit z RHF automatycznie blokuje wywołanie, jeśli walidacja Zod nie przejdzie */}
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           
           {/* IMIĘ */}
           <div>
@@ -241,15 +128,13 @@ const Register = () => {
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
               <input 
+                {...register("fullName")}
                 type="text" 
-                name="fullName"
-                className="w-full bg-background border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:border-primary focus:outline-none transition-colors"
+                className={`w-full bg-background border rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none transition-colors ${errors.fullName ? 'border-red-500 focus:border-red-500' : 'border-white/10 focus:border-primary'}`}
                 placeholder="John Doe"
-                value={formData.fullName}
-                onChange={handleChange}
-                required
               />
             </div>
+            {errors.fullName && <p className="text-xs text-red-400 mt-1 ml-1">{errors.fullName.message}</p>}
           </div>
 
           {/* USERNAME */}
@@ -258,22 +143,14 @@ const Register = () => {
             <div className="relative">
               <BadgeCheck className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
               <input 
+                {...register("username")}
                 type="text" 
-                name="username"
-                className={`w-full bg-background border rounded-xl py-3 pl-10 pr-10 text-white focus:outline-none transition-colors ${
-                  usernameError ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-primary'
-                }`}
+                className={`w-full bg-background border rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none transition-colors ${errors.username ? 'border-red-500 focus:border-red-500' : 'border-white/10 focus:border-primary'}`}
                 placeholder="johndoe123"
-                value={formData.username}
-                onChange={handleChange}
-                required
                 autoComplete="off"
               />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <StatusIcon checking={isCheckingUsername} available={isUsernameAvailable} error={usernameError} />
-              </div>
             </div>
-            {usernameError && <p className="text-xs text-red-400 mt-1 ml-1 flex items-center gap-1"><AlertCircle size={12}/> {usernameError}</p>}
+            {errors.username && <p className="text-xs text-red-400 mt-1 ml-1">{errors.username.message}</p>}
           </div>
 
           {/* EMAIL */}
@@ -282,21 +159,13 @@ const Register = () => {
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
               <input 
+                {...register("email")}
                 type="email" 
-                name="email"
-                className={`w-full bg-background border rounded-xl py-3 pl-10 pr-10 text-white focus:outline-none transition-colors ${
-                  emailError ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-primary'
-                }`}
+                className={`w-full bg-background border rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none transition-colors ${errors.email ? 'border-red-500 focus:border-red-500' : 'border-white/10 focus:border-primary'}`}
                 placeholder="student@university.edu"
-                value={formData.email}
-                onChange={handleChange}
-                required
               />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <StatusIcon checking={isCheckingEmail} available={isEmailAvailable} error={emailError} />
-              </div>
             </div>
-            {emailError && <p className="text-xs text-red-400 mt-1 ml-1 flex items-center gap-1"><AlertCircle size={12}/> {emailError}</p>}
+            {errors.email && <p className="text-xs text-red-400 mt-1 ml-1">{errors.email.message}</p>}
           </div>
 
           {/* PASSWORD */}
@@ -305,13 +174,10 @@ const Register = () => {
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
               <input 
+                {...register("password")}
                 type={showPassword ? "text" : "password"}
-                name="password"
-                className="w-full bg-background border border-white/10 rounded-xl py-3 pl-10 pr-10 text-white focus:border-primary focus:outline-none transition-colors"
+                className={`w-full bg-background border rounded-xl py-3 pl-10 pr-10 text-white focus:outline-none transition-colors ${errors.password ? 'border-red-500 focus:border-red-500' : 'border-white/10 focus:border-primary'}`}
                 placeholder="••••••••"
-                value={formData.password}
-                onChange={handleChange}
-                required
               />
               <button 
                 type="button"
@@ -321,26 +187,21 @@ const Register = () => {
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+            {errors.password && <p className="text-xs text-red-400 mt-1 ml-1">{errors.password.message}</p>}
 
             {/* PASEK SIŁY HASŁA */}
-            <div className="flex h-1 mt-2 mb-3 gap-1">
-              {[1, 2, 3, 4].map((step) => (
-                <div 
-                  key={step} 
-                  className={`h-full flex-1 rounded-full transition-all duration-300 ${
-                    passwordStrength >= step ? strengthColor : 'bg-white/5'
-                  }`} 
-                />
-              ))}
-            </div>
-
-            {/* LISTA WYMAGAŃ (Checklista) */}
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              <RequirementItem met={passwordCriteria.length} text="Min. 6 chars" />
-              <RequirementItem met={passwordCriteria.number} text="Contains number" />
-              <RequirementItem met={passwordCriteria.uppercase} text="Uppercase letter" />
-              <RequirementItem met={passwordCriteria.special} text="Special char (@$!%*?&)" />
-            </div>
+            {passwordValue && (
+              <div className="flex h-1 mt-2 mb-3 gap-1">
+                {[1, 2, 3, 4].map((step) => (
+                  <div 
+                    key={step} 
+                    className={`h-full flex-1 rounded-full transition-all duration-300 ${
+                      passwordStrength >= step ? strengthColor : 'bg-white/5'
+                    }`} 
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
           {/* CONFIRM PASSWORD */}
@@ -349,47 +210,44 @@ const Register = () => {
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
               <input 
+                {...register("confirmPassword")}
                 type="password" 
-                name="confirmPassword"
-                className={`w-full bg-background border rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none transition-colors ${
-                  !passwordsMatch && formData.confirmPassword ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-primary'
-                }`}
+                className={`w-full bg-background border rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none transition-colors ${errors.confirmPassword ? 'border-red-500 focus:border-red-500' : 'border-white/10 focus:border-primary'}`}
                 placeholder="••••••••"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                required
               />
             </div>
-            {!passwordsMatch && formData.confirmPassword && (
+            {errors.confirmPassword && (
               <p className="text-xs text-red-400 mt-1 ml-1 flex items-center gap-1">
-                <AlertCircle size={12}/> Passwords do not match
+                <AlertCircle size={12}/> {errors.confirmPassword.message}
               </p>
             )}
           </div>
 
           {/* TERMS */}
-          <div className="flex items-start gap-3 pt-2">
-            <div className="relative flex items-center">
-              <input
-                type="checkbox"
-                name="termsAccepted"
-                id="terms"
-                className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-white/10 bg-background transition-all checked:border-primary checked:bg-primary hover:border-primary/50"
-                checked={formData.termsAccepted}
-                onChange={handleChange}
-              />
-              <Check className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100" size={14} />
+          <div>
+            <div className="flex items-start gap-3 pt-2">
+              <div className="relative flex items-center">
+                <input
+                  {...register("termsAccepted")}
+                  type="checkbox"
+                  id="terms"
+                  className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-white/10 bg-background transition-all checked:border-primary checked:bg-primary hover:border-primary/50"
+                />
+                <Check className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100" size={14} />
+              </div>
+              <label htmlFor="terms" className="text-sm text-textMuted cursor-pointer select-none">
+                I agree to the <Link to="/terms" target="_blank" className="text-primary hover:underline">Terms of Service</Link> and <Link to="/privacy" target="_blank" className="text-primary hover:underline">Privacy Policy</Link>.
+              </label>
             </div>
-            <label htmlFor="terms" className="text-sm text-textMuted cursor-pointer select-none">
-              I agree to the <Link to="/terms" target="_blank" className="text-primary hover:underline">Terms of Service</Link> and <Link to="/privacy" target="_blank" className="text-primary hover:underline">Privacy Policy</Link>.
-            </label>
+            {errors.termsAccepted && <p className="text-xs text-red-400 mt-1 ml-1">{errors.termsAccepted.message}</p>}
           </div>
 
           <button 
-            disabled={loading || passwordStrength < 4 || !passwordsMatch || !formData.termsAccepted || usernameError || emailError}
-            className="w-full py-4 bg-gradient-to-r from-primary to-blue-600 hover:shadow-lg hover:shadow-primary/25 text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-[0.98] mt-4"
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full py-4 bg-gradient-to-r from-primary to-blue-600 hover:shadow-lg hover:shadow-primary/25 text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-[0.98] mt-4 flex items-center justify-center gap-2"
           >
-            {loading ? 'Creating Account...' : 'Create Account'}
+            {isSubmitting ? <Loader2 className="animate-spin" /> : 'Create Account'}
           </button>
         </form>
         
@@ -400,13 +258,5 @@ const Register = () => {
     </div>
   );
 };
-
-// Pomocniczy komponent do listy wymagań
-const RequirementItem = ({ met, text }) => (
-  <div className={`flex items-center gap-2 text-xs transition-colors ${met ? 'text-green-400' : 'text-gray-500'}`}>
-    {met ? <Check size={12} /> : <div className="w-3 h-3 rounded-full border border-gray-600" />}
-    {text}
-  </div>
-);
 
 export default Register;
