@@ -1,169 +1,66 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { Search, Filter, Loader2, X, Sparkles, ArrowDownCircle } from 'lucide-react';
-import { supabase } from '../supabaseClient';
+import { supabase } from '../supabaseClient'; // Potrzebne tylko do pobrania kategorii
 import { useAuth } from '../context/AuthContext';
 import ProjectCard from '../components/ProjectCard';
 import SkillSelector from '../components/SkillSelector';
-import { toast } from 'sonner';
-
-const PAGE_SIZE = 6;
+import { useProjects } from '../hooks/useProjects'; // Importujemy nasz nowy hook
 
 const Projects = () => {
   const { user } = useAuth();
   
-  // Dane
-  const [projects, setProjects] = useState([]);
-  const [categories, setCategories] = useState(['All']);
-  
-  // Dane profilu zalogowanego użytkownika (do rekomendacji)
-  const [userProfile, setUserProfile] = useState({
-    skills: [],
-    preferred_categories: []
-  });
-  
-  // Stany UI
-  const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
+  // Używamy Custom Hooka - cała logika danych jest tutaj
+  const { projects, loading, hasMore, fetchProjects, userProfile } = useProjects(user);
 
-  // Filtry
+  // Stan lokalny widoku (filtry UI)
+  const [categories, setCategories] = useState(['All']);
+  const [page, setPage] = useState(0);
+  
+  // Stan filtrów
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState('All');
   const [selectedSkills, setSelectedSkills] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
   const [showRecommended, setShowRecommended] = useState(false);
 
-  // 1. Inicjalizacja (Pobranie kategorii i profilu usera)
+  // 1. Pobranie kategorii (tylko raz, prosta logika UI)
   useEffect(() => {
-    const fetchInitialData = async () => {
-      // Kategorie
-      const { data: catData } = await supabase.from('categories').select('name');
-      if (catData) setCategories(['All', ...catData.map(c => c.name)]);
-
-      // Profil usera (Skille + Preferencje)
-      if (user) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('skills, preferred_categories')
-          .eq('id', user.id)
-          .single();
-        
-        if (profileData) {
-          setUserProfile({
-            skills: profileData.skills || [],
-            preferred_categories: profileData.preferred_categories || []
-          });
-        }
-      }
+    const fetchCategories = async () => {
+      const { data } = await supabase.from('categories').select('name');
+      if (data) setCategories(['All', ...catData.map(c => c.name)]); // catData -> data (poprawka literówki)
+      if (data) setCategories(['All', ...data.map(c => c.name)]);
     };
-    fetchInitialData();
-  }, [user]);
+    fetchCategories();
+  }, []);
 
-  // 2. Główna funkcja pobierająca projekty
-  const fetchProjects = useCallback(async (pageIndex, isReset = false) => {
-    try {
-      setLoading(true);
-      if (isReset) toast.dismiss();
-
-      let query;
-
-      // A. LOGIKA WYSZUKIWANIA (RPC vs Standard)
-      if (searchTerm) {
-        // Używamy funkcji SQL do przeszukiwania tytułu, opisu i tagów
-        query = supabase.rpc('search_projects', { keyword: searchTerm });
-      } else {
-        query = supabase.from('projects').select('*', { count: 'exact' });
-      }
-
-      // B. FILTR STATUSU (Tylko otwarte projekty - poziom bazy danych)
-      query = query.eq('status', 'open');
-
-      // C. FILTROWANIE POZOSTAŁE
-      if (selectedType !== 'All') {
-        query = query.eq('type', selectedType);
-      }
-
-      if (selectedSkills.length > 0) {
-        query = query.contains('skills', selectedSkills);
-      }
-
-      // D. SORTOWANIE I PAGINACJA
-      query = query.range(pageIndex * PAGE_SIZE, (pageIndex + 1) * PAGE_SIZE - 1);
-
-      if (!searchTerm) {
-         query = query.order('created_at', { ascending: false });
-      }
-
-      const { data, error, count } = await query;
-
-      if (error) throw error;
-
-      // --- E. PODWÓJNE ZABEZPIECZENIE (Filtr Frontendowy) ---
-      // Nawet jeśli baza zwróci projekt jako 'open', ukrywamy go, jeśli jest pełny.
-      let filteredData = (data || []).filter(p => p.members_current < p.members_max);
-
-      // F. LOGIKA REKOMENDACJI (Client-side Sorting)
-      const hasPreferences = userProfile.skills.length > 0 || userProfile.preferred_categories.length > 0;
-
-      if (showRecommended && hasPreferences) {
-        filteredData = filteredData.map(p => {
-          let score = 0;
-          
-          // 1. Punkty za pasujące skille (+1)
-          const skillMatches = p.skills?.filter(s => userProfile.skills.includes(s)).length || 0;
-          score += skillMatches; 
-
-          // 2. Punkty za pasującą kategorię (+2)
-          if (userProfile.preferred_categories.includes(p.type)) {
-            score += 2;
-          }
-
-          return { ...p, matchScore: score };
-        })
-        .sort((a, b) => b.matchScore - a.matchScore);
-      }
-
-      // G. AKTUALIZACJA STANU
-      if (isReset) {
-        setProjects(filteredData);
-      } else {
-        setProjects(prev => [...prev, ...filteredData]);
-      }
-
-      // Sprawdzenie czy jest więcej danych
-      if (data.length < PAGE_SIZE) {
-        setHasMore(false);
-      } else {
-        setHasMore(true);
-      }
-
-    } catch (error) {
-      console.error('Błąd:', error);
-      if (error.code !== 'PX000' && error.name !== 'AbortError') {
-         // Cichy błąd
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [searchTerm, selectedType, selectedSkills, showRecommended, userProfile]);
-
-  // 3. Efekty - wywoływanie pobierania przy zmianie filtrów
+  // 2. Reakcja na zmianę filtrów (Debounce logic moved to effect trigger)
   useEffect(() => {
     setPage(0);
-    setHasMore(true);
     
     const timeoutId = setTimeout(() => {
-      fetchProjects(0, true);
+      fetchProjects({
+        page: 0,
+        searchTerm,
+        selectedType,
+        selectedSkills,
+        showRecommended
+      }, true); // true = reset listy
     }, 300);
     
     return () => clearTimeout(timeoutId);
   }, [searchTerm, selectedType, selectedSkills, showRecommended, fetchProjects]);
 
-  // 4. Obsługa przycisków
+  // 3. Obsługa "Load More"
   const handleLoadMore = () => {
     const nextPage = page + 1;
     setPage(nextPage);
-    fetchProjects(nextPage, false);
+    fetchProjects({
+      page: nextPage,
+      searchTerm,
+      selectedType,
+      selectedSkills,
+      showRecommended
+    }, false); // false = append to list
   };
 
   const clearFilters = () => {
@@ -211,7 +108,7 @@ const Projects = () => {
               </div>
             </div>
             
-            {/* Kategorie (Pigułki) */}
+            {/* Kategorie */}
             <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
               {categories.map((filter) => (
                 <button 
@@ -282,15 +179,11 @@ const Projects = () => {
               <span className="italic">
                  Found {projects.length} results based on your criteria.
               </span>
-              <button 
-                onClick={clearFilters}
-                className="text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors hover:underline"
-              >
+              <button onClick={clearFilters} className="text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors hover:underline">
                 <X size={14} /> Clear all filters
               </button>
             </div>
           )}
-
         </div>
       </div>
 
@@ -306,7 +199,7 @@ const Projects = () => {
           </div>
           <p className="text-xl text-white mb-2 font-bold">No projects found</p>
           <p className="text-textMuted max-w-md mx-auto">
-            We couldn't find any projects matching "{searchTerm || 'your filters'}". Try using different keywords or clearing filters.
+            We couldn't find any projects matching your filters. Try clearing them to see more results.
           </p>
           <button onClick={clearFilters} className="mt-6 px-6 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-white text-sm transition-colors border border-white/10">
             Clear all filters
