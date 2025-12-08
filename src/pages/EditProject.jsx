@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
-import SkillSelector from '../components/SkillSelector';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
+import ProjectForm from '../components/ProjectForm';
 
 const EditProject = () => {
   const { id } = useParams();
@@ -13,23 +13,12 @@ const EditProject = () => {
   
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [categories, setCategories] = useState([]);
+  const [initialData, setInitialData] = useState(null);
 
-  const [formData, setFormData] = useState({
-    title: '',
-    type: '',
-    description: '',
-    skills: [],
-    teamSize: 4,
-    deadline: ''
-  });
-
+  // 1. Pobranie danych do edycji
   useEffect(() => {
-    const initData = async () => {
+    const fetchProject = async () => {
       try {
-        const { data: cats } = await supabase.from('categories').select('name');
-        if (cats) setCategories(cats.map(c => c.name));
-
         const { data: project, error } = await supabase
           .from('projects')
           .select('*')
@@ -38,13 +27,15 @@ const EditProject = () => {
 
         if (error) throw error;
 
+        // Security Check: Czy to autor?
         if (project.author_id !== user.id) {
           toast.error("You don't have permission to edit this project.");
           navigate('/my-projects');
           return;
         }
 
-        setFormData({
+        // Mapowanie danych z bazy na format formularza
+        setInitialData({
           title: project.title,
           type: project.type,
           description: project.description,
@@ -62,11 +53,11 @@ const EditProject = () => {
       }
     };
 
-    if (user) initData();
+    if (user) fetchProject();
   }, [user, id, navigate]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // 2. Obsługa zapisu (UPDATE)
+  const handleUpdate = async (formData) => {
     setIsSubmitting(true);
 
     try {
@@ -84,12 +75,10 @@ const EditProject = () => {
 
       if (error) throw error;
 
-      // SUKCES: Nie odblokowujemy przycisku, bo zaraz zniknie strona
       toast.success('Project updated successfully! 🚀');
       navigate('/my-projects');
 
     } catch (error) {
-      // BŁĄD: Tylko tutaj odblokowujemy
       console.error(error);
       toast.error('Failed to update project.');
       setIsSubmitting(false);
@@ -99,105 +88,13 @@ const EditProject = () => {
   if (loading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-primary" size={40} /></div>;
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-10">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">Edit Project</h1>
-        <p className="text-textMuted">Update your listing details.</p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="bg-surface border border-white/5 rounded-2xl p-8 space-y-8">
-        <div className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-white mb-2">Project Title *</label>
-            <input 
-              type="text" 
-              required
-              className="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary"
-              value={formData.title}
-              onChange={e => setFormData({...formData, title: e.target.value})}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-white mb-3">Project Type *</label>
-            <div className="flex flex-wrap gap-3">
-              {categories.map(type => (
-                <button
-                  type="button"
-                  key={type}
-                  onClick={() => setFormData({...formData, type})}
-                  className={`px-6 py-2.5 rounded-full text-sm font-medium border transition-all ${
-                    formData.type === type 
-                    ? 'bg-primary/20 border-primary text-primary' 
-                    : 'bg-background border-white/10 text-gray-400 hover:border-white/30'
-                  }`}
-                >
-                  {type}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-white mb-2">Description *</label>
-            <textarea 
-              required
-              rows={5}
-              className="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary resize-none"
-              value={formData.description}
-              onChange={e => setFormData({...formData, description: e.target.value})}
-            />
-          </div>
-        </div>
-
-        <div className="pt-6 border-t border-white/5">
-          <SkillSelector 
-            selectedSkills={formData.skills} 
-            setSelectedSkills={(newSkills) => setFormData({...formData, skills: newSkills})} 
-          />
-        </div>
-
-        <div className="pt-6 border-t border-white/5 grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-white mb-2">Team Size</label>
-            <input 
-              type="number" 
-              min="2" 
-              max="10"
-              className="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary"
-              value={formData.teamSize}
-              onChange={e => setFormData({...formData, teamSize: parseInt(e.target.value)})}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-white mb-2">Deadline</label>
-            <input 
-              type="date" 
-              className="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary [color-scheme:dark]"
-              value={formData.deadline}
-              onChange={e => setFormData({...formData, deadline: e.target.value})}
-            />
-          </div>
-        </div>
-
-        <div className="pt-6 flex justify-end gap-4">
-          <button 
-            type="button" 
-            onClick={() => navigate('/my-projects')}
-            className="px-6 py-3 rounded-xl border border-white/10 text-white font-medium hover:bg-white/5"
-          >
-            Cancel
-          </button>
-          <button 
-            type="submit"
-            disabled={isSubmitting}
-            className="px-8 py-3 rounded-xl bg-gradient-to-r from-primary to-blue-600 text-white font-bold hover:shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? 'Saving...' : 'Save Changes'}
-          </button>
-        </div>
-      </form>
-    </div>
+    <ProjectForm 
+      initialData={initialData}
+      onSubmit={handleUpdate}
+      isSubmitting={isSubmitting}
+      pageTitle="Edit Project"
+      pageDescription="Update your listing details."
+    />
   );
 };
 
