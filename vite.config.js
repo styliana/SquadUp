@@ -14,4 +14,10 @@ export default defineConfig({
       ],
     },
   },
+  // NOWA SEKCJA TESTOWA
+  test: {
+    globals: true,             // Pozwala używać 'describe', 'it', 'expect' bez importowania
+    environment: 'jsdom',      // Symulacja przeglądarki
+    setupFiles: './src/setupTests.js', // Plik konfiguracyjny (zaraz go stworzymy)
+  },
 })
