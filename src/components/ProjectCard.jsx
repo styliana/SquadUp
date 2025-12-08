@@ -1,21 +1,11 @@
-import { Calendar, Clock, User, ArrowRight } from 'lucide-react';
+import { Calendar, User, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { PROJECT_TYPE_STYLES } from '../utils/constants';
 
 const ProjectCard = ({ project }) => {
   
-  // Mapa kolorów dla różnych typów projektów
-  const typeColors = {
-    'Hackathon': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-    'Competition': 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-    'Portfolio': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-    'Startup': 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-    'Research': 'bg-pink-500/20 text-pink-400 border-pink-500/30',
-    'Non-profit': 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
-  };
-
-  // Funkcja bezpiecznie pobierająca kolor (fallback do szarego)
   const getBadgeStyle = (type) => {
-    return typeColors[type] || 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+    return PROJECT_TYPE_STYLES[type] || PROJECT_TYPE_STYLES['Default'];
   };
 
   return (
@@ -42,7 +32,7 @@ const ProjectCard = ({ project }) => {
 
       {/* TAGS */}
       <div className="flex flex-wrap gap-2 mb-6">
-        {project.tags.slice(0, 4).map((tag) => ( // Pokazujemy max 4 tagi żeby nie rozjeżdżało karty
+        {project.tags.slice(0, 4).map((tag) => (
           <span key={tag} className="px-2.5 py-1 rounded-md bg-background border border-white/10 text-xs text-gray-300">
             {tag}
           </span>
@@ -61,8 +51,12 @@ const ProjectCard = ({ project }) => {
           <span>{project.deadline}</span>
         </div>
         
-        {/* BUTTON */}
-        <Link to={`/projects/${project.id}`} className="flex items-center gap-2 text-white font-medium text-sm group/btn cursor-pointer hover:text-primary transition-colors">
+        {/* BUTTON - ZMIANA TUTAJ: Dodano state={{ from: '/projects' }} */}
+        <Link 
+          to={`/projects/${project.id}`} 
+          state={{ from: '/projects' }}
+          className="flex items-center gap-2 text-white font-medium text-sm group/btn cursor-pointer hover:text-primary transition-colors"
+        >
            Details
            <ArrowRight size={16} className="group-hover/btn:translate-x-1 transition-transform" />
         </Link>

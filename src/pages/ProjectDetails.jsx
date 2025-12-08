@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'; // ZMIANA: dodano useLocation
 import { ArrowLeft, Calendar, Clock, User, MessageCircle, Send, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
@@ -10,7 +10,12 @@ const ProjectDetails = () => {
   const { id } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation(); // ZMIANA: hook lokalizacji
   
+  // Odbieramy "skąd przyszedłem", domyślnie '/projects'
+  const backPath = location.state?.from || '/projects';
+  const backLabel = backPath === '/my-projects' ? 'Back to My Projects' : 'Back to projects';
+
   const [project, setProject] = useState(null);
   const [authorProfile, setAuthorProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -98,7 +103,6 @@ const ProjectDetails = () => {
     }
   };
 
-  // NOWE: Funkcja rozpoczynająca czat z liderem
   const handleSendMessage = () => {
     if (!user) {
       toast.error("Please log in to send a message.");
@@ -106,14 +110,12 @@ const ProjectDetails = () => {
       return;
     }
     
-    // Przekieruj do czatu i przekaż dane lidera w stanie (state)
-    // Dzięki temu Chat.jsx będzie wiedział, kogo wybrać na starcie
     navigate('/chat', { 
       state: { 
         startChatWith: authorProfile || { 
           id: project.author_id, 
           full_name: project.author, 
-          email: 'Leader' // Fallback
+          email: 'Leader' 
         } 
       } 
     });
@@ -127,9 +129,10 @@ const ProjectDetails = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      <Link to="/projects" className="inline-flex items-center gap-2 text-textMuted hover:text-white mb-8 transition-colors">
+      {/* ZMIANA: Dynamiczny link powrotu */}
+      <Link to={backPath} className="inline-flex items-center gap-2 text-textMuted hover:text-white mb-8 transition-colors">
         <ArrowLeft size={20} />
-        Back to projects
+        {backLabel}
       </Link>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -184,7 +187,6 @@ const ProjectDetails = () => {
           <div className="bg-surface border border-white/5 rounded-2xl p-6">
             <h3 className="text-lg font-bold text-white mb-4">Team Leader</h3>
             
-            {/* LINK DO PROFILU LIDERA */}
             {project.author_id ? (
               <Link to={`/profile/${project.author_id}`} className="flex items-center gap-4 mb-6 hover:bg-white/5 p-2 rounded-xl transition-colors cursor-pointer group">
                 <UserAvatar 
@@ -215,7 +217,7 @@ const ProjectDetails = () => {
             
             {!isAuthor && (
               <button 
-                onClick={handleSendMessage} // PODPIĘTA FUNKCJA
+                onClick={handleSendMessage}
                 className="w-full py-3 rounded-xl border border-white/10 text-white font-medium hover:bg-white/5 transition-all flex items-center justify-center gap-2"
               >
                 <MessageCircle size={18} />
