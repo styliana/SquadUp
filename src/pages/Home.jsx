@@ -1,24 +1,42 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, Sparkles, Users, Briefcase, Trophy } from 'lucide-react';
+import { supabase } from '../supabaseClient';
 
 const Home = () => {
-  return (
-    <div className="relative overflow-hidden">
-      
-      {/* TŁO (Delikatna poświata z tyłu) */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-primary/20 blur-[120px] rounded-full -z-10" />
+  const [stats, setStats] = useState({
+    projects: 0,
+    users: 0,
+    matches: 0
+  });
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-32">
+  useEffect(() => {
+    const fetchStats = async () => {
+      const { data, error } = await supabase.rpc('get_landing_stats');
+      if (!error && data) {
+        setStats(data);
+      }
+    };
+    fetchStats();
+  }, []);
+
+  return (
+    <div className="relative overflow-hidden min-h-[calc(100vh-64px)] flex flex-col justify-center">
+      
+      {/* TŁO (Delikatna poświata) */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-primary/20 blur-[120px] rounded-full -z-10 opacity-50" />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-20">
         <div className="text-center max-w-4xl mx-auto">
           
-          {/* BADGE (To małe u góry: Seek Quality...) */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-primary text-sm font-medium mb-8 hover:bg-white/10 transition-colors cursor-default">
+          {/* BADGE */}
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-primary text-sm font-medium mb-8 hover:bg-white/10 transition-colors cursor-default animate-in fade-in slide-in-from-bottom-4 duration-700">
             <Sparkles size={16} />
             <span>Seek Quality, Unite And Deliver</span>
           </div>
 
           {/* GŁÓWNY NAGŁÓWEK */}
-          <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 tracking-tight">
+          <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 tracking-tight animate-in fade-in slide-in-from-bottom-5 duration-1000">
             Find your <br />
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-blue-400 to-secondary animate-gradient">
               Dream Team
@@ -26,22 +44,21 @@ const Home = () => {
           </h1>
 
           {/* OPIS */}
-          <p className="text-xl text-textMuted mb-10 max-w-2xl mx-auto leading-relaxed">
-            Build teams for hackathons, competitions, and portfolio projects. 
-            Connect with students who have complementary skills.
+          <p className="text-xl text-textMuted mb-10 max-w-2xl mx-auto leading-relaxed animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-200">
+            Don't waste time searching. Squad Up is a dynamic network where ambitious students connect instantly for hackathons, competitions, and portfolio projects.
           </p>
 
-          {/* TAGI UMIEJĘTNOŚCI (Pigułki) */}
-          <div className="flex flex-wrap justify-center gap-3 mb-12">
-            {['React', 'Python', 'Figma', 'Node.js', 'Flutter', 'Machine Learning'].map((skill) => (
-              <span key={skill} className="px-4 py-1.5 rounded-full text-sm font-medium bg-surface border border-white/10 text-gray-300 hover:border-primary/50 hover:text-primary transition-all cursor-default">
+          {/* TAGI UMIEJĘTNOŚCI */}
+          <div className="flex flex-wrap justify-center gap-3 mb-12 animate-in fade-in zoom-in duration-1000 delay-300">
+            {['React', 'Python', 'Figma', 'Node.js', 'Flutter', 'AI/ML'].map((skill) => (
+              <span key={skill} className="px-4 py-1.5 rounded-full text-sm font-medium bg-surface border border-white/10 text-gray-300 hover:border-primary/50 hover:text-primary transition-all cursor-default hover:scale-105">
                 {skill}
               </span>
             ))}
           </div>
 
           {/* PRZYCISKI (CTA) */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500">
             <Link 
               to="/projects" 
               className="group relative px-8 py-4 bg-gradient-to-r from-primary to-blue-600 rounded-xl text-white font-semibold text-lg shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:shadow-[0_0_30px_rgba(6,182,212,0.6)] transition-all hover:-translate-y-1"
@@ -60,11 +77,23 @@ const Home = () => {
             </Link>
           </div>
 
-          {/* STATYSTYKI (Licznik na dole) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 border-t border-white/10 pt-10">
-            <StatItem number="500+" label="Active Projects" />
-            <StatItem number="2000+" label="Students" />
-            <StatItem number="150+" label="Finished Teams" />
+          {/* STATYSTYKI (DYNAMICZNE) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 border-t border-white/10 pt-10 animate-in fade-in duration-1000 delay-700">
+            <StatItem 
+              icon={<Briefcase className="text-primary mb-2" />} 
+              end={stats.projects} 
+              label="Active Projects" 
+            />
+            <StatItem 
+              icon={<Users className="text-secondary mb-2" />} 
+              end={stats.users} 
+              label="Registered Students" 
+            />
+            <StatItem 
+              icon={<Trophy className="text-yellow-400 mb-2" />} 
+              end={stats.matches} 
+              label="Successful Matches" 
+            />
           </div>
 
         </div>
@@ -73,14 +102,40 @@ const Home = () => {
   );
 };
 
-// Mały komponent do statystyk, żeby nie powtarzać kodu
-const StatItem = ({ number, label }) => (
-  <div className="flex flex-col items-center">
-    <span className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-white to-white/60 mb-2">
-      {number}
-    </span>
-    <span className="text-textMuted font-medium">{label}</span>
-  </div>
-);
+// Komponent z efektem odliczania
+const StatItem = ({ icon, end, label }) => {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    let start = 0;
+    // Jeśli liczba jest duża, przyspieszamy krok
+    const duration = 2000; // 2 sekundy
+    const increment = end / (duration / 16); // 60 FPS
+
+    if (end === 0) return;
+
+    const timer = setInterval(() => {
+      start += increment;
+      if (start >= end) {
+        setCount(end);
+        clearInterval(timer);
+      } else {
+        setCount(Math.ceil(start));
+      }
+    }, 16);
+
+    return () => clearInterval(timer);
+  }, [end]);
+
+  return (
+    <div className="flex flex-col items-center p-4 rounded-2xl hover:bg-white/5 transition-colors">
+      {icon}
+      <span className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-white to-white/60 mb-1">
+        {count}
+      </span>
+      <span className="text-textMuted font-medium text-sm uppercase tracking-wide">{label}</span>
+    </div>
+  );
+};
 
 export default Home;
