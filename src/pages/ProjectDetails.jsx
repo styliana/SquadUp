@@ -5,6 +5,8 @@ import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import UserAvatar from '../components/UserAvatar'; 
 import { toast } from 'sonner';
+// IMPORT NOWEGO HOOKA
+import { useProjectDetails } from '../hooks/useProjectDetails';
 
 const ProjectDetails = () => {
   const { id } = useParams();
@@ -12,46 +14,28 @@ const ProjectDetails = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  const backPath = location.state?.from || '/projects';
-  const backLabel = backPath === '/my-projects' ? 'Back to My Projects' : 'Back to projects';
+  // UŻYCIE HOOKA - Zamiast useState/useEffect do pobierania
+  const { project, loading } = useProjectDetails(id);
 
-  const [project, setProject] = useState(null);
-  // authorProfile nie jest już potrzebny jako oddzielny stan, bo będzie w project.profiles
-  const [loading, setLoading] = useState(true);
+  // Pozostałe stany lokalne dla logiki aplikacji (Application Logic)
   const [hasApplied, setHasApplied] = useState(false);
   const [applyLoading, setApplyLoading] = useState(false);
   const [applicationMessage, setApplicationMessage] = useState("");
 
+  const backPath = location.state?.from || '/projects';
+  const backLabel = backPath === '/my-projects' ? 'Back to My Projects' : 'Back to projects';
+
+  // Sprawdzanie statusu aplikacji (to można w przyszłości też wydzielić do hooka)
   useEffect(() => {
-    fetchProjectDetails();
-    if (user) checkApplicationStatus();
-  }, [id, user]);
-
-  const fetchProjectDetails = async () => {
-    try {
-      setLoading(true);
-      // ZMIANA: Pobieramy projekt WRAZ z profilem autora w jednym zapytaniu
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*, profiles:author_id(*)') 
-        .eq('id', id)
-        .single();
-
-      if (error) throw error;
-      setProject(data);
-
-    } catch (error) {
-      console.error("Błąd pobierania:", error);
-      toast.error("Project not found.");
-    } finally {
-      setLoading(false);
+    if (user && id) {
+      checkApplicationStatus();
     }
-  };
+  }, [id, user]);
 
   const checkApplicationStatus = async () => {
     const { data } = await supabase
       .from('applications')
-      .select('id') // Optymalizacja: pobieramy tylko ID, nie wszystko
+      .select('id') 
       .eq('project_id', id)
       .eq('applicant_id', user.id)
       .single();
@@ -97,6 +81,7 @@ const ProjectDetails = () => {
       return;
     }
     
+    // project.profiles pochodzi teraz z naszego serwisu
     navigate('/chat', { 
       state: { 
         startChatWith: project.profiles || { 
@@ -113,7 +98,7 @@ const ProjectDetails = () => {
 
   const openSpots = project.members_max - project.members_current;
   const isAuthor = user && project.author_id === user.id;
-  // Wyciągamy dane autora z relacji
+  // Wyciągamy dane autora z relacji (zwróconej przez serwis)
   const author = project.profiles; 
 
   return (
