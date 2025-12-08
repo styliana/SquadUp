@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'; // ZMIANA: dodano useLocation
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Calendar, Clock, User, MessageCircle, Send, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
@@ -10,14 +10,13 @@ const ProjectDetails = () => {
   const { id } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation(); // ZMIANA: hook lokalizacji
+  const location = useLocation();
   
-  // Odbieramy "skąd przyszedłem", domyślnie '/projects'
   const backPath = location.state?.from || '/projects';
   const backLabel = backPath === '/my-projects' ? 'Back to My Projects' : 'Back to projects';
 
   const [project, setProject] = useState(null);
-  const [authorProfile, setAuthorProfile] = useState(null);
+  // authorProfile nie jest już potrzebny jako oddzielny stan, bo będzie w project.profiles
   const [loading, setLoading] = useState(true);
   const [hasApplied, setHasApplied] = useState(false);
   const [applyLoading, setApplyLoading] = useState(false);
@@ -31,24 +30,15 @@ const ProjectDetails = () => {
   const fetchProjectDetails = async () => {
     try {
       setLoading(true);
-      const { data: projectData, error } = await supabase
+      // ZMIANA: Pobieramy projekt WRAZ z profilem autora w jednym zapytaniu
+      const { data, error } = await supabase
         .from('projects')
-        .select('*')
+        .select('*, profiles:author_id(*)') 
         .eq('id', id)
         .single();
 
       if (error) throw error;
-      setProject(projectData);
-
-      if (projectData.author_id) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', projectData.author_id)
-          .single();
-        
-        setAuthorProfile(profileData);
-      }
+      setProject(data);
 
     } catch (error) {
       console.error("Błąd pobierania:", error);
@@ -61,7 +51,7 @@ const ProjectDetails = () => {
   const checkApplicationStatus = async () => {
     const { data } = await supabase
       .from('applications')
-      .select('*')
+      .select('id') // Optymalizacja: pobieramy tylko ID, nie wszystko
       .eq('project_id', id)
       .eq('applicant_id', user.id)
       .single();
@@ -75,28 +65,25 @@ const ProjectDetails = () => {
       navigate('/login');
       return;
     }
-    
     if (!applicationMessage.trim()) {
-      toast.warning("Please write a short message to the leader.");
+      toast.warning("Please write a short message.");
       return;
     }
 
     setApplyLoading(true);
     const { error } = await supabase
       .from('applications')
-      .insert([
-        { 
+      .insert([{ 
           project_id: id, 
           applicant_id: user.id,
           message: applicationMessage 
-        }
-      ]);
+      }]);
 
     setApplyLoading(false);
 
     if (error) {
       console.error(error);
-      toast.error("Failed to send application.");
+      toast.error(error.message === 'duplicate key value violates unique constraint' ? "You already applied!" : "Failed to send application.");
     } else {
       setHasApplied(true);
       toast.success("Application sent successfully!");
@@ -112,7 +99,7 @@ const ProjectDetails = () => {
     
     navigate('/chat', { 
       state: { 
-        startChatWith: authorProfile || { 
+        startChatWith: project.profiles || { 
           id: project.author_id, 
           full_name: project.author, 
           email: 'Leader' 
@@ -126,10 +113,11 @@ const ProjectDetails = () => {
 
   const openSpots = project.members_max - project.members_current;
   const isAuthor = user && project.author_id === user.id;
+  // Wyciągamy dane autora z relacji
+  const author = project.profiles; 
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      {/* ZMIANA: Dynamiczny link powrotu */}
       <Link to={backPath} className="inline-flex items-center gap-2 text-textMuted hover:text-white mb-8 transition-colors">
         <ArrowLeft size={20} />
         {backLabel}
@@ -190,18 +178,18 @@ const ProjectDetails = () => {
             {project.author_id ? (
               <Link to={`/profile/${project.author_id}`} className="flex items-center gap-4 mb-6 hover:bg-white/5 p-2 rounded-xl transition-colors cursor-pointer group">
                 <UserAvatar 
-                  avatarUrl={authorProfile?.avatar_url} 
-                  name={authorProfile?.full_name || project.author} 
+                  avatarUrl={author?.avatar_url} 
+                  name={author?.full_name || project.author} 
                   className="w-14 h-14" 
                   textSize="text-xl"
                 />
                 <div className="min-w-0">
                   <div className="font-bold text-white text-lg truncate group-hover:text-primary transition-colors">
-                    {authorProfile?.full_name || project.author}
+                    {author?.full_name || project.author}
                   </div>
                   <div className="text-sm text-textMuted">{project.role}</div>
-                  {authorProfile?.university && (
-                    <div className="text-xs text-primary mt-0.5 truncate">{authorProfile.university}</div>
+                  {author?.university && (
+                    <div className="text-xs text-primary mt-0.5 truncate">{author.university}</div>
                   )}
                 </div>
               </Link>

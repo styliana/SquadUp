@@ -9,7 +9,6 @@ export const useProjects = (user) => {
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   
-  // Przechowujemy preferencje usera w hooku, bo są potrzebne do algorytmu rekomendacji
   const [userProfile, setUserProfile] = useState({
     skills: [],
     preferred_categories: []
@@ -44,14 +43,19 @@ export const useProjects = (user) => {
 
       let query;
 
-      // A. Wybór źródła danych (RPC vs Tabela)
+      // ZMIANA: Dodano embedding 'profiles:author_id(...)' do zapytań
+      // Dzięki temu pobieramy dane autora w TYM SAMYM zapytaniu co projekt
       if (searchTerm) {
-        query = supabase.rpc('search_projects', { keyword: searchTerm });
+        query = supabase
+          .rpc('search_projects', { keyword: searchTerm })
+          .select('*, profiles:author_id(full_name, avatar_url, university)');
       } else {
-        query = supabase.from('projects').select('*', { count: 'exact' });
+        query = supabase
+          .from('projects')
+          .select('*, profiles:author_id(full_name, avatar_url, university)', { count: 'exact' });
       }
 
-      // B. Filtry bazodanowe
+      // Filtry bazodanowe
       query = query.eq('status', 'open');
 
       if (selectedType !== 'All') {
@@ -62,10 +66,10 @@ export const useProjects = (user) => {
         query = query.contains('skills', selectedSkills);
       }
 
-      // C. Paginacja
+      // Paginacja
       query = query.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
-      // D. Sortowanie (jeśli nie szukamy - bo search_projects sortuje po trafności)
+      // Sortowanie
       if (!searchTerm) {
          query = query.order('created_at', { ascending: false });
       }
@@ -73,7 +77,7 @@ export const useProjects = (user) => {
       const { data, error } = await query;
       if (error) throw error;
 
-      // E. Filtrowanie i Logika Rekomendacji (Client-side logic)
+      // Filtrowanie i Rekomendacje
       let processedData = (data || []).filter(p => p.members_current < p.members_max);
 
       const hasPreferences = userProfile.skills.length > 0 || userProfile.preferred_categories.length > 0;
@@ -81,7 +85,6 @@ export const useProjects = (user) => {
       if (showRecommended && hasPreferences) {
         processedData = processedData.map(p => {
           let score = 0;
-          // Algorytm punktacji
           const skillMatches = p.skills?.filter(s => userProfile.skills.includes(s)).length || 0;
           score += skillMatches; 
           if (userProfile.preferred_categories.includes(p.type)) score += 2;
@@ -91,7 +94,7 @@ export const useProjects = (user) => {
         .sort((a, b) => b.matchScore - a.matchScore);
       }
 
-      // F. Aktualizacja stanu
+      // Aktualizacja stanu
       if (isReset) {
         setProjects(processedData);
       } else {
@@ -102,20 +105,19 @@ export const useProjects = (user) => {
 
     } catch (error) {
       console.error('Błąd pobierania projektów:', error);
-      // Ignorujemy błąd przerwania zapytania (częste przy szybkim pisaniu)
       if (error.code !== 'PX000' && error.name !== 'AbortError') {
          toast.error("Could not fetch projects");
       }
     } finally {
       setLoading(false);
     }
-  }, [userProfile]); // Zależy od profilu, bo profil wpływa na sortowanie
+  }, [userProfile]);
 
   return {
     projects,
     loading,
     hasMore,
     fetchProjects,
-    userProfile // Eksportujemy, żeby UI wiedział czy pokazać przycisk "For You"
+    userProfile
   };
 };
