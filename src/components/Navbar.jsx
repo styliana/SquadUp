@@ -4,6 +4,7 @@ import { Megaphone, PlusCircle, MessageSquare, User, Users, LogOut, Briefcase } 
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabaseClient';
 import UserAvatar from './UserAvatar';
+import NotificationsMenu from './NotificationsMenu'; 
 
 const Navbar = () => {
   const location = useLocation();
@@ -11,12 +12,11 @@ const Navbar = () => {
   const { user, signOut } = useAuth();
   const [avatarUrl, setAvatarUrl] = useState(null);
   
-  // NOWE: Stan dla nieprzeczytanych wiadomości
-  const [unreadCount, setUnreadCount] = useState(0);
+  // Stan dla chatu (niezależny od powiadomień systemowych)
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
 
   const isActive = (path) => location.pathname === path;
 
-  // 1. Pobieranie Profilu
   useEffect(() => {
     if (user) {
       const getProfile = async () => {
@@ -31,43 +31,31 @@ const Navbar = () => {
     }
   }, [user]);
 
-  // 2. NOWE: Obsługa powiadomień (Czerwona kropka)
+  // Obsługa nieprzeczytanych wiadomości (CHAT)
   useEffect(() => {
     if (!user) return;
 
-    // A. Pobierz początkową liczbę nieprzeczytanych
-    const fetchUnread = async () => {
+    const fetchUnreadChat = async () => {
       const { count } = await supabase
         .from('messages')
         .select('*', { count: 'exact', head: true })
         .eq('receiver_id', user.id)
         .eq('is_read', false);
       
-      setUnreadCount(count || 0);
+      setUnreadChatCount(count || 0);
     };
-    fetchUnread();
+    fetchUnreadChat();
 
-    // B. Nasłuchuj na zmiany w wiadomościach
     const channel = supabase
-      .channel('unread_messages')
+      .channel('unread_messages_nav')
       .on(
         'postgres_changes',
-        {
-          event: '*', // INSERT (nowa) lub UPDATE (przeczytana)
-          schema: 'public',
-          table: 'messages',
-          filter: `receiver_id=eq.${user.id}`
-        },
-        () => {
-          // Jak coś się zmieni, po prostu przelicz ponownie
-          fetchUnread();
-        }
+        { event: '*', schema: 'public', table: 'messages', filter: `receiver_id=eq.${user.id}` },
+        () => fetchUnreadChat()
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => supabase.removeChannel(channel);
   }, [user]);
 
   const handleLogout = async () => {
@@ -97,7 +85,6 @@ const Navbar = () => {
                 <NavLink to="/create-project" icon={<PlusCircle size={18} />} text="Create Project" active={isActive('/create-project')} />
                 <NavLink to="/my-projects" icon={<Briefcase size={18} />} text="My Projects" active={isActive('/my-projects')} />
                 
-                {/* IKONA CZATU Z BADGEM */}
                 <Link 
                   to="/chat" 
                   className={`relative flex items-center gap-2 text-sm font-medium transition-colors duration-200 ${
@@ -106,9 +93,9 @@ const Navbar = () => {
                 >
                   <div className="relative">
                     <MessageSquare size={18} />
-                    {unreadCount > 0 && (
+                    {unreadChatCount > 0 && (
                       <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center animate-pulse">
-                        {unreadCount > 9 ? '9+' : unreadCount}
+                        {unreadChatCount > 9 ? '9+' : unreadChatCount}
                       </span>
                     )}
                   </div>
@@ -121,6 +108,11 @@ const Navbar = () => {
           <div className="flex items-center gap-4">
             {user ? (
               <>
+                {/* NOWE: DZWONEK POWIADOMIEŃ */}
+                <NotificationsMenu user={user} />
+
+                <div className="w-px h-6 bg-white/10 mx-1"></div>
+
                 <Link to="/profile" className="flex items-center gap-2 group" aria-label="Go to Profile Settings">
                   <UserAvatar 
                     avatarUrl={avatarUrl} 
@@ -157,7 +149,6 @@ const Navbar = () => {
   );
 };
 
-// Zmodyfikowany NavLink (prostszy, bo Chat ma specjalną logikę wyżej)
 const NavLink = ({ to, icon, text, active }) => (
   <Link 
     to={to} 
