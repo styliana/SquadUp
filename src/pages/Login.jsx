@@ -1,49 +1,54 @@
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Mail, Lock, Loader2, ArrowRight } from 'lucide-react';
+import { Mail, Lock, Loader2, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
+
+// 1. SCHEMAT WALIDACJI
+const loginSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(1, "Password is required"),
+});
 
 const Login = () => {
   const { signIn } = useAuth();
   const navigate = useNavigate();
-  
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
+  const [showPassword, setShowPassword] = useState(false);
+
+  // 2. KONFIGURACJA RHF
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting }
+  } = useForm({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: ''
+    }
   });
-  
-  const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
+  // 3. OBSŁUGA LOGOWANIA
+  const onSubmit = async (data) => {
     try {
       const { error } = await signIn({ 
-        email: formData.email, 
-        password: formData.password 
+        email: data.email, 
+        password: data.password 
       });
       
       if (error) throw error;
       
       toast.success('Welcome back! 👋');
-      navigate('/'); // Przekierowanie na stronę główną po zalogowaniu
+      navigate('/');
       
     } catch (error) {
       console.error(error);
       toast.error("Login failed", {
         description: "Invalid email or password."
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -56,7 +61,7 @@ const Login = () => {
           <p className="text-textMuted">Enter your credentials to access your account.</p>
         </div>
         
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           
           {/* EMAIL */}
           <div>
@@ -64,15 +69,19 @@ const Login = () => {
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
               <input 
+                {...register("email")}
                 type="email" 
-                name="email"
-                className="w-full bg-background border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:border-primary focus:outline-none transition-colors placeholder:text-gray-600"
+                className={`w-full bg-background border rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none transition-colors ${
+                  errors.email ? 'border-red-500 focus:border-red-500' : 'border-white/10 focus:border-primary'
+                }`}
                 placeholder="student@university.edu"
-                value={formData.email}
-                onChange={handleChange}
-                required
               />
             </div>
+            {errors.email && (
+              <p className="text-xs text-red-400 mt-1 ml-1 flex items-center gap-1">
+                <AlertCircle size={12}/> {errors.email.message}
+              </p>
+            )}
           </div>
 
           {/* PASSWORD */}
@@ -81,15 +90,26 @@ const Login = () => {
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
               <input 
-                type="password" 
-                name="password"
-                className="w-full bg-background border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:border-primary focus:outline-none transition-colors placeholder:text-gray-600"
+                {...register("password")}
+                type={showPassword ? "text" : "password"}
+                className={`w-full bg-background border rounded-xl py-3 pl-10 pr-10 text-white focus:outline-none transition-colors ${
+                  errors.password ? 'border-red-500 focus:border-red-500' : 'border-white/10 focus:border-primary'
+                }`}
                 placeholder="••••••••"
-                value={formData.password}
-                onChange={handleChange}
-                required
               />
+              <button 
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
+            {errors.password && (
+              <p className="text-xs text-red-400 mt-1 ml-1 flex items-center gap-1">
+                <AlertCircle size={12}/> {errors.password.message}
+              </p>
+            )}
           </div>
 
           {/* FORGOT PASSWORD LINK */}
@@ -103,10 +123,11 @@ const Login = () => {
           </div>
 
           <button 
-            disabled={loading}
+            type="submit"
+            disabled={isSubmitting}
             className="w-full py-3 bg-gradient-to-r from-primary to-blue-600 hover:shadow-lg hover:shadow-primary/25 text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-[0.98] flex items-center justify-center gap-2"
           >
-            {loading ? <Loader2 className="animate-spin" size={20} /> : (
+            {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : (
               <>
                 Log In <ArrowRight size={18} />
               </>
