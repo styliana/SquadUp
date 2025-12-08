@@ -1,23 +1,37 @@
 import { supabase } from '../supabaseClient';
 
 /**
- * Pobiera listę użytkowników do czatu (z pominięciem zalogowanego).
- * Pobieramy tylko niezbędne pola dla optymalizacji.
+ * 1. SKALOWALNOŚĆ: Zamiast pobierać wszystkich, pobieramy tylko tych,
+ * z którymi użytkownik już rozmawiał (używając funkcji SQL RPC).
  */
-export const getChatUsers = async (currentUserId) => {
+export const getRecentChatPartners = async (currentUserId) => {
   const { data, error } = await supabase
-    .from('profiles')
-    .select('id, full_name, email, avatar_url, university') 
-    .neq('id', currentUserId);
+    .rpc('get_recent_chat_partners', { current_user_id: currentUserId });
 
   if (error) throw error;
   return data;
 };
 
 /**
- * Pobiera liczniki nieprzeczytanych wiadomości dla danego usera.
- * Zwraca mapę: { sender_id: liczba_nieprzeczytanych }
+ * 2. SKALOWALNOŚĆ: Server-Side Search.
+ * Szukamy użytkowników w bazie pasujących do frazy (nie pobieramy wszystkich do RAMu).
  */
+export const searchUsers = async (query, currentUserId) => {
+  if (!query || query.length < 2) return [];
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, email, avatar_url, university')
+    .neq('id', currentUserId)
+    .or(`full_name.ilike.%${query}%,email.ilike.%${query}%`) // Szukaj po nazwie LUB emailu
+    .limit(10); // Pobierz max 10 wyników
+
+  if (error) throw error;
+  return data;
+};
+
+// ... reszta funkcji bez zmian (ale dla porządku podaję całość) ...
+
 export const getUnreadMessages = async (currentUserId) => {
   const { data, error } = await supabase
     .from('messages')
@@ -34,9 +48,6 @@ export const getUnreadMessages = async (currentUserId) => {
   return map;
 };
 
-/**
- * Pobiera historię rozmowy między dwojgiem użytkowników.
- */
 export const getConversation = async (user1, user2) => {
   const { data, error } = await supabase
     .from('messages')
@@ -48,35 +59,17 @@ export const getConversation = async (user1, user2) => {
   return data;
 };
 
-/**
- * Oznacza listę wiadomości jako przeczytane.
- */
 export const markMessagesAsRead = async (messageIds) => {
   if (!messageIds || messageIds.length === 0) return;
-  
-  const { error } = await supabase
-    .from('messages')
-    .update({ is_read: true })
-    .in('id', messageIds);
-
+  const { error } = await supabase.from('messages').update({ is_read: true }).in('id', messageIds);
   if (error) throw error;
 };
 
-/**
- * Wysyła nową wiadomość i ZWRACA jej pełny obiekt z bazy (w tym prawdziwe ID).
- * Jest to kluczowe dla poprawnego działania Optimistic UI i aktualizacji statusu przeczytania.
- */
 export const sendMessageToApi = async (senderId, receiverId, content) => {
   const { data, error } = await supabase
     .from('messages')
-    .insert([{
-      sender_id: senderId,
-      receiver_id: receiverId,
-      content: content
-    }])
-    .select() // WAŻNE: Wymusza zwrócenie utworzonego rekordu
-    .single();
-
+    .insert([{ sender_id: senderId, receiver_id: receiverId, content: content }])
+    .select().single();
   if (error) throw error;
-  return data; // Zwracamy obiekt wiadomości z prawdziwym ID i created_at
+  return data;
 };

@@ -1,12 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
+import { useDebounce } from '../../hooks/useDebounce'; // Upewnij się co do ścieżki
 
-const ChatSidebar = ({ users, selectedUser, onSelectUser, unreadMap, loading, isMobileView, onBack }) => {
+const ChatSidebar = ({ users, selectedUser, onSelectUser, unreadMap, loading, onSearch }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  // Debounce: czekamy 500ms po zakończeniu pisania zanim wywołamy API
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
-  const filteredUsers = users.filter(u => 
-    (u.full_name || u.email).toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Reagujemy na zmianę debouncedSearchTerm -> wywołujemy onSearch (z hooka useChat)
+  useEffect(() => {
+    if (onSearch) {
+      onSearch(debouncedSearchTerm);
+    }
+  }, [debouncedSearchTerm, onSearch]);
 
   return (
     <div className={`w-full md:w-80 border-r border-white/10 flex flex-col bg-surface/50 ${selectedUser ? 'hidden md:flex' : 'flex'}`}>
@@ -16,7 +22,7 @@ const ChatSidebar = ({ users, selectedUser, onSelectUser, unreadMap, loading, is
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input 
             type="text" 
-            placeholder="Search people..." 
+            placeholder="Search users..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-background border border-white/10 rounded-xl py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-primary transition-colors"
@@ -26,11 +32,15 @@ const ChatSidebar = ({ users, selectedUser, onSelectUser, unreadMap, loading, is
 
       <div className="flex-1 overflow-y-auto">
         {loading ? (
-          <div className="p-4 text-textMuted text-center">Loading users...</div>
-        ) : filteredUsers.length === 0 ? (
-           <div className="p-4 text-textMuted text-center">No users found.</div>
+          <div className="p-4 text-textMuted text-center text-sm">Loading contacts...</div>
+        ) : users.length === 0 ? (
+           <div className="p-8 text-textMuted text-center text-sm flex flex-col items-center">
+             <Search size={24} className="mb-2 opacity-50" />
+             <p>No contacts found.</p>
+             <p className="text-xs mt-1">Search to start a new chat.</p>
+           </div>
         ) : (
-          filteredUsers.map((u) => {
+          users.map((u) => {
             const hasUnread = unreadMap[u.id] > 0;
             return (
               <div 
@@ -45,16 +55,7 @@ const ChatSidebar = ({ users, selectedUser, onSelectUser, unreadMap, loading, is
                 }`}
               >
                 <div className="relative shrink-0">
-                  {u.avatar_url ? (
-                    <img src={u.avatar_url} className="w-10 h-10 rounded-full object-cover" alt="User" />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-white font-bold uppercase">
-                      {u.email ? u.email.charAt(0) : '?'}
-                    </div>
-                  )}
-                  {hasUnread && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 w-3 h-3 rounded-full border-2 border-surface"></span>
-                  )}
+                  <UserAvatar u={u} hasUnread={hasUnread} />
                 </div>
                 
                 <div className="flex-1 min-w-0">
@@ -75,5 +76,21 @@ const ChatSidebar = ({ users, selectedUser, onSelectUser, unreadMap, loading, is
     </div>
   );
 };
+
+// Mały pomocnik do Avatara, żeby kod był czystszy
+const UserAvatar = ({ u, hasUnread }) => (
+  <>
+    {u.avatar_url ? (
+      <img src={u.avatar_url} className="w-10 h-10 rounded-full object-cover" alt="User" />
+    ) : (
+      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-white font-bold uppercase">
+        {u.email ? u.email.charAt(0) : '?'}
+      </div>
+    )}
+    {hasUnread && (
+      <span className="absolute -top-1 -right-1 bg-red-500 w-3 h-3 rounded-full border-2 border-surface"></span>
+    )}
+  </>
+);
 
 export default ChatSidebar;

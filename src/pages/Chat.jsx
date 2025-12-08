@@ -3,14 +3,12 @@ import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import ChatSidebar from '../components/chat/ChatSidebar';
 import ChatWindow from '../components/chat/ChatWindow';
-// Importujemy nasz nowy Hook
 import { useChat } from '../hooks/useChat';
 
 const Chat = () => {
   const { user } = useAuth();
   const location = useLocation();
   
-  // Cała logika jest teraz w hooku useChat
   const {
     users,
     unreadMap,
@@ -21,14 +19,13 @@ const Chat = () => {
     isTyping,
     sendMessage,
     sendTypingSignal,
-    deselectUser
+    deselectUser,
+    handleSearch 
   } = useChat(user);
 
-  // Obsługa przekierowania z innej strony (np. przycisk "Message" na profilu)
   useEffect(() => {
     if (location.state?.startChatWith) {
       selectUser(location.state.startChatWith);
-      // Czyścimy stan, żeby po odświeżeniu nie wracało do tego samego
       window.history.replaceState({}, document.title);
     }
   }, [location.state, selectUser]);
@@ -41,6 +38,7 @@ const Chat = () => {
         onSelectUser={selectUser} 
         unreadMap={unreadMap} 
         loading={loading}
+        onSearch={handleSearch} 
       />
       
       <ChatWindow 
