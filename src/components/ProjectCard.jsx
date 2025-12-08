@@ -1,7 +1,9 @@
-import { Calendar, User, ArrowRight } from 'lucide-react';
+import { Calendar, User, ArrowRight, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PROJECT_TYPE_STYLES } from '../utils/constants';
-import UserAvatar from './UserAvatar'; // Dodany import
+import UserAvatar from './UserAvatar';
+// IMPORT NARZĘDZIA
+import { formatDate } from '../utils/formatDate';
 
 const ProjectCard = ({ project }) => {
   
@@ -9,10 +11,8 @@ const ProjectCard = ({ project }) => {
     return PROJECT_TYPE_STYLES[type] || PROJECT_TYPE_STYLES['Default'];
   };
 
-  // Dane autora z relacji (jeśli dostępne) lub fallback do starych pól
   const authorName = project.profiles?.full_name || project.author || 'Anonymous';
   const authorAvatar = project.profiles?.avatar_url;
-  const authorUni = project.profiles?.university;
 
   return (
     <div className="bg-surface border border-white/5 rounded-2xl p-6 hover:border-primary/50 transition-all duration-300 hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] group flex flex-col h-full relative overflow-hidden">
@@ -33,7 +33,7 @@ const ProjectCard = ({ project }) => {
         {project.title}
       </h3>
       
-      {/* AUTHOR INFO (NOWE) */}
+      {/* AUTHOR INFO */}
       <div className="flex items-center gap-2 mb-4">
         <UserAvatar avatarUrl={authorAvatar} name={authorName} className="w-6 h-6" textSize="text-xs" />
         <span className="text-xs text-gray-400 truncate max-w-[150px]">
@@ -61,9 +61,17 @@ const ProjectCard = ({ project }) => {
 
       {/* FOOTER */}
       <div className="mt-auto pt-4 border-t border-white/5 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-xs text-textMuted">
-          <Calendar size={14} />
-          <span>{project.deadline || project.timePosted}</span>
+        <div className="flex items-center gap-4 text-xs text-textMuted">
+           {/* UŻYCIE formatDate */}
+           <div className="flex items-center gap-1.5" title="Date Posted">
+             <Clock size={14} />
+             <span>{formatDate(project.created_at)}</span>
+           </div>
+           {/* Opcjonalnie deadline też można sformatować, jeśli jest datą */}
+           <div className="flex items-center gap-1.5" title="Deadline">
+             <Calendar size={14} />
+             <span>{project.deadline || 'Flexible'}</span>
+           </div>
         </div>
         
         <Link 

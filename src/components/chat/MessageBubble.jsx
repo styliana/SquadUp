@@ -1,15 +1,9 @@
 import React from 'react';
+// IMPORT NARZĘDZIA
+import { formatDate } from '../../utils/formatDate'; // Ścieżka o jeden poziom wyżej (components/chat -> utils)
 
 const MessageBubble = ({ message, isMe }) => {
-  const formatMessageDate = (dateString) => {
-    const date = new Date(dateString);
-    const today = new Date();
-    const isToday = date.toDateString() === today.toDateString();
-    
-    const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    if (isToday) return time;
-    return `${date.toLocaleDateString([], { day: 'numeric', month: 'short' })} ${time}`;
-  };
+  // Usunęliśmy funkcję formatMessageDate, bo mamy teraz formatDate
 
   return (
     <div className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
@@ -20,7 +14,8 @@ const MessageBubble = ({ message, isMe }) => {
       }`}>
         <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
         <div className={`text-[10px] mt-1 text-right flex items-center justify-end gap-1 ${isMe ? 'text-blue-100' : 'text-gray-500'}`}>
-          <span>{formatMessageDate(message.created_at)}</span>
+          {/* UŻYCIE formatDate */}
+          <span>{formatDate(message.created_at, { relative: true })}</span>
           {isMe && <span>{message.is_read ? '✓✓' : '✓'}</span>}
         </div>
       </div>

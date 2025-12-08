@@ -3,6 +3,8 @@ import { Bell, Check } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+// IMPORT NARZĘDZIA
+import { formatDate } from '../utils/formatDate';
 
 const NotificationsMenu = ({ user }) => {
   const [notifications, setNotifications] = useState([]);
@@ -11,7 +13,6 @@ const NotificationsMenu = ({ user }) => {
   const menuRef = useRef(null);
   const navigate = useNavigate();
 
-  // 1. Pobierz powiadomienia i nasłuchuj nowych
   useEffect(() => {
     if (!user) return;
 
@@ -30,7 +31,6 @@ const NotificationsMenu = ({ user }) => {
     };
     fetchNotifications();
 
-    // Realtime subscription
     const channel = supabase
       .channel('realtime_notifications')
       .on(
@@ -39,7 +39,6 @@ const NotificationsMenu = ({ user }) => {
         (payload) => {
           setNotifications(prev => [payload.new, ...prev]);
           setUnreadCount(prev => prev + 1);
-          // Pokazujemy też Toast na ekranie!
           toast(payload.new.title, { description: payload.new.message });
         }
       )
@@ -48,7 +47,6 @@ const NotificationsMenu = ({ user }) => {
     return () => supabase.removeChannel(channel);
   }, [user]);
 
-  // Obsługa kliknięcia poza menu (zamykanie)
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -60,7 +58,6 @@ const NotificationsMenu = ({ user }) => {
   }, []);
 
   const handleNotificationClick = async (notif) => {
-    // Oznacz jako przeczytane
     if (!notif.is_read) {
       await supabase.from('notifications').update({ is_read: true }).eq('id', notif.id);
       setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
@@ -115,7 +112,8 @@ const NotificationsMenu = ({ user }) => {
                     <div className="text-sm font-bold text-white">{notif.title}</div>
                     <div className="text-xs text-gray-400 mt-0.5">{notif.message}</div>
                     <div className="text-[10px] text-gray-500 mt-2">
-                      {new Date(notif.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      {/* UŻYCIE formatDate ZAMIAST RĘCZNEGO KODU */}
+                      {formatDate(notif.created_at, { relative: true })}
                     </div>
                   </div>
                 </div>
