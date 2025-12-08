@@ -1,34 +1,34 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Search, Send, MoreHorizontal, Circle } from 'lucide-react'; // Circle do statusu
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import ChatSidebar from '../components/chat/ChatSidebar';
+import ChatWindow from '../components/chat/ChatWindow';
 
 const Chat = () => {
   const { user } = useAuth();
   const location = useLocation();
   
+  // Stan danych
   const [users, setUsers] = useState([]);
-  const [selectedUser, setSelectedUser] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState("");
-  const [loading, setLoading] = useState(true);
-  
-  // NOWE: Mapa nieprzeczytanych wiadomości { userId: count }
   const [unreadMap, setUnreadMap] = useState({});
+  const [loading, setLoading] = useState(true);
 
+  // Stan UI
+  const [selectedUser, setSelectedUser] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
-  const typingTimeoutRef = useRef(null);
   
-  const messagesEndRef = useRef(null);
+  // Referencje dla logiki
+  const typingTimeoutRef = useRef(null);
   const channelRef = useRef(null);
 
-  // 1. POBIERZ LISTĘ USERÓW I NIEPRZECZYTANE WIADOMOŚCI
+  // 1. INICJALIZACJA: Pobierz listę userów i mapę nieprzeczytanych
   useEffect(() => {
     const initChat = async () => {
       if (!user) return;
 
-      // A. Pobierz użytkowników
+      // Pobierz użytkowników
       const { data: usersData } = await supabase
         .from('profiles')
         .select('*')
@@ -37,14 +37,13 @@ const Chat = () => {
       setUsers(usersData || []);
       setLoading(false);
 
-      // B. Pobierz nieprzeczytane wiadomości (żeby zbudować mapę)
+      // Pobierz liczniki nieprzeczytanych wiadomości
       const { data: unreadData } = await supabase
         .from('messages')
         .select('sender_id')
         .eq('receiver_id', user.id)
         .eq('is_read', false);
 
-      // Zliczamy wiadomości per nadawca
       const map = {};
       unreadData?.forEach(msg => {
         map[msg.sender_id] = (map[msg.sender_id] || 0) + 1;
@@ -54,28 +53,16 @@ const Chat = () => {
 
     initChat();
 
-    // C. Globalny nasłuch na NOWE wiadomości (do aktualizacji paska bocznego)
+    // Nasłuchuj globalnie na nowe wiadomości (żeby aktualizować liczniki po lewej)
     const globalChannel = supabase.channel('global_chat_updates')
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `receiver_id=eq.${user.id}`, // Tylko wiadomości do mnie
-        },
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `receiver_id=eq.${user.id}` },
         (payload) => {
-          // Jeśli wiadomość nie jest od aktualnie wybranego usera, zwiększ licznik
-          // (Jeśli jest od wybranego, to i tak zaraz wpadnie do 'fetchMessages' i się oznaczy jako read)
-          setUnreadMap(prev => {
-            // Jeśli mamy otwarty czat z tym nadawcą, nie podbijamy licznika (bo zaraz będzie read)
-            // Ale dla bezpieczeństwa UI można podbić, a efekt poniżej zaraz to wyzeruje
-            const senderId = payload.new.sender_id;
-            return {
-              ...prev,
-              [senderId]: (prev[senderId] || 0) + 1
-            };
-          });
+          setUnreadMap(prev => ({
+            ...prev,
+            [payload.new.sender_id]: (prev[payload.new.sender_id] || 0) + 1
+          }));
         }
       )
       .subscribe();
@@ -85,100 +72,66 @@ const Chat = () => {
     };
   }, [user]);
 
-  // OBSŁUGA ROZPOCZĘCIA CZATU Z INNEJ STRONY (np. z Profilu)
+  // Obsługa przekierowania z profilu (np. przycisk "Message")
   useEffect(() => {
     if (location.state?.startChatWith) {
-      handleSelectUser(location.state.startChatWith); // Używamy naszej funkcji, żeby wyczyścić badge
+      handleSelectUser(location.state.startChatWith);
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
 
-  // FUNKCJA WYBORU UŻYTKOWNIKA (Czyści badge)
+  // 2. WYBÓR UŻYTKOWNIKA I SUBSKRYPCJA POKOJU
   const handleSelectUser = async (u) => {
     setSelectedUser(u);
-    
-    // Optymistyczne wyczyszczenie licznika nieprzeczytanych dla tego usera
-    if (unreadMap[u.id]) {
-      setUnreadMap(prev => {
-        const newMap = { ...prev };
-        delete newMap[u.id];
-        return newMap;
-      });
+    // Czyścimy licznik powiadomień dla tego usera lokalnie
+    setUnreadMap(prev => {
+      const newMap = { ...prev };
+      delete newMap[u.id];
+      return newMap;
+    });
+
+    if (!user) return;
+
+    // A. Pobierz historię
+    const { data } = await supabase
+      .from('messages')
+      .select('*')
+      .or(`and(sender_id.eq.${user.id},receiver_id.eq.${u.id}),and(sender_id.eq.${u.id},receiver_id.eq.${user.id})`)
+      .order('created_at', { ascending: true });
+
+    setMessages(data || []);
+
+    // B. Oznacz jako przeczytane w bazie
+    const unreadIds = data?.filter(m => m.receiver_id === user.id && !m.is_read).map(m => m.id);
+    if (unreadIds?.length > 0) {
+      await supabase.from('messages').update({ is_read: true }).in('id', unreadIds);
     }
-  };
 
-  // 2. SUBSKRYPCJA DO KONKRETNEGO KANAŁU ROZMOWY
-  useEffect(() => {
-    if (!selectedUser) return;
+    // C. Subskrybuj pokój (Realtime)
+    if (channelRef.current) supabase.removeChannel(channelRef.current);
 
-    setMessages([]);
-    setIsTyping(false);
-
-    // A. Pobierz historię rozmowy
-    const fetchMessages = async () => {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .or(`and(sender_id.eq.${user.id},receiver_id.eq.${selectedUser.id}),and(sender_id.eq.${selectedUser.id},receiver_id.eq.${user.id})`)
-        .order('created_at', { ascending: true });
-
-      if (error) console.error(error);
-      else setMessages(data);
-
-      // B. Oznacz jako przeczytane (skoro otworzyliśmy czat)
-      const unreadIds = data
-        ?.filter(m => m.receiver_id === user.id && !m.is_read)
-        .map(m => m.id);
-      
-      if (unreadIds && unreadIds.length > 0) {
-        await supabase
-          .from('messages')
-          .update({ is_read: true })
-          .in('id', unreadIds);
-          
-        // Upewnij się, że mapa jest czysta
-        setUnreadMap(prev => {
-            const newMap = { ...prev };
-            delete newMap[selectedUser.id];
-            return newMap;
-        });
-      }
-    };
-    fetchMessages();
-
-    // C. Realtime dla aktywnej rozmowy
-    const roomId = [user.id, selectedUser.id].sort().join('_');
+    const roomId = [user.id, u.id].sort().join('_');
     const channel = supabase.channel(`room_${roomId}`)
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `receiver_id=eq.${user.id}`,
-        },
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `receiver_id=eq.${user.id}` },
         async (payload) => {
-          if (payload.new.sender_id === selectedUser.id) {
-            setMessages((prev) => [...prev, payload.new]);
-            setIsTyping(false);
+          if (payload.new.sender_id === u.id) {
+            setMessages(prev => [...prev, payload.new]);
+            // Oznaczamy od razu jako przeczytane, bo mamy otwarte okno
+            await supabase.from('messages').update({ is_read: true }).eq('id', payload.new.id);
             
-            // Skoro mamy otwarty czat, oznaczamy od razu jako przeczytane
-            await supabase
-              .from('messages')
-              .update({ is_read: true })
-              .eq('id', payload.new.id);
-              
-            // I czyścimy mapę, żeby kropka nie wisiała
+            // Ponownie czyścimy mapę dla pewności
             setUnreadMap(prev => {
                 const newMap = { ...prev };
-                delete newMap[selectedUser.id];
+                delete newMap[u.id];
                 return newMap;
             });
           }
         }
       )
       .on('broadcast', { event: 'typing' }, (payload) => {
-        if (payload.payload.sender_id === selectedUser.id) {
+        if (payload.payload.sender_id === u.id) {
           setIsTyping(true);
           if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
           typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 3000);
@@ -187,42 +140,31 @@ const Chat = () => {
       .subscribe();
 
     channelRef.current = channel;
+  };
 
-    return () => {
-      supabase.removeChannel(channel);
-      channelRef.current = null;
-    };
-  }, [selectedUser, user]);
+  // 3. WYSYŁANIE WIADOMOŚCI
+  const handleSendMessage = async (content) => {
+    if (!selectedUser) return;
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isTyping]);
-
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!newMessage.trim() || !selectedUser) return;
-
-    const msgContent = newMessage;
-    setNewMessage("");
-
-    setMessages((prev) => [...prev, {
+    // Optimistic UI Update
+    const optimisticMsg = {
       id: Date.now(),
       sender_id: user.id,
       receiver_id: selectedUser.id,
-      content: msgContent,
+      content: content,
       created_at: new Date().toISOString(),
       is_read: false
-    }]);
+    };
+    setMessages(prev => [...prev, optimisticMsg]);
 
     await supabase.from('messages').insert([{
       sender_id: user.id,
       receiver_id: selectedUser.id,
-      content: msgContent
+      content: content
     }]);
   };
 
-  const handleInputChange = (e) => {
-    setNewMessage(e.target.value);
+  const handleTyping = () => {
     if (channelRef.current) {
       channelRef.current.send({
         type: 'broadcast',
@@ -232,150 +174,25 @@ const Chat = () => {
     }
   };
 
-  // FORMATOWANIE DATY
-  const formatMessageDate = (dateString) => {
-    const date = new Date(dateString);
-    const today = new Date();
-    const isToday = date.toDateString() === today.toDateString();
-    
-    const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    if (isToday) return time;
-    
-    return `${date.toLocaleDateString([], { day: 'numeric', month: 'short' })} ${time}`;
-  };
-
   return (
     <div className="flex h-[calc(100vh-64px)] max-w-7xl mx-auto border-x border-white/5">
+      <ChatSidebar 
+        users={users} 
+        selectedUser={selectedUser} 
+        onSelectUser={handleSelectUser} 
+        unreadMap={unreadMap} 
+        loading={loading}
+      />
       
-      {/* LEWA KOLUMNA - LISTA UŻYTKOWNIKÓW */}
-      <div className={`w-full md:w-80 border-r border-white/10 flex flex-col bg-surface/50 ${selectedUser ? 'hidden md:flex' : 'flex'}`}>
-        <div className="p-4 border-b border-white/10">
-          <h2 className="text-xl font-bold text-white mb-4">Messages</h2>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input 
-              type="text" 
-              placeholder="Search people..." 
-              className="w-full bg-background border border-white/10 rounded-xl py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-primary transition-colors"
-            />
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto">
-          {loading ? <div className="p-4 text-textMuted">Loading...</div> : users.map((u) => {
-            const hasUnread = unreadMap[u.id] > 0; // Czy ten user ma nieprzeczytane?
-            
-            return (
-              <div 
-                key={u.id}
-                onClick={() => handleSelectUser(u)}
-                className={`p-4 flex items-center gap-3 cursor-pointer transition-all border-b border-white/5 ${
-                  selectedUser?.id === u.id 
-                    ? 'bg-primary/10 border-l-4 border-l-primary' 
-                    : hasUnread 
-                        ? 'bg-white/5 border-l-4 border-l-red-500' // Podświetlenie nieprzeczytanego
-                        : 'hover:bg-white/5 border-l-4 border-l-transparent'
-                }`}
-              >
-                <div className="relative shrink-0">
-                  {u.avatar_url ? (
-                    <img src={u.avatar_url} className="w-10 h-10 rounded-full object-cover" alt="User" />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-white font-bold uppercase">
-                      {u.email ? u.email.charAt(0) : '?'}
-                    </div>
-                  )}
-                  {/* KROPKA PRZY AWATARZE */}
-                  {hasUnread && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 w-3 h-3 rounded-full border-2 border-surface"></span>
-                  )}
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <div className={`font-medium truncate ${hasUnread ? 'text-white font-bold' : 'text-gray-300'}`}>
-                    {u.full_name || u.email}
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <p className={`text-xs truncate ${hasUnread ? 'text-white' : 'text-textMuted'}`}>
-                      {hasUnread ? `${unreadMap[u.id]} new messages` : (u.university || 'Student')}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* PRAWA KOLUMNA - CZAT */}
-      {selectedUser ? (
-        <div className="flex-1 flex flex-col bg-background h-full">
-          <div className="h-16 border-b border-white/10 flex items-center gap-3 px-6 bg-surface/30 shrink-0">
-            <button onClick={() => setSelectedUser(null)} className="md:hidden text-textMuted mr-2">←</button>
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold uppercase">
-              {selectedUser.email ? selectedUser.email.charAt(0) : '?'}
-            </div>
-            <div>
-              <h3 className="font-bold text-white">{selectedUser.full_name || selectedUser.email}</h3>
-              <p className="text-xs text-primary flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
-                Online
-              </p>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-6 space-y-4">
-            {messages.map((msg) => {
-              const isMe = msg.sender_id === user.id;
-              return (
-                <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[75%] rounded-2xl p-4 ${
-                    isMe ? 'bg-gradient-to-r from-primary to-blue-600 text-white rounded-br-none' : 'bg-surface border border-white/10 text-gray-200 rounded-bl-none'
-                  }`}>
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-                    <div className={`text-[10px] mt-1 text-right flex items-center justify-end gap-1 ${isMe ? 'text-blue-100' : 'text-gray-500'}`}>
-                      <span>{formatMessageDate(msg.created_at)}</span>
-                      {isMe && <span>{msg.is_read ? '✓✓' : '✓'}</span>}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            
-            {isTyping && (
-              <div className="flex justify-start animate-fade-in">
-                <div className="bg-surface border border-white/10 rounded-2xl p-4 rounded-bl-none flex items-center gap-1">
-                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
-                </div>
-              </div>
-            )}
-            
-            <div ref={messagesEndRef} />
-          </div>
-
-          <div className="p-4 border-t border-white/10 bg-surface/30 shrink-0">
-            <form onSubmit={handleSendMessage} className="flex gap-3">
-              <input 
-                type="text" 
-                value={newMessage}
-                onChange={handleInputChange} 
-                placeholder="Type a message..." 
-                className="flex-1 bg-surface border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary transition-colors"
-              />
-              <button disabled={!newMessage.trim()} className="p-3 bg-primary hover:bg-primary/90 text-white rounded-xl disabled:opacity-50">
-                <Send size={20} />
-              </button>
-            </form>
-          </div>
-        </div>
-      ) : (
-        <div className="hidden md:flex flex-1 flex-col items-center justify-center text-textMuted bg-background">
-          <MoreHorizontal size={48} opacity={0.2} />
-          <p className="text-lg mt-4">Select a conversation</p>
-        </div>
-      )}
+      <ChatWindow 
+        selectedUser={selectedUser}
+        messages={messages}
+        currentUser={user}
+        onSendMessage={handleSendMessage}
+        onTyping={handleTyping}
+        isTyping={isTyping}
+        onBack={() => setSelectedUser(null)}
+      />
     </div>
   );
 };
