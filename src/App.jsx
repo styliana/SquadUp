@@ -19,9 +19,12 @@ const MyProjects = lazy(() => import('./pages/MyProjects'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Chat = lazy(() => import('./pages/Chat'));
 
-// NOWE IMPORTY DLA STRON PRAWNYCH
+// Strony prawne
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
+
+// NOWE: Odzyskiwanie hasła
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 
 const PageLoader = () => (
   <div className="flex justify-center items-center h-[calc(100vh-64px)]">
@@ -64,9 +67,11 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               
-              {/* NOWE TRASY PRAWNE */}
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/terms" element={<TermsOfService />} />
+              
+              {/* TRASA ODZYSKIWANIA HASŁA */}
+              <Route path="/forgot-password" element={<ForgotPassword />} />
 
               {/* TRASY CHRONIONE */}
               <Route element={<ProtectedRoute />}>
