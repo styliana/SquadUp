@@ -1,131 +1,104 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
-import { toast } from 'sonner';
-// IMPORT HOOKA
-import useThrowAsyncError from './useThrowAsyncError';
-
-const PAGE_SIZE = 6;
 
 export const useProjects = (user) => {
   const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
-  
-  // INICJALIZACJA
-  const throwAsyncError = useThrowAsyncError();
-  
-  const [userProfile, setUserProfile] = useState({
-    skills: [],
-    preferred_categories: []
-  });
+  const [userProfile, setUserProfile] = useState({ skills: [], preferred_categories: [] });
 
-  useEffect(() => {
-    if (user) {
-      const fetchProfile = async () => {
-        try {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('skills, preferred_categories')
-            .eq('id', user.id)
-            .single();
-          
-          if (error) throw error; // To nie jest krytyczne dla listy projektów, ale warto logować
-          
-          if (data) {
-            setUserProfile({
-              skills: data.skills || [],
-              preferred_categories: data.preferred_categories || []
-            });
-          }
-        } catch (err) {
-          console.error("Error fetching user preferences:", err);
-          // Nie rzucamy tutaj throwAsyncError, bo aplikacja może działać bez preferencji
-        }
-      };
-      fetchProfile();
-    }
-  }, [user]);
+  const ITEMS_PER_PAGE = 6;
 
-  const fetchProjects = useCallback(async ({ page, searchTerm, selectedType, selectedSkills, showRecommended }, isReset = false) => {
+  const fetchProjects = useCallback(async (filters, isInitial = true) => {
+    setLoading(true);
     try {
-      setLoading(true);
-      if (isReset) toast.dismiss();
+      const { page, searchTerm, selectedType, selectedSkills, showRecommended } = filters;
+      const from = page * ITEMS_PER_PAGE;
+      const to = from + ITEMS_PER_PAGE - 1;
 
-      let query;
-
-      if (searchTerm) {
-        query = supabase
-          .rpc('search_projects', { keyword: searchTerm })
-          .select('*, profiles:author_id(full_name, avatar_url, university)');
-      } else {
-        query = supabase
-          .from('projects')
-          .select('*, profiles:author_id(full_name, avatar_url, university)', { count: 'exact' });
+      // 1. POBIERANIE PROFILU UŻYTKOWNIKA (dla rekomendacji)
+      if (user && isInitial) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*, profile_skills(skills(name))')
+          .eq('id', user.id)
+          .single();
+        
+        if (profile) {
+          // Mapujemy skille z formatu relacyjnego na prostą tablicę
+          const flatSkills = profile.profile_skills?.map(ps => ps.skills.name) || [];
+          setUserProfile({ ...profile, skills: flatSkills });
+        }
       }
 
-      query = query.eq('status', 'open');
+      // 2. GŁÓWNE ZAPYTANIE O PROJEKTY (Z JOINEM SKILLI)
+// Znajdź zapytanie w useProjects.js i zmień je na:
+let query = supabase
+  .from('projects')
+  .select(`
+    *,
+    profiles (
+      id,
+      full_name,
+      avatar_url,
+      university
+    ),
+    project_skills (
+      skills (
+        id,
+        name
+      )
+    )
+  `)
+  .order('created_at', { ascending: false });
 
-      if (selectedType !== 'All') {
+      // Filtrowanie po typie/kategorii
+      if (selectedType && selectedType !== 'All') {
         query = query.eq('type', selectedType);
       }
 
-      if (selectedSkills.length > 0) {
-        query = query.overlaps('skills', selectedSkills); 
+      // Wyszukiwanie tekstowe
+      if (searchTerm) {
+        query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
       }
 
-      query = query.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+      // Sortowanie i Paginacja
+      query = query
+        .order('created_at', { ascending: false })
+        .range(from, to);
 
-      if (!searchTerm) {
-         query = query.order('created_at', { ascending: false });
-      }
+      const { data, error, count } = await query;
 
-      const { data, error } = await query;
-      
       if (error) throw error;
 
-      let processedData = (data || []).filter(p => p.members_current < p.members_max);
+// Mapowanie wyników z formatu relacyjnego na płaską tablicę stringów 'skills'
+const formattedData = data.map(project => ({
+  ...project,
+  skills: project.project_skills?.map(ps => ps.skills.name) || []
+}));
 
-      const hasPreferences = userProfile.skills.length > 0 || userProfile.preferred_categories.length > 0;
+// ZMIANA LOGIKI Z AND (every) NA OR (some)
+let finalData = formattedData;
+if (selectedSkills && selectedSkills.length > 0) {
+  finalData = formattedData.filter(proj => 
+    // .some sprawia, że wystarczy dopasowanie JEDNEJ z wybranych umiejętności
+    selectedSkills.some(skill => proj.skills.includes(skill))
+  );
+}
 
-      if (showRecommended && hasPreferences) {
-        processedData = processedData.map(p => {
-          let score = 0;
-          const skillMatches = p.skills?.filter(s => userProfile.skills.includes(s)).length || 0;
-          score += skillMatches; 
-          if (userProfile.preferred_categories.includes(p.type)) score += 2;
-          
-          return { ...p, matchScore: score };
-        })
-        .sort((a, b) => b.matchScore - a.matchScore);
-      }
-
-      if (isReset) {
-        setProjects(processedData);
+      if (isInitial) {
+        setProjects(finalData);
       } else {
-        setProjects(prev => [...prev, ...processedData]);
+        setProjects(prev => [...prev, ...finalData]);
       }
 
-      setHasMore(data.length >= PAGE_SIZE);
-
+      setHasMore(count > to + 1);
     } catch (error) {
-      console.error('Critical Project Fetch Error:', error);
-      
-      // Ignorujemy błędy abortowania (anulowania fetch)
-      if (error.name === 'AbortError') return;
-
-      // KRYTYCZNY BŁĄD -> ERROR BOUNDARY
-      throwAsyncError(error);
-      
+      console.error('Error in useProjects:', error);
     } finally {
       setLoading(false);
     }
-  }, [userProfile]); // throwAsyncError jest stabilne
+  }, [user]);
 
-  return {
-    projects,
-    loading,
-    hasMore,
-    fetchProjects,
-    userProfile
-  };
+  return { projects, loading, hasMore, fetchProjects, userProfile };
 };

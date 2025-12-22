@@ -1,34 +1,62 @@
 import { useState, useEffect } from 'react';
-import { getProjectById } from '../services/projectService';
-import { toast } from 'sonner';
-import useThrowAsyncError from './useThrowAsyncError';
+import { supabase } from '../supabaseClient';
 
-export const useProjectDetails = (projectId) => {
+export const useProjectDetails = (id) => {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
-  
-  // Most do Error Boundary
-  const throwAsyncError = useThrowAsyncError();
 
   useEffect(() => {
-    if (!projectId) return;
+    if (!id) return;
 
-    const fetchProject = async () => {
+    const fetchProjectDetails = async () => {
+      setLoading(true);
       try {
-        setLoading(true);
-        const data = await getProjectById(projectId);
-        setProject(data);
-      } catch (err) {
-        console.error("Error in useProjectDetails:", err);
-        // Przekazujemy błąd krytyczny do globalnego Error Boundary
-        throwAsyncError(err);
+        const { data, error } = await supabase
+          .from('projects')
+          .select(`
+            *,
+            profiles (
+              id,
+              full_name,
+              avatar_url,
+              university
+            ),
+            project_skills (
+              skills (
+                name
+              )
+            ),
+            applications (
+              id,
+              status,
+              profiles (
+                id,
+                full_name,
+                avatar_url
+              )
+            )
+          `)
+          .eq('id', id)
+          .single();
+
+        if (error) throw error;
+
+        // Mapowanie relacyjnych skilli na płaską tablicę nazw dla komponentu
+        const formattedProject = {
+          ...data,
+          skills: data.project_skills?.map(ps => ps.skills.name) || []
+        };
+
+        setProject(formattedProject);
+      } catch (error) {
+        console.error('Error fetching project details:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchProject();
-  }, [projectId]); // throwAsyncError jest stabilne
+    fetchProjectDetails();
+  }, [id]);
 
   return { project, loading };
 };

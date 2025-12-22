@@ -8,12 +8,13 @@ const ProjectForm = ({ initialData, onSubmit, isSubmitting, pageTitle, pageDescr
   const navigate = useNavigate();
   const [categories, setCategories] = useState([]);
   
+  // Dopasowanie nazw pól do nazw kolumn w bazie danych
   const defaultData = {
     title: '',
     type: '',
     description: '',
-    skills: [],
-    teamSize: 4,
+    skills: [], // Tutaj przechowujemy tablicę nazw skilli
+    members_max: 4, // Zmiana z teamSize na members_max (zgodnie z Twoją bazą)
     deadline: ''
   };
 
@@ -24,22 +25,30 @@ const ProjectForm = ({ initialData, onSubmit, isSubmitting, pageTitle, pageDescr
       const { data } = await supabase.from('categories').select('name');
       if (data) {
         setCategories(data.map(c => c.name));
-        if (!formData.type && data.length > 0) {
+        // Jeśli tworzymy nowy projekt i nie ma typu, ustaw pierwszy domyślny
+        if (!formData.type && data.length > 0 && !initialData) {
           setFormData(prev => ({ ...prev, type: data[0].name }));
         }
       }
     };
     fetchCategories();
-  }, []);
+  }, [initialData]);
 
+  // Synchronizacja z initialData (ważne przy edycji)
   useEffect(() => {
     if (initialData) {
-      setFormData(prev => ({ ...prev, ...initialData }));
+      setFormData(prev => ({ 
+        ...prev, 
+        ...initialData,
+        // Upewniamy się, że teamSize mapuje się na members_max jeśli przychodzi ze starego kodu
+        members_max: initialData.members_max || initialData.teamSize || 4
+      }));
     }
   }, [initialData]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    // Przekazujemy czyste dane do komponentu nadrzędnego
     onSubmit(formData);
   };
 
@@ -50,7 +59,6 @@ const ProjectForm = ({ initialData, onSubmit, isSubmitting, pageTitle, pageDescr
         <p className="text-textMuted">{pageDescription}</p>
       </div>
 
-      {/* ZMIANA: bg-surface border-border */}
       <form onSubmit={handleSubmit} className="bg-surface border border-border rounded-2xl p-8 space-y-8 shadow-sm">
         <div className="space-y-6">
           <div>
@@ -58,10 +66,10 @@ const ProjectForm = ({ initialData, onSubmit, isSubmitting, pageTitle, pageDescr
             <input 
               type="text" 
               required
-              // ZMIANA: text-textMain border-border bg-background
               className="w-full bg-background border border-border rounded-xl px-4 py-3 text-textMain focus:outline-none focus:border-primary"
               value={formData.title}
               onChange={e => setFormData({...formData, title: e.target.value})}
+              placeholder="e.g. Eco-friendly Mobile App"
             />
           </div>
 
@@ -73,17 +81,18 @@ const ProjectForm = ({ initialData, onSubmit, isSubmitting, pageTitle, pageDescr
                   type="button"
                   key={type}
                   onClick={() => setFormData({...formData, type})}
-                  // ZMIANA: bg-background border-border text-textMuted
                   className={`px-6 py-2.5 rounded-full text-sm font-medium border transition-all ${
                     formData.type === type 
-                    ? 'bg-primary/20 border-primary text-primary' 
-                    : 'bg-background border-border text-textMuted hover:border-primary/50 hover:text-textMain'
+                    ? 'bg-primary/20 border-primary text-primary shadow-[0_0_10px_rgba(6,182,212,0.1)]' 
+                    : 'bg-background border-border text-textMuted hover:border-primary/50'
                   }`}
                 >
                   {type}
                 </button>
               )) : (
-                <p className="text-sm text-textMuted">Loading categories...</p>
+                <div className="flex items-center gap-2 text-textMuted text-sm italic">
+                  <Loader2 className="animate-spin" size={14} /> Loading categories...
+                </div>
               )}
             </div>
           </div>
@@ -96,6 +105,7 @@ const ProjectForm = ({ initialData, onSubmit, isSubmitting, pageTitle, pageDescr
               className="w-full bg-background border border-border rounded-xl px-4 py-3 text-textMain focus:outline-none focus:border-primary resize-none"
               value={formData.description}
               onChange={e => setFormData({...formData, description: e.target.value})}
+              placeholder="Describe the goals, technology stack and who are you looking for..."
             />
           </div>
         </div>
@@ -109,14 +119,14 @@ const ProjectForm = ({ initialData, onSubmit, isSubmitting, pageTitle, pageDescr
 
         <div className="pt-6 border-t border-border grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-textMain mb-2">Team Size</label>
+            <label className="block text-sm font-medium text-textMain mb-2">Team Size (Max Members)</label>
             <input 
               type="number" 
               min="2" 
-              max="10"
+              max="15"
               className="w-full bg-background border border-border rounded-xl px-4 py-3 text-textMain focus:outline-none focus:border-primary"
-              value={formData.teamSize}
-              onChange={e => setFormData({...formData, teamSize: parseInt(e.target.value)})}
+              value={formData.members_max}
+              onChange={e => setFormData({...formData, members_max: parseInt(e.target.value) || 2})}
             />
           </div>
           <div>
@@ -134,17 +144,17 @@ const ProjectForm = ({ initialData, onSubmit, isSubmitting, pageTitle, pageDescr
           <button 
             type="button" 
             onClick={() => navigate(-1)} 
-            className="px-6 py-3 rounded-xl border border-border text-textMain font-medium hover:bg-textMain/5"
+            className="px-6 py-3 rounded-xl border border-border text-textMain font-medium hover:bg-white/5 transition-colors"
           >
             Cancel
           </button>
           <button 
             type="submit"
             disabled={isSubmitting}
-            className="px-8 py-3 rounded-xl bg-gradient-to-r from-primary to-blue-600 text-white font-bold hover:shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-8 py-3 rounded-xl bg-gradient-to-r from-primary to-blue-600 text-white font-bold hover:shadow-lg hover:shadow-primary/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            {isSubmitting && <Loader2 className="animate-spin" size={20} />}
-            {isSubmitting ? 'Saving...' : 'Save Project'}
+            {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : null}
+            {isSubmitting ? 'Saving...' : (initialData ? 'Update Project' : 'Create Project')}
           </button>
         </div>
       </form>

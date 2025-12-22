@@ -15,13 +15,18 @@ const EditProject = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [initialData, setInitialData] = useState(null);
 
-  // 1. Pobranie danych do edycji
+  // 1. Pobranie danych do edycji (Z relacją skilli)
   useEffect(() => {
     const fetchProject = async () => {
       try {
         const { data: project, error } = await supabase
           .from('projects')
-          .select('*')
+          .select(`
+            *,
+            project_skills (
+              skills ( name )
+            )
+          `)
           .eq('id', id)
           .single();
 
@@ -34,14 +39,17 @@ const EditProject = () => {
           return;
         }
 
+        // Mapowanie skilli z relacji na płaską tablicę nazw
+        const mappedSkills = project.project_skills?.map(ps => ps.skills.name) || [];
+
         // Mapowanie danych z bazy na format formularza
         setInitialData({
           title: project.title,
           type: project.type,
           description: project.description,
-          skills: project.skills || [],
-          teamSize: project.members_max,
-          deadline: project.deadline === 'Flexible' ? '' : project.deadline
+          skills: mappedSkills,
+          members_max: project.members_max,
+          deadline: project.deadline
         });
 
       } catch (error) {
@@ -53,7 +61,7 @@ const EditProject = () => {
       }
     };
 
-    if (user) fetchProject();
+    if (user && id) fetchProject();
   }, [user, id, navigate]);
 
   // 2. Obsługa zapisu (UPDATE)
@@ -61,26 +69,61 @@ const EditProject = () => {
     setIsSubmitting(true);
 
     try {
-      const { error } = await supabase
+      // KROK A: Aktualizacja danych podstawowych w tabeli 'projects'
+      // UWAGA: Nie wysyłamy pola 'skills', bo ono już nie istnieje w tej tabeli
+      const { error: projectError } = await supabase
         .from('projects')
         .update({
           title: formData.title,
           type: formData.type,
           description: formData.description,
-          skills: formData.skills,
-          members_max: formData.teamSize,
+          members_max: formData.members_max,
           deadline: formData.deadline || 'Flexible',
         })
         .eq('id', id);
 
-      if (error) throw error;
+      if (projectError) throw projectError;
+
+      // KROK B: Synchronizacja skilli (Relacyjnie)
+      
+      // 1. Usuwamy stare powiązania
+      const { error: deleteError } = await supabase
+        .from('project_skills')
+        .delete()
+        .eq('project_id', id);
+      
+      if (deleteError) throw deleteError;
+
+      // 2. Wstawiamy nowe powiązania
+      if (formData.skills && formData.skills.length > 0) {
+        // Pobieramy ID wybranych skilli
+        const { data: skillRefs, error: skillFetchError } = await supabase
+          .from('skills')
+          .select('id')
+          .in('name', formData.skills);
+
+        if (skillFetchError) throw skillFetchError;
+
+        if (skillRefs && skillRefs.length > 0) {
+          const skillMappings = skillRefs.map(s => ({
+            project_id: id,
+            skill_id: s.id
+          }));
+
+          const { error: insertError } = await supabase
+            .from('project_skills')
+            .insert(skillMappings);
+          
+          if (insertError) throw insertError;
+        }
+      }
 
       toast.success('Project updated successfully! 🚀');
       navigate('/my-projects');
 
     } catch (error) {
-      console.error(error);
-      toast.error('Failed to update project.');
+      console.error('Update error:', error);
+      toast.error('Failed to update project: ' + error.message);
       setIsSubmitting(false);
     }
   };

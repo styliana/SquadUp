@@ -24,36 +24,45 @@ const ProjectDetails = () => {
   const backPath = location.state?.from || '/projects';
   const backLabel = backPath === '/my-projects' ? 'Back to My Projects' : 'Back to projects';
 
+  // Sprawdzenie czy użytkownik już aplikował
   useEffect(() => {
     if (user && id) {
+      const checkApplicationStatus = async () => {
+        const { data } = await supabase
+          .from('applications')
+          .select('id') 
+          .eq('project_id', id)
+          .eq('applicant_id', user.id)
+          .maybeSingle();
+
+        if (data) setHasApplied(true);
+      };
       checkApplicationStatus();
     }
   }, [id, user]);
 
+  // Pobieranie umiejętności zalogowanego użytkownika (Relacyjnie)
   useEffect(() => {
     if (user) {
       const fetchUserSkills = async () => {
         const { data } = await supabase
           .from('profiles')
-          .select('skills')
+          .select(`
+            profile_skills (
+              skills ( name )
+            )
+          `)
           .eq('id', user.id)
-          .single();
-        if (data?.skills) setUserSkills(data.skills);
+          .maybeSingle();
+
+        if (data?.profile_skills) {
+          const flatSkills = data.profile_skills.map(ps => ps.skills.name);
+          setUserSkills(flatSkills);
+        }
       };
       fetchUserSkills();
     }
   }, [user]);
-
-  const checkApplicationStatus = async () => {
-    const { data } = await supabase
-      .from('applications')
-      .select('id') 
-      .eq('project_id', id)
-      .eq('applicant_id', user.id)
-      .single();
-
-    if (data) setHasApplied(true);
-  };
 
   const handleApply = async () => {
     if (!user) {
@@ -79,7 +88,7 @@ const ProjectDetails = () => {
 
     if (error) {
       console.error(error);
-      toast.error(error.message === 'duplicate key value violates unique constraint' ? "You already applied!" : "Failed to send application.");
+      toast.error(error.message.includes('unique') ? "You already applied!" : "Failed to send application.");
     } else {
       setHasApplied(true);
       toast.success("Application sent successfully!");
@@ -104,8 +113,8 @@ const ProjectDetails = () => {
     });
   };
 
-  const isSkillMatched = (tag) => {
-    return userSkills.some(skill => skill.toLowerCase() === tag.toLowerCase());
+  const isSkillMatched = (skillName) => {
+    return userSkills.some(skill => skill.toLowerCase() === skillName.toLowerCase());
   };
 
   if (loading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-primary" size={40} /></div>;
@@ -131,7 +140,7 @@ const ProjectDetails = () => {
                 {project.type}
               </span>
               <div className="flex items-center gap-2 text-textMuted">
-                <User size={18} />
+                <Users size={18} />
                 <span>{project.members_current}/{project.members_max} Members</span>
               </div>
             </div>
@@ -151,26 +160,30 @@ const ProjectDetails = () => {
               <div>
                 <h3 className="text-lg font-semibold text-textMain mb-3">Required Skills</h3>
                 <div className="flex flex-wrap gap-2">
-                  {project.skills?.map(tag => {
-                    const isMatch = isSkillMatched(tag);
-                    return (
-                      <span 
-                        key={tag} 
-                        className={`px-3 py-1.5 rounded-lg border text-sm transition-all ${
-                          isMatch
-                            ? 'bg-primary/10 border-primary/50 text-primary shadow-[0_0_15px_rgba(6,182,212,0.2)] font-medium'
-                            : 'bg-background border-border text-textMuted'
-                        }`}
-                      >
-                        {tag} {isMatch && '✨'}
-                      </span>
-                    );
-                  })}
+                  {project.skills && project.skills.length > 0 ? (
+                    project.skills.map(skillName => {
+                      const isMatch = isSkillMatched(skillName);
+                      return (
+                        <span 
+                          key={skillName} 
+                          className={`px-3 py-1.5 rounded-lg border text-sm transition-all ${
+                            isMatch
+                              ? 'bg-primary/10 border-primary/50 text-primary shadow-[0_0_15px_rgba(6,182,212,0.2)] font-medium'
+                              : 'bg-background border-border text-textMuted'
+                          }`}
+                        >
+                          {skillName} {isMatch && '✨'}
+                        </span>
+                      );
+                    })
+                  ) : (
+                    <span className="text-textMuted italic text-sm">No specific skills listed.</span>
+                  )}
                 </div>
               </div>
 
               <div className="flex gap-6 pt-6 border-t border-border text-textMuted text-sm">
-                <div className="flex items-center gap-2"><Calendar size={16} /><span>Deadline: {project.deadline}</span></div>
+                <div className="flex items-center gap-2"><Calendar size={16} /><span className="truncate">Deadline: {project.deadline}</span></div>
                 <div className="flex items-center gap-2"><Clock size={16} /><span>Posted: {formatDate(project.created_at)}</span></div>
               </div>
             </div>
@@ -178,37 +191,26 @@ const ProjectDetails = () => {
         </div>
 
         <div className="space-y-6">
-          
           <div className="bg-surface border border-border rounded-2xl p-6 shadow-sm">
             <h3 className="text-lg font-bold text-textMain mb-4">Team Leader</h3>
             
-            {project.author_id ? (
-              <Link to={`/profile/${project.author_id}`} className="flex items-center gap-4 mb-6 hover:bg-textMain/5 p-2 rounded-xl transition-colors cursor-pointer group">
-                <UserAvatar 
-                  avatarUrl={author?.avatar_url} 
-                  name={author?.full_name || project.author} 
-                  className="w-14 h-14" 
-                  textSize="text-xl"
-                />
-                <div className="min-w-0">
-                  <div className="font-bold text-textMain text-lg truncate group-hover:text-primary transition-colors">
-                    {author?.full_name || project.author}
-                  </div>
-                  <div className="text-sm text-textMuted">{project.role}</div>
-                  {author?.university && (
-                    <div className="text-xs text-primary mt-0.5 truncate">{author.university}</div>
-                  )}
+            <Link to={`/profile/${project.author_id}`} className="flex items-center gap-4 mb-6 hover:bg-textMain/5 p-2 rounded-xl transition-colors group">
+              <UserAvatar 
+                avatarUrl={author?.avatar_url} 
+                name={author?.full_name || project.author} 
+                className="w-14 h-14" 
+                textSize="text-xl"
+              />
+              <div className="min-w-0">
+                <div className="font-bold text-textMain text-lg truncate group-hover:text-primary transition-colors">
+                  {author?.full_name || project.author}
                 </div>
-              </Link>
-            ) : (
-              <div className="flex items-center gap-4 mb-6 p-2">
-                 <UserAvatar name={project.author} className="w-14 h-14" textSize="text-xl" />
-                 <div>
-                    <div className="font-bold text-textMain text-lg">{project.author}</div>
-                    <div className="text-sm text-textMuted">{project.role}</div>
-                 </div>
+                <div className="text-sm text-textMuted">{project.role}</div>
+                {author?.university && (
+                  <div className="text-xs text-primary mt-0.5 truncate">{author.university}</div>
+                )}
               </div>
-            )}
+            </Link>
             
             {!isAuthor && (
               <button 
@@ -275,15 +277,14 @@ const ProjectDetails = () => {
                 </div>
               </div>
             ) : hasApplied ? (
-              <button disabled className="w-full mt-4 py-3 rounded-xl bg-green-500/20 text-green-600 dark:text-green-400 font-bold border border-green-500/50 flex items-center justify-center gap-2 cursor-default">
+              <button disabled className="w-full mt-4 py-3 rounded-xl bg-green-500/20 text-green-600 dark:text-green-400 font-bold border border-green-500/50 flex items-center justify-center gap-2">
                 <CheckCircle size={18} />
                 Application Sent
               </button>
             ) : openSpots > 0 ? (
               <>
-                <p className="text-textMuted text-sm mb-4">Apply now to join this project.</p>
                 <textarea 
-                  className="w-full bg-background border border-border rounded-xl p-3 text-textMain text-sm mb-4 focus:outline-none focus:border-primary resize-none placeholder:text-textMuted"
+                  className="w-full bg-background border border-border rounded-xl p-3 text-textMain text-sm mb-4 focus:outline-none focus:border-primary resize-none"
                   rows={3}
                   placeholder="Short message to the leader..."
                   value={applicationMessage}
