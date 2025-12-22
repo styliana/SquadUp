@@ -4,22 +4,22 @@ import { PROJECT_TYPE_STYLES } from '../utils/constants';
 import UserAvatar from './UserAvatar';
 import { formatDate } from '../utils/formatDate';
 
-const ProjectCard = ({ project }) => {
+const ProjectCard = ({ project, userSkills = [] }) => {
   
   const getBadgeStyle = (type) => {
-    // Style badge'y (PROJECT_TYPE_STYLES) mogą wymagać osobnego przeglądu, 
-    // ale zazwyczaj kolorowe borderki wyglądają OK w obu trybach.
     return PROJECT_TYPE_STYLES[type] || PROJECT_TYPE_STYLES['Default'];
   };
 
   const authorName = project.profiles?.full_name || project.author || 'Anonymous';
   const authorAvatar = project.profiles?.avatar_url;
 
+  const isSkillMatched = (tag) => {
+    return userSkills.some(skill => skill.toLowerCase() === tag.toLowerCase());
+  };
+
   return (
-    // ZMIANA: border-border zamiast white/5
     <div className="bg-surface border border-border rounded-2xl p-6 hover:border-primary/50 transition-all duration-300 hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] group flex flex-col h-full relative overflow-hidden">
       
-      {/* HEADER */}
       <div className="flex justify-between items-start mb-4 relative z-10">
         <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getBadgeStyle(project.type)}`}>
           {project.type}
@@ -30,16 +30,12 @@ const ProjectCard = ({ project }) => {
         </div>
       </div>
 
-      {/* TEXT */}
-      {/* ZMIANA: text-textMain */}
       <h3 className="text-xl font-bold text-textMain mb-2 group-hover:text-primary transition-colors line-clamp-1">
         {project.title}
       </h3>
       
-      {/* AUTHOR INFO */}
       <div className="flex items-center gap-2 mb-4">
         <UserAvatar avatarUrl={authorAvatar} name={authorName} className="w-6 h-6" textSize="text-xs" />
-        {/* ZMIANA: text-textMuted */}
         <span className="text-xs text-textMuted truncate max-w-[150px]">
           by <span className="text-textMain font-medium">{authorName}</span>
         </span>
@@ -49,14 +45,22 @@ const ProjectCard = ({ project }) => {
         {project.description}
       </p>
 
-      {/* TAGS */}
       <div className="flex flex-wrap gap-2 mb-6">
-        {project.tags.slice(0, 3).map((tag) => (
-          // ZMIANA: bg-background, border-border, text-textMuted
-          <span key={tag} className="px-2.5 py-1 rounded-md bg-background border border-border text-xs text-textMuted">
-            {tag}
-          </span>
-        ))}
+        {project.tags.slice(0, 3).map((tag) => {
+          const isMatch = isSkillMatched(tag);
+          return (
+            <span 
+              key={tag} 
+              className={`px-2.5 py-1 rounded-md text-xs transition-colors border ${
+                isMatch 
+                  ? 'bg-primary/10 border-primary/40 text-primary font-medium shadow-[0_0_10px_rgba(6,182,212,0.15)]' 
+                  : 'bg-background border-border text-textMuted'
+              }`}
+            >
+              {tag}
+            </span>
+          );
+        })}
         {project.tags.length > 3 && (
           <span className="px-2.5 py-1 rounded-md bg-background border border-border text-xs text-textMuted">
             +{project.tags.length - 3}
@@ -64,7 +68,6 @@ const ProjectCard = ({ project }) => {
         )}
       </div>
 
-      {/* FOOTER */}
       <div className="mt-auto pt-4 border-t border-border flex items-center justify-between">
         <div className="flex items-center gap-4 text-xs text-textMuted">
            <div className="flex items-center gap-1.5" title="Date Posted">
@@ -80,7 +83,6 @@ const ProjectCard = ({ project }) => {
         <Link 
           to={`/projects/${project.id}`} 
           state={{ from: '/projects' }}
-          // ZMIANA: text-textMain
           className="flex items-center gap-2 text-textMain font-medium text-sm group/btn cursor-pointer hover:text-primary transition-colors"
         >
            Details

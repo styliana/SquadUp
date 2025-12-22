@@ -19,6 +19,7 @@ const ProjectDetails = () => {
   const [hasApplied, setHasApplied] = useState(false);
   const [applyLoading, setApplyLoading] = useState(false);
   const [applicationMessage, setApplicationMessage] = useState("");
+  const [userSkills, setUserSkills] = useState([]);
 
   const backPath = location.state?.from || '/projects';
   const backLabel = backPath === '/my-projects' ? 'Back to My Projects' : 'Back to projects';
@@ -28,6 +29,20 @@ const ProjectDetails = () => {
       checkApplicationStatus();
     }
   }, [id, user]);
+
+  useEffect(() => {
+    if (user) {
+      const fetchUserSkills = async () => {
+        const { data } = await supabase
+          .from('profiles')
+          .select('skills')
+          .eq('id', user.id)
+          .single();
+        if (data?.skills) setUserSkills(data.skills);
+      };
+      fetchUserSkills();
+    }
+  }, [user]);
 
   const checkApplicationStatus = async () => {
     const { data } = await supabase
@@ -89,6 +104,10 @@ const ProjectDetails = () => {
     });
   };
 
+  const isSkillMatched = (tag) => {
+    return userSkills.some(skill => skill.toLowerCase() === tag.toLowerCase());
+  };
+
   if (loading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-primary" size={40} /></div>;
   if (!project) return <div className="text-center py-20 text-textMain">Project not found 😢</div>;
 
@@ -105,9 +124,7 @@ const ProjectDetails = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* LEWA STRONA - SZCZEGÓŁY */}
         <div className="lg:col-span-2">
-          {/* ZMIANA: border-border, bg-surface */}
           <div className="bg-surface border border-border rounded-2xl p-8 mb-8 shadow-sm">
             <div className="flex justify-between items-start mb-6">
               <span className="px-3 py-1 rounded-full text-sm font-semibold bg-primary/10 text-primary border border-primary/20">
@@ -119,7 +136,6 @@ const ProjectDetails = () => {
               </div>
             </div>
 
-            {/* ZMIANA: text-textMain */}
             <h1 className="text-3xl md:text-4xl font-bold text-textMain mb-6">
               {project.title}
             </h1>
@@ -127,7 +143,6 @@ const ProjectDetails = () => {
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-textMain mb-2">Project Description</h3>
-                {/* ZMIANA: text-textMuted */}
                 <p className="text-textMuted leading-relaxed whitespace-pre-wrap">
                   {project.description}
                 </p>
@@ -136,12 +151,21 @@ const ProjectDetails = () => {
               <div>
                 <h3 className="text-lg font-semibold text-textMain mb-3">Required Skills</h3>
                 <div className="flex flex-wrap gap-2">
-                  {project.skills?.map(tag => (
-                    // ZMIANA: bg-background, border-border, text-textMuted
-                    <span key={tag} className="px-3 py-1.5 rounded-lg bg-background border border-border text-sm text-textMuted">
-                      {tag}
-                    </span>
-                  ))}
+                  {project.skills?.map(tag => {
+                    const isMatch = isSkillMatched(tag);
+                    return (
+                      <span 
+                        key={tag} 
+                        className={`px-3 py-1.5 rounded-lg border text-sm transition-all ${
+                          isMatch
+                            ? 'bg-primary/10 border-primary/50 text-primary shadow-[0_0_15px_rgba(6,182,212,0.2)] font-medium'
+                            : 'bg-background border-border text-textMuted'
+                        }`}
+                      >
+                        {tag} {isMatch && '✨'}
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -153,15 +177,12 @@ const ProjectDetails = () => {
           </div>
         </div>
 
-        {/* PRAWA STRONA */}
         <div className="space-y-6">
           
-          {/* TEAM LEADER CARD */}
           <div className="bg-surface border border-border rounded-2xl p-6 shadow-sm">
             <h3 className="text-lg font-bold text-textMain mb-4">Team Leader</h3>
             
             {project.author_id ? (
-              // ZMIANA: hover:bg-textMain/5
               <Link to={`/profile/${project.author_id}`} className="flex items-center gap-4 mb-6 hover:bg-textMain/5 p-2 rounded-xl transition-colors cursor-pointer group">
                 <UserAvatar 
                   avatarUrl={author?.avatar_url} 
@@ -192,7 +213,6 @@ const ProjectDetails = () => {
             {!isAuthor && (
               <button 
                 onClick={handleSendMessage}
-                // ZMIANA: border-border, text-textMain, hover:bg-textMain/5
                 className="w-full py-3 rounded-xl border border-border text-textMain font-medium hover:bg-textMain/5 transition-all flex items-center justify-center gap-2"
               >
                 <MessageCircle size={18} />
@@ -201,13 +221,11 @@ const ProjectDetails = () => {
             )}
           </div>
 
-          {/* SQUAD & APPLICATION CARD */}
           <div className="bg-surface border border-border rounded-2xl p-6 shadow-sm">
             <h3 className="text-lg font-bold text-textMain mb-2">
               {openSpots > 0 ? `${openSpots} Open Spots` : 'Team Full'}
             </h3>
 
-            {/* --- THE SQUAD SECTION --- */}
             <div className="mb-6 pt-4 border-t border-border">
               <h4 className="text-sm font-semibold text-textMuted mb-3 flex items-center gap-2">
                 <Users size={16} /> The Squad
@@ -248,7 +266,6 @@ const ProjectDetails = () => {
               </div>
             </div>
             
-            {/* ACTION BUTTONS */}
             {isAuthor ? (
               <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl text-primary text-sm flex items-start gap-3">
                 <AlertCircle size={20} className="shrink-0 mt-0.5" />
@@ -265,7 +282,6 @@ const ProjectDetails = () => {
             ) : openSpots > 0 ? (
               <>
                 <p className="text-textMuted text-sm mb-4">Apply now to join this project.</p>
-                {/* ZMIANA: text-textMain */}
                 <textarea 
                   className="w-full bg-background border border-border rounded-xl p-3 text-textMain text-sm mb-4 focus:outline-none focus:border-primary resize-none placeholder:text-textMuted"
                   rows={3}
@@ -276,7 +292,6 @@ const ProjectDetails = () => {
                 <button 
                   onClick={handleApply}
                   disabled={applyLoading}
-                  // Tu zostaje text-white bo gradient jest zawsze ciemny/nasycony
                   className="w-full py-3 rounded-xl bg-gradient-to-r from-primary to-blue-600 text-white font-bold shadow-lg hover:shadow-primary/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {applyLoading ? <Loader2 className="animate-spin" /> : <><Send size={18} /> Apply for Project</>}

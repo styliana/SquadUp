@@ -73,9 +73,7 @@ const Projects = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       
-      {/* HEADER & FILTERS */}
       <div className="mb-10">
-        {/* ZMIANA: text-textMain */}
         <h1 className="text-3xl md:text-4xl font-bold text-textMain mb-4">
           Find a <span className="text-primary">Project</span>
         </h1>
@@ -83,18 +81,13 @@ const Projects = () => {
           Find a project that matches your skills and interests.
         </p>
 
-        {/* --- KONSOLA STEROWANIA --- */}
-        {/* ZMIANA: bg-surface, border-border */}
         <div className="bg-surface border border-border p-6 rounded-2xl shadow-sm space-y-6">
           
           <div className="flex flex-col md:flex-row gap-4">
-            {/* Search Bar */}
             <div className="relative flex-grow group">
               <div className={`absolute inset-0 bg-primary/20 rounded-xl blur-md transition-opacity ${searchTerm ? 'opacity-100' : 'opacity-0'}`}></div>
-              {/* ZMIANA: bg-background border-border */}
               <div className="relative bg-background rounded-xl border border-border flex items-center overflow-hidden focus-within:border-primary transition-colors">
                 <Search className="ml-4 text-textMuted" size={20} />
-                {/* ZMIANA: text-textMain, placeholder:text-textMuted */}
                 <input 
                   type="text" 
                   placeholder="Search projects (e.g. 'Python', 'Mobile App')..." 
@@ -110,13 +103,11 @@ const Projects = () => {
               </div>
             </div>
             
-            {/* Kategorie */}
             <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
               {categories.map((filter) => (
                 <button 
                   key={filter}
                   onClick={() => setSelectedType(filter)}
-                  // ZMIANA: border-border, bg-background, text-textMuted (dla nieaktywnych)
                   className={`px-5 py-3 rounded-xl text-sm font-medium transition-all whitespace-nowrap border ${
                     selectedType === filter
                     ? 'bg-primary/20 border-primary text-primary shadow-[0_0_10px_rgba(6,182,212,0.2)]' 
@@ -130,17 +121,14 @@ const Projects = () => {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-4">
-            {/* Filtr Skilli */}
             <div>
               <div 
                 className="flex items-center gap-2 cursor-pointer w-fit select-none group" 
                 onClick={() => setShowFilters(!showFilters)}
               >
-                {/* ZMIANA: bg-textMain/5, text-textMuted */}
                 <div className={`p-2 rounded-lg transition-colors ${showFilters ? 'bg-primary/10 text-primary' : 'bg-textMain/5 text-textMuted group-hover:text-textMain'}`}>
                     <Filter size={18} />
                 </div>
-                {/* ZMIANA: text-textMain */}
                 <span className={`text-sm font-medium transition-colors ${showFilters ? 'text-textMain' : 'text-textMuted group-hover:text-textMain'}`}>
                   Advanced Filters
                 </span>
@@ -162,11 +150,9 @@ const Projects = () => {
               )}
             </div>
 
-            {/* Przycisk "For You" */}
             {user && hasUserPreferences && (
               <button
                 onClick={() => setShowRecommended(!showRecommended)}
-                // ZMIANA: bg-background border-border text-textMuted
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${
                   showRecommended 
                     ? 'bg-gradient-to-r from-purple-500/20 to-primary/20 border-primary/50 text-textMain dark:text-white shadow-[0_0_15px_rgba(168,85,247,0.15)]' 
@@ -192,7 +178,6 @@ const Projects = () => {
         </div>
       </div>
 
-      {/* --- WYNIKI --- */}
       {loading && projects.length === 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(6)].map((_, i) => (
@@ -200,7 +185,6 @@ const Projects = () => {
           ))}
         </div>
       ) : projects.length === 0 ? (
-        // ZMIANA: bg-surface/30, border-border, text-textMain
         <div className="text-center py-20 bg-surface/30 rounded-2xl border border-dashed border-border">
           <div className="w-16 h-16 bg-surface rounded-full flex items-center justify-center mx-auto mb-4 text-textMuted">
              <Search size={32} />
@@ -226,6 +210,7 @@ const Projects = () => {
                   membersCurrent: project.members_current,
                   membersMax: project.members_max
                 }}
+                userSkills={userProfile?.skills || []}
               />
             ))}
           </div>
