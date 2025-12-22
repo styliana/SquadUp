@@ -46,7 +46,7 @@ class ErrorBoundary extends React.Component {
               <AlertTriangle size={40} />
             </div>
             
-            <h1 className="text-3xl font-bold text-white mb-2">System Failure</h1>
+            <h1 className="text-3xl font-bold text-textMain mb-2">System Failure</h1>
             <p className="text-textMuted mb-8 leading-relaxed">
               The application encountered a critical error and engaged safety protocols. 
               Please try reloading the system.
@@ -56,13 +56,13 @@ class ErrorBoundary extends React.Component {
             <div className="bg-black/40 rounded-xl p-4 mb-8 text-left border border-white/5 relative group">
               <button 
                 onClick={this.copyErrorToClipboard}
-                className="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                className="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-textMain bg-white/5 hover:bg-white/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                 title="Copy error details"
               >
                 <Copy size={14} />
               </button>
               <p className="text-xs font-bold text-red-400 mb-1 font-mono">Error Trace:</p>
-              <code className="text-xs text-gray-300 font-mono break-all line-clamp-4">
+              <code className="text-xs text-textMuted font-mono break-all line-clamp-4">
                 {this.state.error?.toString()}
               </code>
             </div>
@@ -70,7 +70,7 @@ class ErrorBoundary extends React.Component {
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button 
                 onClick={this.handleReset}
-                className="flex items-center justify-center gap-2 px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-red-500/20 active:scale-[0.98]"
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-red-500 hover:bg-red-600 text-textMain font-bold rounded-xl transition-all shadow-lg hover:shadow-red-500/20 active:scale-[0.98]"
               >
                 <RefreshCw size={18} />
                 Restart System
@@ -78,7 +78,7 @@ class ErrorBoundary extends React.Component {
               
               <a 
                 href="/" 
-                className="flex items-center justify-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 text-white font-medium rounded-xl border border-white/10 transition-colors"
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 text-textMain font-medium rounded-xl border border-border transition-colors"
               >
                 <Home size={18} />
                 Return to Base

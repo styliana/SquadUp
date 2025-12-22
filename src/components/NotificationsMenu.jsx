@@ -78,7 +78,7 @@ const NotificationsMenu = ({ user }) => {
     <div className="relative" ref={menuRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-300 hover:text-white transition-colors rounded-lg hover:bg-white/5"
+        className="relative p-2 text-textMuted hover:text-textMain transition-colors rounded-lg hover:bg-white/5"
       >
         <Bell size={20} />
         {unreadCount > 0 && (
@@ -87,9 +87,9 @@ const NotificationsMenu = ({ user }) => {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-surface border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
-          <div className="p-3 border-b border-white/10 flex justify-between items-center bg-white/5">
-            <h3 className="font-bold text-white text-sm">Notifications</h3>
+        <div className="absolute right-0 mt-2 w-80 bg-surface border border-border rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
+          <div className="p-3 border-b border-border flex justify-between items-center bg-white/5">
+            <h3 className="font-bold text-textMain text-sm">Notifications</h3>
             {unreadCount > 0 && (
               <button onClick={markAllAsRead} className="text-[10px] text-primary hover:underline flex items-center gap-1">
                 <Check size={12} /> Mark all read
@@ -109,7 +109,7 @@ const NotificationsMenu = ({ user }) => {
                 >
                   <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${!notif.is_read ? 'bg-primary' : 'bg-transparent'}`} />
                   <div>
-                    <div className="text-sm font-bold text-white">{notif.title}</div>
+                    <div className="text-sm font-bold text-textMain">{notif.title}</div>
                     <div className="text-xs text-gray-400 mt-0.5">{notif.message}</div>
                     <div className="text-[10px] text-gray-500 mt-2">
                       {/* UŻYCIE formatDate ZAMIAST RĘCZNEGO KODU */}

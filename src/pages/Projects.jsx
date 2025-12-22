@@ -88,7 +88,7 @@ const Projects = () => {
       
       {/* HEADER & FILTERS */}
       <div className="mb-10">
-        <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">
+        <h1 className="text-3xl md:text-4xl font-bold text-textMain mb-4">
           Find a <span className="text-primary">Project</span>
         </h1>
         <p className="text-textMuted mb-8">
@@ -102,17 +102,17 @@ const Projects = () => {
             {/* Search Bar */}
             <div className="relative flex-grow group">
               <div className={`absolute inset-0 bg-primary/20 rounded-xl blur-md transition-opacity ${searchTerm ? 'opacity-100' : 'opacity-0'}`}></div>
-              <div className="relative bg-background rounded-xl border border-white/10 flex items-center overflow-hidden focus-within:border-primary transition-colors">
+              <div className="relative bg-background rounded-xl border border-border flex items-center overflow-hidden focus-within:border-primary transition-colors">
                 <Search className="ml-4 text-gray-400" size={20} />
                 <input 
                   type="text" 
                   placeholder="Search projects (e.g. 'Python', 'Mobile App')..." 
-                  className="w-full bg-transparent border-none py-3 px-4 text-white focus:outline-none placeholder:text-gray-600"
+                  className="w-full bg-transparent border-none py-3 px-4 text-textMain focus:outline-none placeholder:text-gray-600"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
                 {searchTerm && (
-                  <button onClick={() => setSearchTerm('')} className="mr-4 text-gray-500 hover:text-white">
+                  <button onClick={() => setSearchTerm('')} className="mr-4 text-gray-500 hover:text-textMain">
                     <X size={16} />
                   </button>
                 )}
@@ -128,7 +128,7 @@ const Projects = () => {
                   className={`px-5 py-3 rounded-xl text-sm font-medium transition-all whitespace-nowrap border ${
                     selectedType === filter
                     ? 'bg-primary/20 border-primary text-primary shadow-[0_0_10px_rgba(6,182,212,0.2)]' 
-                    : 'bg-background border-white/10 text-gray-400 hover:text-white hover:border-white/30'
+                    : 'bg-background border-border text-gray-400 hover:text-textMain hover:border-white/30'
                   }`}
                 >
                   {filter}
@@ -144,14 +144,14 @@ const Projects = () => {
                 className="flex items-center gap-2 cursor-pointer w-fit select-none group" 
                 onClick={() => setShowFilters(!showFilters)}
               >
-                <div className={`p-2 rounded-lg transition-colors ${showFilters ? 'bg-primary/10 text-primary' : 'bg-white/5 text-textMuted group-hover:text-white'}`}>
+                <div className={`p-2 rounded-lg transition-colors ${showFilters ? 'bg-primary/10 text-primary' : 'bg-white/5 text-textMuted group-hover:text-textMain'}`}>
                     <Filter size={18} />
                 </div>
-                <span className={`text-sm font-medium transition-colors ${showFilters ? 'text-white' : 'text-textMuted group-hover:text-white'}`}>
+                <span className={`text-sm font-medium transition-colors ${showFilters ? 'text-textMain' : 'text-textMuted group-hover:text-textMain'}`}>
                   Advanced Filters
                 </span>
                 {selectedSkills.length > 0 && (
-                  <span className="bg-primary text-white text-[10px] px-2 py-0.5 rounded-full ml-1 font-bold">
+                  <span className="bg-primary text-textMain text-[10px] px-2 py-0.5 rounded-full ml-1 font-bold">
                     {selectedSkills.length}
                   </span>
                 )}
@@ -174,8 +174,8 @@ const Projects = () => {
                 onClick={() => setShowRecommended(!showRecommended)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${
                   showRecommended 
-                    ? 'bg-gradient-to-r from-purple-500/20 to-primary/20 border-primary/50 text-white shadow-[0_0_15px_rgba(168,85,247,0.15)]' 
-                    : 'bg-background border-white/10 text-textMuted hover:border-white/30 hover:text-white'
+                    ? 'bg-gradient-to-r from-purple-500/20 to-primary/20 border-primary/50 text-textMain shadow-[0_0_15px_rgba(168,85,247,0.15)]' 
+                    : 'bg-background border-border text-textMuted hover:border-white/30 hover:text-textMain'
                 }`}
               >
                 <Sparkles size={16} className={showRecommended ? 'text-yellow-300' : ''} />
@@ -211,11 +211,11 @@ const Projects = () => {
           <div className="w-16 h-16 bg-surface rounded-full flex items-center justify-center mx-auto mb-4 text-gray-500">
              <Search size={32} />
           </div>
-          <p className="text-xl text-white mb-2 font-bold">No projects found</p>
+          <p className="text-xl text-textMain mb-2 font-bold">No projects found</p>
           <p className="text-textMuted max-w-md mx-auto">
             We couldn't find any projects matching your filters. Try clearing them to see more results.
           </p>
-          <button onClick={clearFilters} className="mt-6 px-6 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-white text-sm transition-colors border border-white/10">
+          <button onClick={clearFilters} className="mt-6 px-6 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-textMain text-sm transition-colors border border-border">
             Clear all filters
           </button>
         </div>
@@ -241,7 +241,7 @@ const Projects = () => {
               <button 
                 onClick={handleLoadMore}
                 disabled={loading}
-                className="group flex items-center gap-2 px-8 py-3 bg-surface border border-white/10 rounded-xl text-white hover:bg-white/5 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/10 transition-all disabled:opacity-50"
+                className="group flex items-center gap-2 px-8 py-3 bg-surface border border-border rounded-xl text-textMain hover:bg-white/5 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/10 transition-all disabled:opacity-50"
               >
                 {loading ? <Loader2 className="animate-spin" size={20} /> : <ArrowDownCircle size={20} className="group-hover:translate-y-1 transition-transform" />}
                 {loading ? 'Loading...' : 'Load More Projects'}

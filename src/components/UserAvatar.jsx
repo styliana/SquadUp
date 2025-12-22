@@ -5,14 +5,14 @@ const UserAvatar = ({ avatarUrl, name, className = "w-10 h-10", textSize = "text
       <img 
         src={avatarUrl} 
         alt={name || "User"} 
-        className={`${className} rounded-full object-cover border border-white/10 shrink-0`}
+        className={`${className} rounded-full object-cover border border-border shrink-0`}
       />
     );
   }
 
   // Jeśli nie ma zdjęcia -> wyświetl kolorowe kółko z inicjałem
   return (
-    <div className={`${className} rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold ${textSize} border border-white/10 shrink-0 uppercase`}>
+    <div className={`${className} rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-textMain font-bold ${textSize} border border-border shrink-0 uppercase`}>
       {name ? name.charAt(0) : '?'}
     </div>
   );

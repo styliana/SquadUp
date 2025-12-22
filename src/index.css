@@ -3,12 +3,33 @@
 @tailwind utilities;
 
 @layer base {
-  body {
-    @apply bg-background text-textMain; 
+  :root {
+    --background: 0 0% 100%;
+    --surface: 210 40% 96.1%;
+    --text-main: 222.2 47.4% 11.2%;
+    --text-muted: 215.4 16.3% 46.9%;
+    --border: 214.3 31.8% 91.4%;
+    --primary: 189 94% 40%;
+    --secondary: 262 83% 55%;
   }
-  
+
+  .dark {
+    --background: 220 40% 11%;
+    --surface: 220 26% 17%;
+    --text-main: 210 20% 98%;
+    --text-muted: 215 14% 65%;
+    --border: 217 19% 27%;
+    --primary: 189 94% 43%;
+    --secondary: 262 83% 58%;
+  }
+
+  body {
+    @apply bg-background text-textMain transition-colors duration-300;
+  }
+
   * {
-    font-family: 'Manrope', sans-serif !important; 
+    font-family: 'Manrope', sans-serif !important;
+    @apply border-border;
   }
 }
 
@@ -21,7 +42,6 @@
   animation: scroll 20s linear infinite;
 }
 
-/* Pauza po najechaniu myszką */
 .animate-scroll:hover {
   animation-play-state: paused;
 }

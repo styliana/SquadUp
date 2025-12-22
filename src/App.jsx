@@ -34,14 +34,14 @@ const PageLoader = () => (
 
 const NotFound = () => (
   <div className="flex flex-col items-center justify-center h-[calc(100vh-64px)] text-center px-4">
-    <div className="bg-surface/50 p-8 rounded-3xl border border-white/10 backdrop-blur-sm max-w-md w-full">
+    <div className="bg-surface/50 p-8 rounded-3xl border border-border backdrop-blur-sm max-w-md w-full">
       <AlertTriangle className="mx-auto text-yellow-500 mb-4" size={48} />
-      <h1 className="text-3xl font-bold text-white mb-2">404</h1>
-      <p className="text-xl text-white font-semibold mb-2">Page not found</p>
+      <h1 className="text-3xl font-bold text-textMain mb-2">404</h1>
+      <p className="text-xl text-textMain font-semibold mb-2">Page not found</p>
       <p className="text-textMuted mb-8">The page you are looking for doesn't exist or has been moved.</p>
       <Link 
         to="/" 
-        className="inline-flex px-6 py-3 bg-primary text-white font-bold rounded-xl hover:bg-primary/90 transition-all shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.5)]"
+        className="inline-flex px-6 py-3 bg-primary text-textMain font-bold rounded-xl hover:bg-primary/90 transition-all shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.5)]"
       >
         Back to Home
       </Link>

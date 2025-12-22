@@ -93,7 +93,7 @@ const ProjectDetails = () => {
   };
 
   if (loading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-primary" size={40} /></div>;
-  if (!project) return <div className="text-center py-20 text-white">Project not found 😢</div>;
+  if (!project) return <div className="text-center py-20 text-textMain">Project not found 😢</div>;
 
   const openSpots = project.members_max - project.members_current;
   const isAuthor = user && project.author_id === user.id;
@@ -101,7 +101,7 @@ const ProjectDetails = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      <Link to={backPath} className="inline-flex items-center gap-2 text-textMuted hover:text-white mb-8 transition-colors">
+      <Link to={backPath} className="inline-flex items-center gap-2 text-textMuted hover:text-textMain mb-8 transition-colors">
         <ArrowLeft size={20} />
         {backLabel}
       </Link>
@@ -121,23 +121,23 @@ const ProjectDetails = () => {
               </div>
             </div>
 
-            <h1 className="text-3xl md:text-4xl font-bold text-white mb-6">
+            <h1 className="text-3xl md:text-4xl font-bold text-textMain mb-6">
               {project.title}
             </h1>
 
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-semibold text-white mb-2">Project Description</h3>
-                <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">
+                <h3 className="text-lg font-semibold text-textMain mb-2">Project Description</h3>
+                <p className="text-textMuted leading-relaxed whitespace-pre-wrap">
                   {project.description}
                 </p>
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold text-white mb-3">Required Skills</h3>
+                <h3 className="text-lg font-semibold text-textMain mb-3">Required Skills</h3>
                 <div className="flex flex-wrap gap-2">
                   {project.skills?.map(tag => (
-                    <span key={tag} className="px-3 py-1.5 rounded-lg bg-background border border-white/10 text-sm text-gray-300">
+                    <span key={tag} className="px-3 py-1.5 rounded-lg bg-background border border-border text-sm text-textMuted">
                       {tag}
                     </span>
                   ))}
@@ -157,7 +157,7 @@ const ProjectDetails = () => {
           
           {/* TEAM LEADER CARD */}
           <div className="bg-surface border border-white/5 rounded-2xl p-6">
-            <h3 className="text-lg font-bold text-white mb-4">Team Leader</h3>
+            <h3 className="text-lg font-bold text-textMain mb-4">Team Leader</h3>
             
             {project.author_id ? (
               <Link to={`/profile/${project.author_id}`} className="flex items-center gap-4 mb-6 hover:bg-white/5 p-2 rounded-xl transition-colors cursor-pointer group">
@@ -168,7 +168,7 @@ const ProjectDetails = () => {
                   textSize="text-xl"
                 />
                 <div className="min-w-0">
-                  <div className="font-bold text-white text-lg truncate group-hover:text-primary transition-colors">
+                  <div className="font-bold text-textMain text-lg truncate group-hover:text-primary transition-colors">
                     {author?.full_name || project.author}
                   </div>
                   <div className="text-sm text-textMuted">{project.role}</div>
@@ -181,7 +181,7 @@ const ProjectDetails = () => {
               <div className="flex items-center gap-4 mb-6 p-2">
                  <UserAvatar name={project.author} className="w-14 h-14" textSize="text-xl" />
                  <div>
-                    <div className="font-bold text-white text-lg">{project.author}</div>
+                    <div className="font-bold text-textMain text-lg">{project.author}</div>
                     <div className="text-sm text-textMuted">{project.role}</div>
                  </div>
               </div>
@@ -190,7 +190,7 @@ const ProjectDetails = () => {
             {!isAuthor && (
               <button 
                 onClick={handleSendMessage}
-                className="w-full py-3 rounded-xl border border-white/10 text-white font-medium hover:bg-white/5 transition-all flex items-center justify-center gap-2"
+                className="w-full py-3 rounded-xl border border-border text-textMain font-medium hover:bg-white/5 transition-all flex items-center justify-center gap-2"
               >
                 <MessageCircle size={18} />
                 Send Message
@@ -200,7 +200,7 @@ const ProjectDetails = () => {
 
           {/* SQUAD & APPLICATION CARD */}
           <div className="bg-surface border border-white/5 rounded-2xl p-6">
-            <h3 className="text-lg font-bold text-white mb-2">
+            <h3 className="text-lg font-bold text-textMain mb-2">
               {openSpots > 0 ? `${openSpots} Open Spots` : 'Team Full'}
             </h3>
 
@@ -241,7 +241,7 @@ const ProjectDetails = () => {
 
                 {/* 3. Puste sloty */}
                 {[...Array(Math.max(0, project.members_max - project.members_current))].map((_, i) => (
-                  <div key={i} className="w-10 h-10 rounded-full border border-dashed border-white/20 flex items-center justify-center text-white/20">
+                  <div key={i} className="w-10 h-10 rounded-full border border-dashed border-border flex items-center justify-center text-textMain/20">
                     <User size={16} />
                   </div>
                 ))}
@@ -266,7 +266,7 @@ const ProjectDetails = () => {
               <>
                 <p className="text-textMuted text-sm mb-4">Apply now to join this project.</p>
                 <textarea 
-                  className="w-full bg-background border border-white/10 rounded-xl p-3 text-white text-sm mb-4 focus:outline-none focus:border-primary resize-none"
+                  className="w-full bg-background border border-border rounded-xl p-3 text-textMain text-sm mb-4 focus:outline-none focus:border-primary resize-none"
                   rows={3}
                   placeholder="Short message to the leader..."
                   value={applicationMessage}
@@ -275,7 +275,7 @@ const ProjectDetails = () => {
                 <button 
                   onClick={handleApply}
                   disabled={applyLoading}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-primary to-blue-600 text-white font-bold shadow-lg hover:shadow-primary/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-primary to-blue-600 text-textMain font-bold shadow-lg hover:shadow-primary/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {applyLoading ? <Loader2 className="animate-spin" /> : <><Send size={18} /> Apply for Project</>}
                 </button>

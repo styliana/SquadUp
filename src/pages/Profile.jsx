@@ -190,11 +190,11 @@ const Profile = () => {
       <div className="flex justify-between items-center mb-8">
         <div className="flex items-center gap-4">
           {!isOwner && (
-            <button onClick={() => navigate(-1)} className="p-2 text-textMuted hover:text-white transition-colors rounded-lg bg-surface/50 border border-white/10">
+            <button onClick={() => navigate(-1)} className="p-2 text-textMuted hover:text-textMain transition-colors rounded-lg bg-surface/50 border border-border">
               <ArrowLeft size={20} />
             </button>
           )}
-          <h1 className="text-3xl font-bold text-white">
+          <h1 className="text-3xl font-bold text-textMain">
             {isOwner ? 'Your' : `${profile.full_name || profile.email}'s`} <span className="text-primary">Profile</span>
           </h1>
         </div>
@@ -204,7 +204,7 @@ const Profile = () => {
             onClick={() => isEditing ? updateProfile() : setIsEditing(true)}
             disabled={isSaving}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-              isEditing ? 'bg-primary text-white border-primary hover:bg-primary/90' : 'border-white/10 text-white hover:bg-white/5'
+              isEditing ? 'bg-primary text-textMain border-primary hover:bg-primary/90' : 'border-border text-textMain hover:bg-white/5'
             }`}
           >
             {isSaving ? <><Loader2 size={18} className="animate-spin" /> Saving...</> : isEditing ? <><Save size={18} /> Save Changes</> : <><Edit2 size={18} /> Edit Profile</>}
@@ -217,7 +217,7 @@ const Profile = () => {
         {/* LEWA STRONA */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-surface border border-white/5 rounded-2xl p-8">
-            <div className="flex items-center gap-2 text-white font-semibold mb-6">
+            <div className="flex items-center gap-2 text-textMain font-semibold mb-6">
               <User size={20} className="text-primary" /> Basic Information
             </div>
             <div className="flex flex-col md:flex-row gap-8 items-start">
@@ -228,7 +228,7 @@ const Profile = () => {
                    profile.avatar_url ? (
                      <img src={profile.avatar_url} alt="Profile" className="w-32 h-32 rounded-3xl object-cover border-4 border-surface shadow-2xl shadow-primary/20" />
                    ) : (
-                     <div className="w-32 h-32 rounded-3xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-5xl font-bold text-white shadow-2xl shadow-primary/20 shrink-0 uppercase">
+                     <div className="w-32 h-32 rounded-3xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-5xl font-bold text-textMain shadow-2xl shadow-primary/20 shrink-0 uppercase">
                        {profile.email ? profile.email.charAt(0) : 'U'}
                      </div>
                    )
@@ -238,19 +238,19 @@ const Profile = () => {
                 <div>
                   <label className="text-xs text-textMuted uppercase font-bold tracking-wider block mb-1">Full Name</label>
                   {isEditing ? (
-                    <input type="text" value={profile.full_name || ''} onChange={e => setProfile({...profile, full_name: e.target.value})} className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary" />
-                  ) : (<h2 className="text-2xl font-bold text-white">{profile.full_name || 'Anonymous User'}</h2>)}
+                    <input type="text" value={profile.full_name || ''} onChange={e => setProfile({...profile, full_name: e.target.value})} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-textMain focus:outline-none focus:border-primary" />
+                  ) : (<h2 className="text-2xl font-bold text-textMain">{profile.full_name || 'Anonymous User'}</h2>)}
                 </div>
                 <div>
                   <label className="text-xs text-textMuted uppercase font-bold tracking-wider block mb-1">University</label>
                   {isEditing ? (
-                    <input type="text" value={profile.university || ''} onChange={e => setProfile({...profile, university: e.target.value})} className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary" placeholder="e.g. Warsaw University of Technology" />
-                  ) : (<div className="flex items-center gap-2 text-gray-300"><GraduationCap size={18} />{profile.university || 'Not specified'}</div>)}
+                    <input type="text" value={profile.university || ''} onChange={e => setProfile({...profile, university: e.target.value})} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-textMain focus:outline-none focus:border-primary" placeholder="e.g. Warsaw University of Technology" />
+                  ) : (<div className="flex items-center gap-2 text-textMuted"><GraduationCap size={18} />{profile.university || 'Not specified'}</div>)}
                 </div>
                 <div>
                   <label className="text-xs text-textMuted uppercase font-bold tracking-wider block mb-1">Bio</label>
                   {isEditing ? (
-                    <textarea rows={3} value={profile.bio || ''} onChange={e => setProfile({...profile, bio: e.target.value})} className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary resize-none" placeholder="Tell us about yourself..." />
+                    <textarea rows={3} value={profile.bio || ''} onChange={e => setProfile({...profile, bio: e.target.value})} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-textMain focus:outline-none focus:border-primary resize-none" placeholder="Tell us about yourself..." />
                   ) : (<p className="text-textMuted leading-relaxed">{profile.bio || 'No bio yet.'}</p>)}
                 </div>
               </div>
@@ -258,28 +258,28 @@ const Profile = () => {
           </div>
 
           <div className="bg-surface border border-white/5 rounded-2xl p-8">
-            <div className="flex items-center gap-2 text-white font-semibold mb-6">
+            <div className="flex items-center gap-2 text-textMain font-semibold mb-6">
               <span className="text-primary">⚡</span> Skills
             </div>
             {(isEditing && isOwner) ? (
               <SkillSelector selectedSkills={profile.skills || []} setSelectedSkills={(newSkills) => setProfile({...profile, skills: newSkills})} />
             ) : (
               <div className="flex flex-wrap gap-2">
-                {profile.skills?.map(skill => (<span key={skill} className="px-3 py-1.5 rounded-lg bg-background border border-white/10 text-gray-300 text-sm">{skill}</span>))}
+                {profile.skills?.map(skill => (<span key={skill} className="px-3 py-1.5 rounded-lg bg-background border border-border text-textMuted text-sm">{skill}</span>))}
                 {(!profile.skills || profile.skills.length === 0) && (<span className="text-textMuted italic">No skills added yet.</span>)}
               </div>
             )}
           </div>
 
           <div className="bg-surface border border-white/5 rounded-2xl p-8">
-            <div className="flex items-center gap-2 text-white font-semibold mb-6">
+            <div className="flex items-center gap-2 text-textMain font-semibold mb-6">
               <Target size={20} className="text-primary" /> Preferred Project Types
             </div>
             <p className="text-sm text-textMuted mb-4">Select types of projects you are interested in.</p>
             <div className="flex flex-wrap gap-3">
               {(isEditing && isOwner) ? (
                 availableCategories.map(cat => (
-                  <button key={cat} onClick={() => toggleCategory(cat)} className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${profile.preferred_categories?.includes(cat) ? 'bg-secondary/20 border-secondary text-secondary' : 'bg-background border-white/10 text-gray-400'}`}>
+                  <button key={cat} onClick={() => toggleCategory(cat)} className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${profile.preferred_categories?.includes(cat) ? 'bg-secondary/20 border-secondary text-secondary' : 'bg-background border-border text-gray-400'}`}>
                     {cat}
                   </button>
                 ))
@@ -293,16 +293,16 @@ const Profile = () => {
         {/* PRAWA STRONA */}
         <div className="space-y-6">
           <div className="bg-surface border border-white/5 rounded-2xl p-6">
-            <h3 className="font-bold text-white mb-6">Contact</h3>
+            <h3 className="font-bold text-textMain mb-6">Contact</h3>
             <div className="space-y-4">
               <div className="flex items-center gap-3 text-sm">
                 <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-textMuted"><Mail size={16} /></div>
-                <span className="text-gray-300 truncate">{profile.email}</span>
+                <span className="text-textMuted truncate">{profile.email}</span>
               </div>
               <div className="flex items-center gap-3 text-sm">
                 <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-textMuted"><Github size={16} /></div>
                 {(isEditing && isOwner) ? (
-                   <input type="text" value={profile.github_url || ''} onChange={e => setProfile({...profile, github_url: e.target.value})} className="flex-grow bg-background border border-white/10 rounded px-2 py-1 text-white text-sm focus:border-primary outline-none" placeholder="https://github.com/username" />
+                   <input type="text" value={profile.github_url || ''} onChange={e => setProfile({...profile, github_url: e.target.value})} className="flex-grow bg-background border border-border rounded px-2 py-1 text-textMain text-sm focus:border-primary outline-none" placeholder="https://github.com/username" />
                 ) : (
                   profile.github_url ? <a href={profile.github_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">GitHub Profile</a> : <span className="text-textMuted italic">No GitHub</span>
                 )}
@@ -310,7 +310,7 @@ const Profile = () => {
               <div className="flex items-center gap-3 text-sm">
                 <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-textMuted"><Linkedin size={16} /></div>
                 {(isEditing && isOwner) ? (
-                   <input type="text" value={profile.linkedin_url || ''} onChange={e => setProfile({...profile, linkedin_url: e.target.value})} className="flex-grow bg-background border border-white/10 rounded px-2 py-1 text-white text-sm focus:border-primary outline-none" placeholder="https://linkedin.com/in/user" />
+                   <input type="text" value={profile.linkedin_url || ''} onChange={e => setProfile({...profile, linkedin_url: e.target.value})} className="flex-grow bg-background border border-border rounded px-2 py-1 text-textMain text-sm focus:border-primary outline-none" placeholder="https://linkedin.com/in/user" />
                 ) : (
                   profile.linkedin_url ? <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">LinkedIn Profile</a> : <span className="text-textMuted italic">No LinkedIn</span>
                 )}
@@ -319,19 +319,19 @@ const Profile = () => {
           </div>
 
           <div className="bg-surface border border-white/5 rounded-2xl p-6">
-            <h3 className="font-bold text-white mb-6">Activity</h3>
+            <h3 className="font-bold text-textMain mb-6">Activity</h3>
             <div className="space-y-6">
               <div className="flex justify-between items-center group">
-                <div className="flex items-center gap-3"><div className="p-2 bg-primary/10 rounded-lg text-primary"><TrendingUp size={18} /></div><span className="text-gray-300 text-sm">Created Projects</span></div>
-                <span className="font-bold text-white text-lg">{stats.created}</span>
+                <div className="flex items-center gap-3"><div className="p-2 bg-primary/10 rounded-lg text-primary"><TrendingUp size={18} /></div><span className="text-textMuted text-sm">Created Projects</span></div>
+                <span className="font-bold text-textMain text-lg">{stats.created}</span>
               </div>
               <div className="flex justify-between items-center group">
-                <div className="flex items-center gap-3"><div className="p-2 bg-blue-500/10 rounded-lg text-blue-400"><Send size={18} /></div><span className="text-gray-300 text-sm">Applications Sent</span></div>
-                <span className="font-bold text-white text-lg">{stats.applied}</span>
+                <div className="flex items-center gap-3"><div className="p-2 bg-blue-500/10 rounded-lg text-blue-400"><Send size={18} /></div><span className="text-textMuted text-sm">Applications Sent</span></div>
+                <span className="font-bold text-textMain text-lg">{stats.applied}</span>
               </div>
               <div className="flex justify-between items-center group">
-                <div className="flex items-center gap-3"><div className="p-2 bg-green-500/10 rounded-lg text-green-400"><CheckCircle size={18} /></div><span className="text-gray-300 text-sm">Joined Teams</span></div>
-                <span className="font-bold text-white text-lg">{stats.accepted}</span>
+                <div className="flex items-center gap-3"><div className="p-2 bg-green-500/10 rounded-lg text-green-400"><CheckCircle size={18} /></div><span className="text-textMuted text-sm">Joined Teams</span></div>
+                <span className="font-bold text-textMain text-lg">{stats.accepted}</span>
               </div>
             </div>
           </div>
@@ -360,11 +360,11 @@ const Profile = () => {
       {/* --- MODAL USUWANIA KONTA --- */}
       {isDeleteModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-surface border border-white/10 rounded-2xl max-w-md w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200 relative">
+          <div className="bg-surface border border-border rounded-2xl max-w-md w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200 relative">
             
             <button 
               onClick={() => setIsDeleteModalOpen(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+              className="absolute top-4 right-4 text-gray-400 hover:text-textMain transition-colors"
             >
               <X size={20} />
             </button>
@@ -373,7 +373,7 @@ const Profile = () => {
               <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500">
                 <AlertTriangle size={24} />
               </div>
-              <h2 className="text-xl font-bold text-white mb-2">Delete Account</h2>
+              <h2 className="text-xl font-bold text-textMain mb-2">Delete Account</h2>
               <p className="text-textMuted text-sm">
                 This action cannot be undone. This will permanently delete your account, projects, and messages.
               </p>
@@ -382,13 +382,13 @@ const Profile = () => {
             <div className="space-y-4">
               <div>
                 <label className="text-xs font-bold text-textMuted uppercase mb-1.5 block">
-                  Type <span className="text-white select-all">DELETE</span> to confirm
+                  Type <span className="text-textMain select-all">DELETE</span> to confirm
                 </label>
                 <input 
                   type="text" 
                   value={deleteConfirmation}
                   onChange={(e) => setDeleteConfirmation(e.target.value)}
-                  className="w-full bg-background border border-white/10 rounded-xl py-3 px-4 text-white focus:border-red-500 focus:outline-none transition-colors placeholder:text-gray-600 text-center tracking-widest font-bold"
+                  className="w-full bg-background border border-border rounded-xl py-3 px-4 text-textMain focus:border-red-500 focus:outline-none transition-colors placeholder:text-gray-600 text-center tracking-widest font-bold"
                   placeholder="DELETE"
                   autoFocus
                 />
@@ -397,14 +397,14 @@ const Profile = () => {
               <div className="flex gap-3 pt-2">
                 <button 
                   onClick={() => setIsDeleteModalOpen(false)}
-                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white font-medium rounded-xl transition-colors"
+                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-textMain font-medium rounded-xl transition-colors"
                 >
                   Cancel
                 </button>
                 <button 
                   onClick={confirmDeleteAccount}
                   disabled={deleteConfirmation !== 'DELETE' || loading}
-                  className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-textMain font-bold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {loading ? <Loader2 className="animate-spin" size={18} /> : <Trash2 size={18} />}
                   Delete

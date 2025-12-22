@@ -150,20 +150,20 @@ const MyProjects = () => {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+        <h1 className="text-3xl font-bold text-textMain flex items-center gap-3">
           <div className="p-2 bg-gradient-to-br from-primary to-blue-600 rounded-xl shadow-lg shadow-primary/20">
-            <Briefcase className="text-white" size={24} />
+            <Briefcase className="text-textMain" size={24} />
           </div>
           My Dashboard
         </h1>
       </div>
 
-      <div className="flex gap-6 border-b border-white/10 mb-8">
-        <button onClick={() => setActiveTab('published')} className={`pb-4 px-2 text-lg font-medium transition-all relative ${activeTab === 'published' ? 'text-white' : 'text-textMuted hover:text-white'}`}>
+      <div className="flex gap-6 border-b border-border mb-8">
+        <button onClick={() => setActiveTab('published')} className={`pb-4 px-2 text-lg font-medium transition-all relative ${activeTab === 'published' ? 'text-textMain' : 'text-textMuted hover:text-textMain'}`}>
           Published Projects <span className="ml-2 text-xs bg-white/10 px-2 py-0.5 rounded-full text-textMuted">{createdProjects.length}</span>
           {activeTab === 'published' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-primary to-blue-500 shadow-[0_0_10px_rgba(6,182,212,0.5)]" />}
         </button>
-        <button onClick={() => setActiveTab('applied')} className={`pb-4 px-2 text-lg font-medium transition-all relative ${activeTab === 'applied' ? 'text-white' : 'text-textMuted hover:text-white'}`}>
+        <button onClick={() => setActiveTab('applied')} className={`pb-4 px-2 text-lg font-medium transition-all relative ${activeTab === 'applied' ? 'text-textMain' : 'text-textMuted hover:text-textMain'}`}>
           Applications Sent <span className="ml-2 text-xs bg-white/10 px-2 py-0.5 rounded-full text-textMuted">{appliedProjects.length}</span>
           {activeTab === 'applied' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-primary to-blue-500 shadow-[0_0_10px_rgba(6,182,212,0.5)]" />}
         </button>
@@ -172,9 +172,9 @@ const MyProjects = () => {
       {activeTab === 'published' && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {createdProjects.length === 0 ? (
-            <div className="text-center py-24 bg-surface/30 rounded-3xl border border-dashed border-white/10">
+            <div className="text-center py-24 bg-surface/30 rounded-3xl border border-dashed border-border">
               <Sparkles className="mx-auto text-primary mb-4 opacity-50" size={48} />
-              <p className="text-xl text-white font-semibold mb-2">No projects yet</p>
+              <p className="text-xl text-textMain font-semibold mb-2">No projects yet</p>
               <Link to="/create-project" className="px-6 py-3 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-colors inline-block">Create Project</Link>
             </div>
           ) : (
@@ -184,12 +184,12 @@ const MyProjects = () => {
                   <div>
                     <div className="flex items-center gap-3 mb-2">
                       <h2 
-                        className="text-2xl font-bold text-white hover:text-primary transition-colors cursor-pointer" 
+                        className="text-2xl font-bold text-textMain hover:text-primary transition-colors cursor-pointer" 
                         onClick={() => navigate(`/projects/${project.id}`, { state: { from: '/my-projects' } })}
                       >
                         {project.title}
                       </h2>
-                      <span className="px-2.5 py-0.5 rounded-md bg-white/5 border border-white/10 text-xs font-medium text-textMuted">{project.type}</span>
+                      <span className="px-2.5 py-0.5 rounded-md bg-white/5 border border-border text-xs font-medium text-textMuted">{project.type}</span>
                       {project.status === 'closed' && <span className="px-2.5 py-0.5 rounded-md bg-green-500/20 border border-green-500/30 text-xs font-bold text-green-400 flex items-center gap-1"><Check size={12} /> TEAM FULL</span>}
                     </div>
                     <div className="flex items-center gap-4 text-sm text-textMuted">
@@ -199,7 +199,7 @@ const MyProjects = () => {
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    <Link to={`/projects/${project.id}`} state={{ from: '/my-projects' }} className="p-2 text-textMuted hover:text-white hover:bg-white/5 rounded-lg transition-colors"><Eye size={20} /></Link>
+                    <Link to={`/projects/${project.id}`} state={{ from: '/my-projects' }} className="p-2 text-textMuted hover:text-textMain hover:bg-white/5 rounded-lg transition-colors"><Eye size={20} /></Link>
                     <button onClick={() => navigate(`/edit-project/${project.id}`)} className="p-2 text-textMuted hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"><Edit2 size={20} /></button>
                     <button onClick={() => handleDeleteProject(project.id)} className="p-2 text-textMuted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"><Trash2 size={20} /></button>
                   </div>
@@ -213,14 +213,14 @@ const MyProjects = () => {
                   ) : (
                     <div className="grid gap-3">
                       {project.applications.map(app => (
-                        <div key={app.id} className="bg-surface border border-white/5 rounded-xl p-4 flex flex-col md:flex-row items-center gap-4 hover:border-white/10 transition-colors">
+                        <div key={app.id} className="bg-surface border border-white/5 rounded-xl p-4 flex flex-col md:flex-row items-center gap-4 hover:border-border transition-colors">
                           <div className="flex items-center gap-4 flex-grow w-full md:w-auto">
                             <div className="shrink-0 cursor-pointer" onClick={() => navigate(`/profile/${app.profiles?.id}`)}>
                               <UserAvatar avatarUrl={app.profiles?.avatar_url} name={app.profiles?.full_name} className="w-12 h-12" />
                             </div>
                             <div className="flex-grow min-w-0">
                               <div className="flex items-baseline gap-2">
-                                <span className="font-bold text-white text-base hover:underline cursor-pointer" onClick={() => navigate(`/profile/${app.profiles?.id}`)}>{app.profiles?.full_name || 'Anonymous'}</span>
+                                <span className="font-bold text-textMain text-base hover:underline cursor-pointer" onClick={() => navigate(`/profile/${app.profiles?.id}`)}>{app.profiles?.full_name || 'Anonymous'}</span>
                                 <span className="text-xs text-textMuted truncate">{app.profiles?.university}</span>
                               </div>
                               <div className="mt-1.5 text-sm text-gray-400 bg-black/20 p-2 rounded-lg border-l-2 border-primary italic">"{app.message}"</div>
@@ -234,7 +234,7 @@ const MyProjects = () => {
                               </>
                             ) : (<StatusBadge status={app.status} />)}
                             <div className="w-px h-8 bg-white/5 mx-2 hidden md:block"></div>
-                            <Link to="/chat" state={{ startChatWith: app.profiles }} className="p-2 text-textMuted hover:text-white hover:bg-white/5 rounded-lg transition-colors"><MessageCircle size={20} /></Link>
+                            <Link to="/chat" state={{ startChatWith: app.profiles }} className="p-2 text-textMuted hover:text-textMain hover:bg-white/5 rounded-lg transition-colors"><MessageCircle size={20} /></Link>
                           </div>
                         </div>
                       ))}
@@ -250,7 +250,7 @@ const MyProjects = () => {
       {activeTab === 'applied' && (
         <div className="grid grid-cols-1 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {appliedProjects.length === 0 ? (
-             <div className="text-center py-20 text-textMuted border border-dashed border-white/10 rounded-3xl">You haven't applied to any projects yet. Go find some!</div>
+             <div className="text-center py-20 text-textMuted border border-dashed border-border rounded-3xl">You haven't applied to any projects yet. Go find some!</div>
           ) : (
             appliedProjects.map(app => (
               <div key={app.id} className="group bg-surface border border-white/5 rounded-2xl p-6 hover:border-primary/30 transition-all duration-300 shadow-lg relative overflow-hidden">
@@ -258,20 +258,20 @@ const MyProjects = () => {
                 <div className="flex flex-col md:flex-row justify-between items-start gap-6 pl-2">
                   <div className="flex-grow">
                     <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-xl font-bold text-white group-hover:text-primary transition-colors">{app.projects?.title || 'Project Removed'}</h3>
+                      <h3 className="text-xl font-bold text-textMain group-hover:text-primary transition-colors">{app.projects?.title || 'Project Removed'}</h3>
                       <StatusBadge status={app.status} />
                     </div>
                     <div className="flex flex-wrap gap-4 text-sm text-textMuted mb-4">
-                      <span className="bg-white/5 px-2.5 py-0.5 rounded-md text-gray-300 border border-white/5">{app.projects?.type}</span>
+                      <span className="bg-white/5 px-2.5 py-0.5 rounded-md text-textMuted border border-white/5">{app.projects?.type}</span>
                       <span className="flex items-center gap-1.5"><Clock size={14} className="text-primary"/> Applied on {new Date(app.created_at).toLocaleDateString()}</span>
                     </div>
-                    <div className="relative pl-4 border-l-2 border-white/10">
+                    <div className="relative pl-4 border-l-2 border-border">
                       <p className="text-xs font-bold text-textMuted uppercase mb-1">Your Application Note</p>
-                      <p className="text-sm text-gray-300 italic">"{app.message}"</p>
+                      <p className="text-sm text-textMuted italic">"{app.message}"</p>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-3 min-w-[140px]">
-                    <Link to={`/projects/${app.project_id}`} state={{ from: '/my-projects' }} className="w-full py-2 px-4 rounded-xl border border-white/10 text-white text-sm font-medium hover:bg-white/5 hover:border-white/20 transition-all flex items-center justify-center gap-2">
+                    <Link to={`/projects/${app.project_id}`} state={{ from: '/my-projects' }} className="w-full py-2 px-4 rounded-xl border border-border text-textMain text-sm font-medium hover:bg-white/5 hover:border-border transition-all flex items-center justify-center gap-2">
                       <Eye size={16} /> View Project
                     </Link>
                     {app.status === 'pending' && (

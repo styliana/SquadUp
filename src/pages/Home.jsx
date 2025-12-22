@@ -38,13 +38,13 @@ const Home = () => {
         <div className="text-center max-w-4xl mx-auto">
           
           {/* BADGE */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-primary text-sm font-medium mb-8 hover:bg-white/10 transition-colors cursor-default animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-border text-primary text-sm font-medium mb-8 hover:bg-white/10 transition-colors cursor-default animate-in fade-in slide-in-from-bottom-4 duration-700">
             <Sparkles size={16} />
             <span>Seek Quality, Unite And Deliver</span>
           </div>
 
           {/* GŁÓWNY NAGŁÓWEK */}
-          <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 tracking-tight animate-in fade-in slide-in-from-bottom-5 duration-1000">
+          <h1 className="text-5xl md:text-7xl font-bold text-textMain mb-6 tracking-tight animate-in fade-in slide-in-from-bottom-5 duration-1000">
             Find your <br />
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-blue-400 to-secondary animate-gradient">
               Dream Team
@@ -67,7 +67,7 @@ const Home = () => {
               {[...technologies, ...technologies].map((tech, i) => (
                 <div 
                   key={i}
-                  className="px-6 py-3 rounded-2xl bg-white/5 border border-white/5 text-gray-400 font-medium text-lg whitespace-nowrap hover:text-white hover:border-white/20 transition-colors cursor-default"
+                  className="px-6 py-3 rounded-2xl bg-white/5 border border-white/5 text-gray-400 font-medium text-lg whitespace-nowrap hover:text-textMain hover:border-border transition-colors cursor-default"
                 >
                   {tech}
                 </div>
@@ -79,7 +79,7 @@ const Home = () => {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500">
             <Link 
               to="/projects" 
-              className="group relative px-8 py-4 bg-gradient-to-r from-primary to-blue-600 rounded-xl text-white font-semibold text-lg shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:shadow-[0_0_30px_rgba(6,182,212,0.6)] transition-all hover:-translate-y-1"
+              className="group relative px-8 py-4 bg-gradient-to-r from-primary to-blue-600 rounded-xl text-textMain font-semibold text-lg shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:shadow-[0_0_30px_rgba(6,182,212,0.6)] transition-all hover:-translate-y-1"
             >
               <div className="flex items-center gap-2">
                 Browse Projects
@@ -89,14 +89,14 @@ const Home = () => {
 
             <Link 
               to="/create-project" 
-              className="px-8 py-4 rounded-xl bg-white/5 border border-white/10 text-white font-semibold text-lg hover:bg-white/10 transition-all hover:-translate-y-1"
+              className="px-8 py-4 rounded-xl bg-white/5 border border-border text-textMain font-semibold text-lg hover:bg-white/10 transition-all hover:-translate-y-1"
             >
               Create Listing
             </Link>
           </div>
 
           {/* STATYSTYKI (Dynamiczne) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 border-t border-white/10 pt-10 animate-in fade-in duration-1000 delay-700">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 border-t border-border pt-10 animate-in fade-in duration-1000 delay-700">
             <StatItem 
               icon={<Briefcase className="text-primary mb-2" />} 
               end={stats.projects} 

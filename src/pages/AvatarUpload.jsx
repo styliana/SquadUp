@@ -62,17 +62,17 @@ const AvatarUpload = ({ url, onUpload, size = 150 }) => {
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-            <Camera size={size / 3} className="text-white opacity-50" />
+            <Camera size={size / 3} className="text-textMain opacity-50" />
           </div>
         )}
 
         <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
           {uploading ? (
-            <Loader2 className="animate-spin text-white" size={32} />
+            <Loader2 className="animate-spin text-textMain" size={32} />
           ) : (
             <>
-              <Camera size={24} className="text-white mb-2" />
-              <span className="text-white font-bold text-xs uppercase tracking-wider">Change Photo</span>
+              <Camera size={24} className="text-textMain mb-2" />
+              <span className="text-textMain font-bold text-xs uppercase tracking-wider">Change Photo</span>
             </>
           )}
         </div>

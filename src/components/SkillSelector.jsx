@@ -69,7 +69,7 @@ const SkillSelector = ({ selectedSkills, setSelectedSkills, showLabel = true }) 
   return (
     <div className="relative">
       {showLabel && (
-        <label className="block text-sm font-medium text-white mb-2">
+        <label className="block text-sm font-medium text-textMain mb-2">
           Required Skills
         </label>
       )}
@@ -84,7 +84,7 @@ const SkillSelector = ({ selectedSkills, setSelectedSkills, showLabel = true }) 
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Type to search skills (e.g. React)..."
-          className="w-full bg-background border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-primary transition-colors placeholder:text-gray-600"
+          className="w-full bg-background border border-border rounded-xl py-3 pl-10 pr-4 text-textMain focus:outline-none focus:border-primary transition-colors placeholder:text-gray-600"
         />
         
         {loading && (
@@ -94,13 +94,13 @@ const SkillSelector = ({ selectedSkills, setSelectedSkills, showLabel = true }) 
         )}
 
         {suggestions.length > 0 && (
-          <div className="absolute z-20 w-full mt-1 bg-surface border border-white/10 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+          <div className="absolute z-20 w-full mt-1 bg-surface border border-border rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
             {suggestions.map(skill => (
               <button
                 key={skill}
                 type="button"
                 onClick={() => addSkill(skill)}
-                className="w-full text-left px-4 py-2 text-gray-300 hover:bg-primary/20 hover:text-white transition-colors block"
+                className="w-full text-left px-4 py-2 text-textMuted hover:bg-primary/20 hover:text-textMain transition-colors block"
               >
                 {skill}
               </button>
@@ -120,7 +120,7 @@ const SkillSelector = ({ selectedSkills, setSelectedSkills, showLabel = true }) 
                 key={skill}
                 type="button"
                 onClick={() => addSkill(skill)}
-                className="px-2.5 py-1 rounded-md bg-white/5 border border-white/5 text-xs text-gray-400 hover:text-white hover:border-white/20 hover:bg-white/10 transition-all"
+                className="px-2.5 py-1 rounded-md bg-white/5 border border-white/5 text-xs text-gray-400 hover:text-textMain hover:border-border hover:bg-white/10 transition-all"
               >
                 + {skill}
               </button>
@@ -133,7 +133,7 @@ const SkillSelector = ({ selectedSkills, setSelectedSkills, showLabel = true }) 
         {selectedSkills.map(skill => (
           <span key={skill} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-primary text-sm font-medium animate-in fade-in zoom-in duration-200">
             {skill}
-            <button type="button" onClick={() => removeSkill(skill)} className="hover:text-white transition-colors">
+            <button type="button" onClick={() => removeSkill(skill)} className="hover:text-textMain transition-colors">
               <X size={14} />
             </button>
           </span>

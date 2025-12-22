@@ -2,15 +2,15 @@ import { Shield, Lock, Eye } from 'lucide-react';
 
 const PrivacyPolicy = () => {
   return (
-    <div className="max-w-4xl mx-auto px-4 py-16 text-gray-300">
+    <div className="max-w-4xl mx-auto px-4 py-16 text-textMuted">
       <div className="mb-10 text-center">
-        <h1 className="text-4xl font-bold text-white mb-4">Privacy Policy</h1>
+        <h1 className="text-4xl font-bold text-textMain mb-4">Privacy Policy</h1>
         <p className="text-textMuted">Last updated: {new Date().toLocaleDateString()}</p>
       </div>
 
       <div className="space-y-8 bg-surface border border-white/5 p-8 rounded-2xl">
         <section>
-          <h2 className="text-xl font-bold text-white mb-3 flex items-center gap-2">
+          <h2 className="text-xl font-bold text-textMain mb-3 flex items-center gap-2">
             <Shield className="text-primary" size={20} /> 1. Introduction
           </h2>
           <p>
@@ -21,7 +21,7 @@ const PrivacyPolicy = () => {
         </section>
 
         <section>
-          <h2 className="text-xl font-bold text-white mb-3 flex items-center gap-2">
+          <h2 className="text-xl font-bold text-textMain mb-3 flex items-center gap-2">
             <Eye className="text-primary" size={20} /> 2. Data We Collect
           </h2>
           <p className="mb-2">We may collect, use, store and transfer different kinds of personal data about you which we have grouped together follows:</p>
@@ -34,7 +34,7 @@ const PrivacyPolicy = () => {
         </section>
 
         <section>
-          <h2 className="text-xl font-bold text-white mb-3 flex items-center gap-2">
+          <h2 className="text-xl font-bold text-textMain mb-3 flex items-center gap-2">
             <Lock className="text-primary" size={20} /> 3. How We Use Your Data
           </h2>
           <p>We will only use your personal data when the law allows us to. Most commonly, we will use your personal data in the following circumstances:</p>
@@ -47,14 +47,14 @@ const PrivacyPolicy = () => {
         </section>
 
         <section>
-          <h2 className="text-xl font-bold text-white mb-3">4. Data Security</h2>
+          <h2 className="text-xl font-bold text-textMain mb-3">4. Data Security</h2>
           <p>
             We have put in place appropriate security measures to prevent your personal data from being accidentally lost, used or accessed in an unauthorized way, altered or disclosed. In addition, we limit access to your personal data to those employees, agents, contractors and other third parties who have a business need to know.
           </p>
         </section>
 
         <section>
-          <h2 className="text-xl font-bold text-white mb-3">5. Contact Details</h2>
+          <h2 className="text-xl font-bold text-textMain mb-3">5. Contact Details</h2>
           <p>
             If you have any questions about this privacy policy or our privacy practices, please contact us at: <a href="mailto:olagolek1@gmail.com" className="text-primary hover:underline">olagolek1@gmail.com</a>
           </p>

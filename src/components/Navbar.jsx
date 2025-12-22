@@ -1,25 +1,27 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Megaphone, PlusCircle, MessageSquare, Users, LogOut, Briefcase, Menu, X } from 'lucide-react';
+// DODANO: Sun, Moon
+import { Megaphone, PlusCircle, MessageSquare, Users, LogOut, Briefcase, Menu, X, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabaseClient';
 import UserAvatar from './UserAvatar';
 import NotificationsMenu from './NotificationsMenu'; 
+// DODANO: Hook motywu
+import { useTheme } from '../hooks/useTheme';
 
 const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  // DODANO: Użycie hooka
+  const { theme, toggleTheme } = useTheme();
   
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
-  
-  // NOWE: Stan menu mobilnego
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const isActive = (path) => location.pathname === path;
 
-  // Zamknij menu mobilne przy zmianie strony
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
@@ -38,21 +40,17 @@ const Navbar = () => {
     }
   }, [user]);
 
-  // Obsługa nieprzeczytanych wiadomości (CHAT)
   useEffect(() => {
     if (!user) return;
-
     const fetchUnreadChat = async () => {
       const { count } = await supabase
         .from('messages')
         .select('*', { count: 'exact', head: true })
         .eq('receiver_id', user.id)
         .eq('is_read', false);
-      
       setUnreadChatCount(count || 0);
     };
     fetchUnreadChat();
-
     const channel = supabase
       .channel('unread_messages_nav')
       .on(
@@ -61,7 +59,6 @@ const Navbar = () => {
         () => fetchUnreadChat()
       )
       .subscribe();
-
     return () => supabase.removeChannel(channel);
   }, [user]);
 
@@ -71,7 +68,7 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="border-b border-white/10 bg-background/80 backdrop-blur-md sticky top-0 z-50">
+    <nav className="border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-50 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           
@@ -87,7 +84,7 @@ const Navbar = () => {
             </Link>
           </div>
 
-          {/* ŚRODEK: DESKTOP MENU (Ukryte na mobile) */}
+          {/* ŚRODEK: DESKTOP MENU */}
           <div className="hidden md:flex items-center space-x-8">
             <NavLink to="/projects" icon={<Megaphone size={18} />} text="Find Projects" active={isActive('/projects')} />
             
@@ -99,7 +96,7 @@ const Navbar = () => {
                 <Link 
                   to="/chat" 
                   className={`relative flex items-center gap-2 text-sm font-medium transition-colors duration-200 ${
-                    isActive('/chat') ? 'text-primary' : 'text-gray-300 hover:text-white'
+                    isActive('/chat') ? 'text-primary' : 'text-textMuted hover:text-textMain'
                   }`}
                 >
                   <div className="relative">
@@ -116,13 +113,25 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* PRAWA STRONA: USER ACTIONS (Desktop & Mobile - widoczne zawsze, ale w uproszczeniu na mobile) */}
+          {/* PRAWA STRONA: ACTIONS */}
           <div className="flex items-center gap-3">
+            
+            {/* --- NOWE: PRZYCISK ZMIANY MOTYWU --- */}
+            {/* Jest widoczny i na mobile, i na desktopie */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-lg text-textMuted hover:text-primary hover:bg-textMain/5 transition-all duration-300"
+              title="Toggle Theme"
+              aria-label="Toggle Dark Mode"
+            >
+              {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+            {/* ------------------------------------- */}
+
             {user ? (
               <>
                 <NotificationsMenu user={user} />
 
-                {/* Desktop Profile Link */}
                 <Link to="/profile" className="hidden md:flex items-center gap-2 group ml-2" aria-label="Go to Profile Settings">
                   <UserAvatar 
                     avatarUrl={avatarUrl} 
@@ -132,7 +141,6 @@ const Navbar = () => {
                   />
                 </Link>
                 
-                {/* Desktop Logout */}
                 <button 
                   onClick={handleLogout}
                   className="hidden md:block p-2 text-textMuted hover:text-red-400 transition-colors"
@@ -144,7 +152,7 @@ const Navbar = () => {
                 {/* MOBILE HAMBURGER BUTTON */}
                 <button 
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                  className="md:hidden p-2 text-gray-300 hover:text-white transition-colors"
+                  className="md:hidden p-2 text-textMuted hover:text-textMain transition-colors"
                 >
                   {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                 </button>
@@ -156,10 +164,9 @@ const Navbar = () => {
                     Sign In
                   </button>
                 </Link>
-                {/* Mobile Menu Button for Guest (if we had links for guests) */}
                 <button 
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                  className="md:hidden p-2 text-gray-300 hover:text-white ml-1"
+                  className="md:hidden p-2 text-textMuted hover:text-textMain ml-1"
                 >
                   {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                 </button>
@@ -169,12 +176,11 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* --- MOBILE MENU DROPDOWN --- */}
+      {/* MOBILE MENU DROPDOWN */}
       {isMobileMenuOpen && (
-        <div className="md:hidden border-t border-white/10 bg-surface animate-in slide-in-from-top-2 duration-200">
+        <div className="md:hidden border-t border-border bg-surface animate-in slide-in-from-top-2 duration-200 shadow-xl">
           <div className="px-4 py-4 space-y-4">
             
-            {/* Linki nawigacyjne */}
             <div className="space-y-2">
               <MobileNavLink to="/projects" icon={<Megaphone size={18} />} text="Find Projects" active={isActive('/projects')} />
               
@@ -186,7 +192,7 @@ const Navbar = () => {
                   <Link 
                     to="/chat" 
                     className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
-                      isActive('/chat') ? 'bg-primary/10 text-primary' : 'text-gray-300 hover:bg-white/5'
+                      isActive('/chat') ? 'bg-primary/10 text-primary' : 'text-textMuted hover:bg-textMain/5'
                     }`}
                   >
                     <div className="relative">
@@ -203,13 +209,12 @@ const Navbar = () => {
               )}
             </div>
 
-            {/* Sekcja profilu na mobile */}
             {user && (
-              <div className="pt-4 border-t border-white/10">
-                <Link to="/profile" className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors mb-2">
+              <div className="pt-4 border-t border-border">
+                <Link to="/profile" className="flex items-center gap-3 p-3 rounded-xl hover:bg-textMain/5 transition-colors mb-2">
                   <UserAvatar avatarUrl={avatarUrl} name={user.email} className="w-8 h-8" />
                   <div>
-                    <p className="text-sm font-bold text-white">My Profile</p>
+                    <p className="text-sm font-bold text-textMain">My Profile</p>
                     <p className="text-xs text-textMuted truncate max-w-[200px]">{user.email}</p>
                   </div>
                 </Link>
@@ -230,12 +235,11 @@ const Navbar = () => {
   );
 };
 
-// Pomocniczy komponent dla linków desktopowych
 const NavLink = ({ to, icon, text, active }) => (
   <Link 
     to={to} 
     className={`flex items-center gap-2 text-sm font-medium transition-colors duration-200 ${
-      active ? 'text-primary' : 'text-gray-300 hover:text-white'
+      active ? 'text-primary' : 'text-textMuted hover:text-textMain'
     }`}
   >
     {icon}
@@ -243,12 +247,11 @@ const NavLink = ({ to, icon, text, active }) => (
   </Link>
 );
 
-// Pomocniczy komponent dla linków mobilnych
 const MobileNavLink = ({ to, icon, text, active }) => (
   <Link 
     to={to} 
     className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
-      active ? 'bg-primary/10 text-primary' : 'text-gray-300 hover:bg-white/5'
+      active ? 'bg-primary/10 text-primary' : 'text-textMuted hover:bg-textMain/5'
     }`}
   >
     {icon}

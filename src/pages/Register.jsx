@@ -113,9 +113,9 @@ const Register = () => {
 
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-64px)] py-12 px-4">
-      <div className="bg-surface p-8 rounded-3xl border border-white/10 w-full max-w-lg shadow-2xl animate-in fade-in zoom-in duration-300">
+      <div className="bg-surface p-8 rounded-3xl border border-border w-full max-w-lg shadow-2xl animate-in fade-in zoom-in duration-300">
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-white mb-2">Create Account</h2>
+          <h2 className="text-3xl font-bold text-textMain mb-2">Create Account</h2>
           <p className="text-textMuted">Join the squad and start building.</p>
         </div>
         
@@ -130,7 +130,7 @@ const Register = () => {
               <input 
                 {...register("fullName")}
                 type="text" 
-                className={`w-full bg-background border rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none transition-colors ${errors.fullName ? 'border-red-500 focus:border-red-500' : 'border-white/10 focus:border-primary'}`}
+                className={`w-full bg-background border rounded-xl py-3 pl-10 pr-4 text-textMain focus:outline-none transition-colors ${errors.fullName ? 'border-red-500 focus:border-red-500' : 'border-border focus:border-primary'}`}
                 placeholder="John Doe"
               />
             </div>
@@ -145,7 +145,7 @@ const Register = () => {
               <input 
                 {...register("username")}
                 type="text" 
-                className={`w-full bg-background border rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none transition-colors ${errors.username ? 'border-red-500 focus:border-red-500' : 'border-white/10 focus:border-primary'}`}
+                className={`w-full bg-background border rounded-xl py-3 pl-10 pr-4 text-textMain focus:outline-none transition-colors ${errors.username ? 'border-red-500 focus:border-red-500' : 'border-border focus:border-primary'}`}
                 placeholder="johndoe123"
                 autoComplete="off"
               />
@@ -161,7 +161,7 @@ const Register = () => {
               <input 
                 {...register("email")}
                 type="email" 
-                className={`w-full bg-background border rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none transition-colors ${errors.email ? 'border-red-500 focus:border-red-500' : 'border-white/10 focus:border-primary'}`}
+                className={`w-full bg-background border rounded-xl py-3 pl-10 pr-4 text-textMain focus:outline-none transition-colors ${errors.email ? 'border-red-500 focus:border-red-500' : 'border-border focus:border-primary'}`}
                 placeholder="student@university.edu"
               />
             </div>
@@ -176,13 +176,13 @@ const Register = () => {
               <input 
                 {...register("password")}
                 type={showPassword ? "text" : "password"}
-                className={`w-full bg-background border rounded-xl py-3 pl-10 pr-10 text-white focus:outline-none transition-colors ${errors.password ? 'border-red-500 focus:border-red-500' : 'border-white/10 focus:border-primary'}`}
+                className={`w-full bg-background border rounded-xl py-3 pl-10 pr-10 text-textMain focus:outline-none transition-colors ${errors.password ? 'border-red-500 focus:border-red-500' : 'border-border focus:border-primary'}`}
                 placeholder="••••••••"
               />
               <button 
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-textMain transition-colors"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -212,7 +212,7 @@ const Register = () => {
               <input 
                 {...register("confirmPassword")}
                 type="password" 
-                className={`w-full bg-background border rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none transition-colors ${errors.confirmPassword ? 'border-red-500 focus:border-red-500' : 'border-white/10 focus:border-primary'}`}
+                className={`w-full bg-background border rounded-xl py-3 pl-10 pr-4 text-textMain focus:outline-none transition-colors ${errors.confirmPassword ? 'border-red-500 focus:border-red-500' : 'border-border focus:border-primary'}`}
                 placeholder="••••••••"
               />
             </div>
@@ -231,9 +231,9 @@ const Register = () => {
                   {...register("termsAccepted")}
                   type="checkbox"
                   id="terms"
-                  className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-white/10 bg-background transition-all checked:border-primary checked:bg-primary hover:border-primary/50"
+                  className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-border bg-background transition-all checked:border-primary checked:bg-primary hover:border-primary/50"
                 />
-                <Check className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100" size={14} />
+                <Check className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-textMain opacity-0 peer-checked:opacity-100" size={14} />
               </div>
               <label htmlFor="terms" className="text-sm text-textMuted cursor-pointer select-none">
                 I agree to the <Link to="/terms" target="_blank" className="text-primary hover:underline">Terms of Service</Link> and <Link to="/privacy" target="_blank" className="text-primary hover:underline">Privacy Policy</Link>.
@@ -245,7 +245,7 @@ const Register = () => {
           <button 
             type="submit"
             disabled={isSubmitting}
-            className="w-full py-4 bg-gradient-to-r from-primary to-blue-600 hover:shadow-lg hover:shadow-primary/25 text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-[0.98] mt-4 flex items-center justify-center gap-2"
+            className="w-full py-4 bg-gradient-to-r from-primary to-blue-600 hover:shadow-lg hover:shadow-primary/25 text-textMain font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-[0.98] mt-4 flex items-center justify-center gap-2"
           >
             {isSubmitting ? <Loader2 className="animate-spin" /> : 'Create Account'}
           </button>

@@ -34,13 +34,13 @@ const ForgotPassword = () => {
 
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-64px)] px-4">
-      <div className="bg-surface p-8 rounded-3xl border border-white/10 w-full max-w-md shadow-2xl">
+      <div className="bg-surface p-8 rounded-3xl border border-border w-full max-w-md shadow-2xl">
         
         <div className="text-center mb-8">
           <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4 text-primary">
             <KeyRound size={24} />
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Forgot Password?</h2>
+          <h2 className="text-2xl font-bold text-textMain mb-2">Forgot Password?</h2>
           <p className="text-textMuted text-sm">
             No worries! Enter your email and we'll send you reset instructions.
           </p>
@@ -56,7 +56,7 @@ const ForgotPassword = () => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-background border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:border-primary focus:outline-none transition-colors placeholder:text-gray-600"
+                className="w-full bg-background border border-border rounded-xl py-3 pl-10 pr-4 text-textMain focus:border-primary focus:outline-none transition-colors placeholder:text-gray-600"
                 placeholder="Enter your email"
               />
             </div>
@@ -64,14 +64,14 @@ const ForgotPassword = () => {
 
           <button 
             disabled={loading}
-            className="w-full py-3 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-3 bg-primary hover:bg-primary/90 text-textMain font-bold rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loading ? <Loader2 className="animate-spin" size={20} /> : 'Send Reset Link'}
           </button>
         </form>
 
         <div className="mt-6 text-center">
-          <Link to="/login" className="text-sm text-gray-400 hover:text-white flex items-center justify-center gap-2 transition-colors">
+          <Link to="/login" className="text-sm text-gray-400 hover:text-textMain flex items-center justify-center gap-2 transition-colors">
             <ArrowLeft size={16} /> Back to Login
           </Link>
         </div>
