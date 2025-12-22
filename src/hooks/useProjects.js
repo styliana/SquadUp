@@ -70,7 +70,7 @@ export const useProjects = (user) => {
       }
 
       if (selectedSkills.length > 0) {
-        query = query.contains('skills', selectedSkills);
+        query = query.overlaps('skills', selectedSkills); 
       }
 
       query = query.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);

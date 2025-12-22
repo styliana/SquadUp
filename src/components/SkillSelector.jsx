@@ -1,25 +1,24 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { X, Sparkles, Search } from 'lucide-react';
-import { useDebounce } from '../hooks/useDebounce'; // Importujemy hook
+import { useDebounce } from '../hooks/useDebounce';
 
 const SkillSelector = ({ selectedSkills, setSelectedSkills, showLabel = true }) => {
   const [query, setQuery] = useState('');
   
-  // Użycie hooka: debouncedQuery zaktualizuje się dopiero 300ms po przestaniu pisania
   const debouncedQuery = useDebounce(query, 300);
   
   const [suggestions, setSuggestions] = useState([]);
   const [popularSkills, setPopularSkills] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // 1. Pobierz popularne skille (tylko raz)
+  // 1. ZMIANA: Pobieranie TOP 10 najczęściej używanych skilli (usage_count)
   useEffect(() => {
     const fetchPopular = async () => {
       const { data } = await supabase
         .from('skills')
         .select('name')
-        .eq('is_popular', true)
+        .order('usage_count', { ascending: false }) // Sortowanie malejące po liczniku użycia
         .limit(10);
       
       if (data) setPopularSkills(data.map(i => i.name));
@@ -27,10 +26,9 @@ const SkillSelector = ({ selectedSkills, setSelectedSkills, showLabel = true }) 
     fetchPopular();
   }, []);
 
-  // 2. Wyszukiwanie z użyciem Debounce
+  // 2. Wyszukiwanie (bez zmian)
   useEffect(() => {
     const fetchSuggestions = async () => {
-      // Jeśli query jest za krótkie, czyścimy i kończymy
       if (debouncedQuery.length < 2) {
         setSuggestions([]);
         return;
@@ -50,8 +48,6 @@ const SkillSelector = ({ selectedSkills, setSelectedSkills, showLabel = true }) 
     };
 
     fetchSuggestions();
-    
-    // Efekt zależy teraz od debouncedQuery, a nie od query
   }, [debouncedQuery, selectedSkills]);
 
   const addSkill = (skill) => {
@@ -65,6 +61,10 @@ const SkillSelector = ({ selectedSkills, setSelectedSkills, showLabel = true }) 
   const removeSkill = (skillToRemove) => {
     setSelectedSkills(selectedSkills.filter(skill => skill !== skillToRemove));
   };
+
+  // ZMIANA: Filtrujemy listę popularnych, by ukryć te już wybrane
+  // Dzięki temu lista nie znika całkowicie, ale "chudnie" w miarę wybierania
+  const visiblePopularSkills = popularSkills.filter(skill => !selectedSkills.includes(skill));
 
   return (
     <div className="relative">
@@ -109,13 +109,14 @@ const SkillSelector = ({ selectedSkills, setSelectedSkills, showLabel = true }) 
         )}
       </div>
 
-      {query.length === 0 && selectedSkills.length === 0 && popularSkills.length > 0 && (
+      {/* ZMIANA: Wyświetlamy popularne, dopóki użytkownik nie wpisze własnego zapytania */}
+      {query.length === 0 && visiblePopularSkills.length > 0 && (
         <div className="mt-3 animate-in fade-in">
           <div className="text-xs text-textMuted mb-2 flex items-center gap-1">
             <Sparkles size={12} className="text-primary" /> Popular:
           </div>
           <div className="flex flex-wrap gap-2">
-            {popularSkills.map(skill => (
+            {visiblePopularSkills.map(skill => (
               <button
                 key={skill}
                 type="button"
