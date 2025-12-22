@@ -6,14 +6,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import UserAvatar from '../components/UserAvatar';
 import StatusBadge from '../components/StatusBadge';
-// IMPORT HOOKA DO OBSŁUGI BŁĘDÓW
 import useThrowAsyncError from '../hooks/useThrowAsyncError';
 
 const MyProjects = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   
-  // INICJALIZACJA "MOSTU" DO ERROR BOUNDARY
   const throwAsyncError = useThrowAsyncError();
   
   const [createdProjects, setCreatedProjects] = useState([]);
@@ -32,7 +30,23 @@ const MyProjects = () => {
         .order('created_at', { ascending: false });
 
       if (err1) throw err1;
-      setCreatedProjects(myProjects || []);
+
+      // SORTOWANIE: Najpierw te wymagające akcji (pending), potem najnowsze
+      const sortedMyProjects = (myProjects || []).sort((a, b) => {
+        // Sprawdź, czy projekt ma jakieś oczekujące aplikacje
+        const aHasAction = a.applications?.some(app => app.status === 'pending');
+        const bHasAction = b.applications?.some(app => app.status === 'pending');
+
+        // Jeśli A wymaga akcji, a B nie -> A idzie na górę listy
+        if (aHasAction && !bHasAction) return -1;
+        // Jeśli B wymaga akcji, a A nie -> B idzie na górę listy
+        if (!aHasAction && bHasAction) return 1;
+
+        // W pozostałych przypadkach decyduje data (najnowsze wyżej)
+        return new Date(b.created_at) - new Date(a.created_at);
+      });
+
+      setCreatedProjects(sortedMyProjects);
 
       // 2. Pobieranie aplikacji wysłanych przez użytkownika
       const { data: myApplications, error: err2 } = await supabase
@@ -46,9 +60,6 @@ const MyProjects = () => {
 
     } catch (error) {
       console.error("Critical Dashboard Error:", error);
-      // PRZEKAZANIE BŁĘDU DO ERROR BOUNDARY
-      // Dzięki temu użytkownik zobaczy ekran błędu z opcją przeładowania,
-      // zamiast pustego ekranu lub nieskończonego spinnera.
       throwAsyncError(error);
     } finally {
       setLoading(false);
@@ -95,17 +106,12 @@ const MyProjects = () => {
   const handleStatusChange = async (applicationId, projectId, newStatus) => {
     try {
       let resultStatus = 'OPEN';
-      // Jeśli akceptujemy, wywołujemy procedurę składowaną (jeśli istnieje) lub update
-      // Tutaj zakładam logikę z Twojego wcześniejszego kodu
+      
       if (newStatus === 'accepted') {
-        // RPC approve_candidate (upewnij się, że masz tę funkcję w bazie, jeśli nie - użyj zwykłego update)
-        // Jeśli nie masz RPC, poniższy kod rzuci błąd, który obsłużymy w catch
         const { data, error } = await supabase.rpc('approve_candidate', { app_id: applicationId, proj_id: projectId });
         
-        // Fallback jeśli RPC nie istnieje - ręczny update (dla bezpieczeństwa przykładu)
         if (error && error.message.includes('function not found')) {
              await supabase.from('applications').update({ status: newStatus }).eq('id', applicationId);
-             // Tutaj musiałbyś ręcznie obsłużyć licznik members_current, ale załóżmy, że RPC działa lub zrobisz to prościej
         } else if (error) {
             throw error;
         } else {
@@ -116,7 +122,6 @@ const MyProjects = () => {
         if (error) throw error;
       }
 
-      // Aktualizacja stanu lokalnego UI
       setCreatedProjects(prev => prev.map(project => {
         if (project.id !== projectId) return project;
         
@@ -124,13 +129,11 @@ const MyProjects = () => {
           app.id === applicationId ? { ...app, status: newStatus } : app
         ) || [];
         
-        // Jeśli status to 'accepted', zwiększamy licznik (uproszczona logika UI)
         let updatedMembers = project.members_current;
         if (newStatus === 'accepted' && project.members_current < project.members_max) {
             updatedMembers += 1;
         }
 
-        // Jeśli RPC zwróciło 'FULL', zamykamy projekt
         const updatedStatus = resultStatus === 'FULL' ? 'closed' : project.status;
         
         return { ...project, status: updatedStatus, members_current: updatedMembers, applications: updatedApps };

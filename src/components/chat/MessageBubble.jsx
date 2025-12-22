@@ -10,7 +10,7 @@ const MessageBubble = ({ message, isMe }) => {
       <div className={`max-w-[75%] rounded-2xl p-4 ${
         isMe 
           ? 'bg-gradient-to-r from-primary to-blue-600 text-textMain rounded-br-none' 
-          : 'bg-surface border border-border text-gray-200 rounded-bl-none'
+          : 'bg-surface border border-border text-textMain rounded-bl-none' 
       }`}>
         <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
         <div className={`text-[10px] mt-1 text-right flex items-center justify-end gap-1 ${isMe ? 'text-blue-100' : 'text-gray-500'}`}>
