@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom'; // 1. DODANO useLocation
 import { Toaster } from 'sonner';
 import { Loader2, AlertTriangle } from 'lucide-react';
 
@@ -23,7 +23,7 @@ const Chat = lazy(() => import('./pages/Chat'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 
-// NOWE: Odzyskiwanie hasła
+// Odzyskiwanie hasła
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 
 const PageLoader = () => (
@@ -49,46 +49,56 @@ const NotFound = () => (
   </div>
 );
 
+// 2. NOWY KOMPONENT LAYOUTU (Wewnątrz Routera)
+const Layout = () => {
+  const location = useLocation();
+  const isChatPage = location.pathname === '/chat'; // Sprawdź czy jesteśmy na czacie
+
+  return (
+    <div className="min-h-screen bg-background text-textMain flex flex-col">
+      <Navbar />
+      
+      <div className="flex-grow">
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            {/* TRASY PUBLICZNE */}
+            <Route path="/" element={<Home />} />
+            <Route path="/projects" element={<Projects />} />
+            <Route path="/projects/:id" element={<ProjectDetails />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsOfService />} />
+            
+            {/* TRASA ODZYSKIWANIA HASŁA */}
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+
+            {/* TRASY CHRONIONE */}
+            <Route element={<ProtectedRoute />}>
+              <Route path="/create-project" element={<CreateProject />} />
+              <Route path="/edit-project/:id" element={<EditProject />} />
+              <Route path="/my-projects" element={<MyProjects />} />
+              <Route path="/profile/:id?" element={<Profile />} /> 
+              <Route path="/chat" element={<Chat />} />
+            </Route>
+
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
+      </div>
+
+      {/* 3. Footer renderowany warunkowo */}
+      {!isChatPage && <Footer />}
+    </div>
+  );
+};
+
 function App() {
   return (
     <Router>
       <Toaster position="top-center" theme="dark" richColors />
-      
-      <div className="min-h-screen bg-background text-textMain flex flex-col">
-        <Navbar />
-        
-        <div className="flex-grow">
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              {/* TRASY PUBLICZNE */}
-              <Route path="/" element={<Home />} />
-              <Route path="/projects" element={<Projects />} />
-              <Route path="/projects/:id" element={<ProjectDetails />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              
-              <Route path="/privacy" element={<PrivacyPolicy />} />
-              <Route path="/terms" element={<TermsOfService />} />
-              
-              {/* TRASA ODZYSKIWANIA HASŁA */}
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-
-              {/* TRASY CHRONIONE */}
-              <Route element={<ProtectedRoute />}>
-                <Route path="/create-project" element={<CreateProject />} />
-                <Route path="/edit-project/:id" element={<EditProject />} />
-                <Route path="/my-projects" element={<MyProjects />} />
-                <Route path="/profile/:id?" element={<Profile />} /> 
-                <Route path="/chat" element={<Chat />} />
-              </Route>
-
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
-        </div>
-
-        <Footer />
-      </div>
+      <Layout />
     </Router>
   );
 }
