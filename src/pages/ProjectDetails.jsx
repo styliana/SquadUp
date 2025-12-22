@@ -14,10 +14,8 @@ const ProjectDetails = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Pobieranie danych z Hooka
   const { project, loading } = useProjectDetails(id);
 
-  // Stan lokalny dla formularza aplikacji
   const [hasApplied, setHasApplied] = useState(false);
   const [applyLoading, setApplyLoading] = useState(false);
   const [applicationMessage, setApplicationMessage] = useState("");
@@ -25,7 +23,6 @@ const ProjectDetails = () => {
   const backPath = location.state?.from || '/projects';
   const backLabel = backPath === '/my-projects' ? 'Back to My Projects' : 'Back to projects';
 
-  // Sprawdzanie czy user już aplikował
   useEffect(() => {
     if (user && id) {
       checkApplicationStatus();
@@ -110,7 +107,8 @@ const ProjectDetails = () => {
         
         {/* LEWA STRONA - SZCZEGÓŁY */}
         <div className="lg:col-span-2">
-          <div className="bg-surface border border-white/5 rounded-2xl p-8 mb-8">
+          {/* ZMIANA: border-border, bg-surface */}
+          <div className="bg-surface border border-border rounded-2xl p-8 mb-8 shadow-sm">
             <div className="flex justify-between items-start mb-6">
               <span className="px-3 py-1 rounded-full text-sm font-semibold bg-primary/10 text-primary border border-primary/20">
                 {project.type}
@@ -121,6 +119,7 @@ const ProjectDetails = () => {
               </div>
             </div>
 
+            {/* ZMIANA: text-textMain */}
             <h1 className="text-3xl md:text-4xl font-bold text-textMain mb-6">
               {project.title}
             </h1>
@@ -128,6 +127,7 @@ const ProjectDetails = () => {
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-textMain mb-2">Project Description</h3>
+                {/* ZMIANA: text-textMuted */}
                 <p className="text-textMuted leading-relaxed whitespace-pre-wrap">
                   {project.description}
                 </p>
@@ -137,6 +137,7 @@ const ProjectDetails = () => {
                 <h3 className="text-lg font-semibold text-textMain mb-3">Required Skills</h3>
                 <div className="flex flex-wrap gap-2">
                   {project.skills?.map(tag => (
+                    // ZMIANA: bg-background, border-border, text-textMuted
                     <span key={tag} className="px-3 py-1.5 rounded-lg bg-background border border-border text-sm text-textMuted">
                       {tag}
                     </span>
@@ -144,7 +145,7 @@ const ProjectDetails = () => {
                 </div>
               </div>
 
-              <div className="flex gap-6 pt-6 border-t border-white/5 text-textMuted text-sm">
+              <div className="flex gap-6 pt-6 border-t border-border text-textMuted text-sm">
                 <div className="flex items-center gap-2"><Calendar size={16} /><span>Deadline: {project.deadline}</span></div>
                 <div className="flex items-center gap-2"><Clock size={16} /><span>Posted: {formatDate(project.created_at)}</span></div>
               </div>
@@ -152,15 +153,16 @@ const ProjectDetails = () => {
           </div>
         </div>
 
-        {/* PRAWA STRONA - LIDER, SQUAD, AKCJE */}
+        {/* PRAWA STRONA */}
         <div className="space-y-6">
           
           {/* TEAM LEADER CARD */}
-          <div className="bg-surface border border-white/5 rounded-2xl p-6">
+          <div className="bg-surface border border-border rounded-2xl p-6 shadow-sm">
             <h3 className="text-lg font-bold text-textMain mb-4">Team Leader</h3>
             
             {project.author_id ? (
-              <Link to={`/profile/${project.author_id}`} className="flex items-center gap-4 mb-6 hover:bg-white/5 p-2 rounded-xl transition-colors cursor-pointer group">
+              // ZMIANA: hover:bg-textMain/5
+              <Link to={`/profile/${project.author_id}`} className="flex items-center gap-4 mb-6 hover:bg-textMain/5 p-2 rounded-xl transition-colors cursor-pointer group">
                 <UserAvatar 
                   avatarUrl={author?.avatar_url} 
                   name={author?.full_name || project.author} 
@@ -190,7 +192,8 @@ const ProjectDetails = () => {
             {!isAuthor && (
               <button 
                 onClick={handleSendMessage}
-                className="w-full py-3 rounded-xl border border-border text-textMain font-medium hover:bg-white/5 transition-all flex items-center justify-center gap-2"
+                // ZMIANA: border-border, text-textMain, hover:bg-textMain/5
+                className="w-full py-3 rounded-xl border border-border text-textMain font-medium hover:bg-textMain/5 transition-all flex items-center justify-center gap-2"
               >
                 <MessageCircle size={18} />
                 Send Message
@@ -199,18 +202,17 @@ const ProjectDetails = () => {
           </div>
 
           {/* SQUAD & APPLICATION CARD */}
-          <div className="bg-surface border border-white/5 rounded-2xl p-6">
+          <div className="bg-surface border border-border rounded-2xl p-6 shadow-sm">
             <h3 className="text-lg font-bold text-textMain mb-2">
               {openSpots > 0 ? `${openSpots} Open Spots` : 'Team Full'}
             </h3>
 
             {/* --- THE SQUAD SECTION --- */}
-            <div className="mb-6 pt-4 border-t border-white/5">
+            <div className="mb-6 pt-4 border-t border-border">
               <h4 className="text-sm font-semibold text-textMuted mb-3 flex items-center gap-2">
                 <Users size={16} /> The Squad
               </h4>
               <div className="flex flex-wrap gap-2">
-                {/* 1. Lider */}
                 <div className="relative group cursor-pointer" title="Leader">
                   <UserAvatar 
                     avatarUrl={author?.avatar_url} 
@@ -220,7 +222,6 @@ const ProjectDetails = () => {
                   <span className="absolute -bottom-1 -right-1 bg-primary text-black text-[9px] font-bold px-1 rounded-full">L</span>
                 </div>
 
-                {/* 2. Zaakceptowani członkowie */}
                 {project.applications
                   ?.filter(app => app.status === 'accepted')
                   .map(app => (
@@ -239,9 +240,8 @@ const ProjectDetails = () => {
                   ))
                 }
 
-                {/* 3. Puste sloty */}
                 {[...Array(Math.max(0, project.members_max - project.members_current))].map((_, i) => (
-                  <div key={i} className="w-10 h-10 rounded-full border border-dashed border-border flex items-center justify-center text-textMain/20">
+                  <div key={i} className="w-10 h-10 rounded-full border border-dashed border-border flex items-center justify-center text-textMuted">
                     <User size={16} />
                   </div>
                 ))}
@@ -258,15 +258,16 @@ const ProjectDetails = () => {
                 </div>
               </div>
             ) : hasApplied ? (
-              <button disabled className="w-full mt-4 py-3 rounded-xl bg-green-500/20 text-green-400 font-bold border border-green-500/50 flex items-center justify-center gap-2 cursor-default">
+              <button disabled className="w-full mt-4 py-3 rounded-xl bg-green-500/20 text-green-600 dark:text-green-400 font-bold border border-green-500/50 flex items-center justify-center gap-2 cursor-default">
                 <CheckCircle size={18} />
                 Application Sent
               </button>
             ) : openSpots > 0 ? (
               <>
                 <p className="text-textMuted text-sm mb-4">Apply now to join this project.</p>
+                {/* ZMIANA: text-textMain */}
                 <textarea 
-                  className="w-full bg-background border border-border rounded-xl p-3 text-textMain text-sm mb-4 focus:outline-none focus:border-primary resize-none"
+                  className="w-full bg-background border border-border rounded-xl p-3 text-textMain text-sm mb-4 focus:outline-none focus:border-primary resize-none placeholder:text-textMuted"
                   rows={3}
                   placeholder="Short message to the leader..."
                   value={applicationMessage}
@@ -275,7 +276,8 @@ const ProjectDetails = () => {
                 <button 
                   onClick={handleApply}
                   disabled={applyLoading}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-primary to-blue-600 text-textMain font-bold shadow-lg hover:shadow-primary/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  // Tu zostaje text-white bo gradient jest zawsze ciemny/nasycony
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-primary to-blue-600 text-white font-bold shadow-lg hover:shadow-primary/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {applyLoading ? <Loader2 className="animate-spin" /> : <><Send size={18} /> Apply for Project</>}
                 </button>

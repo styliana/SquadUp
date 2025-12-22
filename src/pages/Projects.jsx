@@ -5,29 +5,23 @@ import { useAuth } from '../context/AuthContext';
 import ProjectCard from '../components/ProjectCard';
 import SkillSelector from '../components/SkillSelector';
 import { useProjects } from '../hooks/useProjects';
-// IMPORTY DO UX I ERROR HANDLINGU
 import ProjectCardSkeleton from '../components/skeletons/ProjectCardSkeleton';
 import useThrowAsyncError from '../hooks/useThrowAsyncError';
 
 const Projects = () => {
   const { user } = useAuth();
-  const throwAsyncError = useThrowAsyncError();
   
-  // Custom Hook obsługuje logikę pobierania projektów i ich błędy
   const { projects, loading, hasMore, fetchProjects, userProfile } = useProjects(user);
 
-  // Stan lokalny widoku
   const [categories, setCategories] = useState(['All']);
   const [page, setPage] = useState(0);
   
-  // Stan filtrów
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState('All');
   const [selectedSkills, setSelectedSkills] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
   const [showRecommended, setShowRecommended] = useState(false);
 
-  // 1. Pobranie kategorii z obsługą błędów
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -36,18 +30,13 @@ const Projects = () => {
         if (data) setCategories(['All', ...data.map(c => c.name)]);
       } catch (error) {
         console.error("Error fetching categories:", error);
-        // Błąd kategorii nie jest aż tak krytyczny, by ubijać całą aplikację,
-        // ale można go rzucić, jeśli chcemy być rygorystyczni.
-        // Tutaj zostawiamy console.error, by lista projektów mogła się załadować mimo to.
       }
     };
     fetchCategories();
   }, []);
 
-  // 2. Reakcja na zmianę filtrów (Debounce logic)
   useEffect(() => {
     setPage(0);
-    
     const timeoutId = setTimeout(() => {
       fetchProjects({
         page: 0,
@@ -55,13 +44,11 @@ const Projects = () => {
         selectedType,
         selectedSkills,
         showRecommended
-      }, true); // true = reset listy (nowe wyszukiwanie)
+      }, true);
     }, 300);
-    
     return () => clearTimeout(timeoutId);
   }, [searchTerm, selectedType, selectedSkills, showRecommended, fetchProjects]);
 
-  // 3. Obsługa "Load More"
   const handleLoadMore = () => {
     const nextPage = page + 1;
     setPage(nextPage);
@@ -71,7 +58,7 @@ const Projects = () => {
       selectedType,
       selectedSkills,
       showRecommended
-    }, false); // false = dołącz do istniejącej listy
+    }, false);
   };
 
   const clearFilters = () => {
@@ -88,6 +75,7 @@ const Projects = () => {
       
       {/* HEADER & FILTERS */}
       <div className="mb-10">
+        {/* ZMIANA: text-textMain */}
         <h1 className="text-3xl md:text-4xl font-bold text-textMain mb-4">
           Find a <span className="text-primary">Project</span>
         </h1>
@@ -96,23 +84,26 @@ const Projects = () => {
         </p>
 
         {/* --- KONSOLA STEROWANIA --- */}
-        <div className="bg-surface border border-white/5 p-6 rounded-2xl shadow-xl space-y-6">
+        {/* ZMIANA: bg-surface, border-border */}
+        <div className="bg-surface border border-border p-6 rounded-2xl shadow-sm space-y-6">
           
           <div className="flex flex-col md:flex-row gap-4">
             {/* Search Bar */}
             <div className="relative flex-grow group">
               <div className={`absolute inset-0 bg-primary/20 rounded-xl blur-md transition-opacity ${searchTerm ? 'opacity-100' : 'opacity-0'}`}></div>
+              {/* ZMIANA: bg-background border-border */}
               <div className="relative bg-background rounded-xl border border-border flex items-center overflow-hidden focus-within:border-primary transition-colors">
-                <Search className="ml-4 text-gray-400" size={20} />
+                <Search className="ml-4 text-textMuted" size={20} />
+                {/* ZMIANA: text-textMain, placeholder:text-textMuted */}
                 <input 
                   type="text" 
                   placeholder="Search projects (e.g. 'Python', 'Mobile App')..." 
-                  className="w-full bg-transparent border-none py-3 px-4 text-textMain focus:outline-none placeholder:text-gray-600"
+                  className="w-full bg-transparent border-none py-3 px-4 text-textMain focus:outline-none placeholder:text-textMuted"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
                 {searchTerm && (
-                  <button onClick={() => setSearchTerm('')} className="mr-4 text-gray-500 hover:text-textMain">
+                  <button onClick={() => setSearchTerm('')} className="mr-4 text-textMuted hover:text-textMain">
                     <X size={16} />
                   </button>
                 )}
@@ -125,10 +116,11 @@ const Projects = () => {
                 <button 
                   key={filter}
                   onClick={() => setSelectedType(filter)}
+                  // ZMIANA: border-border, bg-background, text-textMuted (dla nieaktywnych)
                   className={`px-5 py-3 rounded-xl text-sm font-medium transition-all whitespace-nowrap border ${
                     selectedType === filter
                     ? 'bg-primary/20 border-primary text-primary shadow-[0_0_10px_rgba(6,182,212,0.2)]' 
-                    : 'bg-background border-border text-gray-400 hover:text-textMain hover:border-white/30'
+                    : 'bg-background border-border text-textMuted hover:text-textMain hover:border-primary/50'
                   }`}
                 >
                   {filter}
@@ -144,14 +136,16 @@ const Projects = () => {
                 className="flex items-center gap-2 cursor-pointer w-fit select-none group" 
                 onClick={() => setShowFilters(!showFilters)}
               >
-                <div className={`p-2 rounded-lg transition-colors ${showFilters ? 'bg-primary/10 text-primary' : 'bg-white/5 text-textMuted group-hover:text-textMain'}`}>
+                {/* ZMIANA: bg-textMain/5, text-textMuted */}
+                <div className={`p-2 rounded-lg transition-colors ${showFilters ? 'bg-primary/10 text-primary' : 'bg-textMain/5 text-textMuted group-hover:text-textMain'}`}>
                     <Filter size={18} />
                 </div>
+                {/* ZMIANA: text-textMain */}
                 <span className={`text-sm font-medium transition-colors ${showFilters ? 'text-textMain' : 'text-textMuted group-hover:text-textMain'}`}>
                   Advanced Filters
                 </span>
                 {selectedSkills.length > 0 && (
-                  <span className="bg-primary text-textMain text-[10px] px-2 py-0.5 rounded-full ml-1 font-bold">
+                  <span className="bg-primary text-white text-[10px] px-2 py-0.5 rounded-full ml-1 font-bold">
                     {selectedSkills.length}
                   </span>
                 )}
@@ -172,21 +166,21 @@ const Projects = () => {
             {user && hasUserPreferences && (
               <button
                 onClick={() => setShowRecommended(!showRecommended)}
+                // ZMIANA: bg-background border-border text-textMuted
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${
                   showRecommended 
-                    ? 'bg-gradient-to-r from-purple-500/20 to-primary/20 border-primary/50 text-textMain shadow-[0_0_15px_rgba(168,85,247,0.15)]' 
-                    : 'bg-background border-border text-textMuted hover:border-white/30 hover:text-textMain'
+                    ? 'bg-gradient-to-r from-purple-500/20 to-primary/20 border-primary/50 text-textMain dark:text-white shadow-[0_0_15px_rgba(168,85,247,0.15)]' 
+                    : 'bg-background border-border text-textMuted hover:border-primary/50 hover:text-textMain'
                 }`}
               >
-                <Sparkles size={16} className={showRecommended ? 'text-yellow-300' : ''} />
+                <Sparkles size={16} className={showRecommended ? 'text-yellow-500 dark:text-yellow-300' : ''} />
                 <span className="text-sm font-medium">For You</span>
               </button>
             )}
           </div>
 
-          {/* Status filtrów */}
           {(searchTerm || selectedType !== 'All' || selectedSkills.length > 0 || showRecommended) && (
-            <div className="flex justify-between items-center text-xs text-textMuted border-t border-white/5 pt-4">
+            <div className="flex justify-between items-center text-xs text-textMuted border-t border-border pt-4">
               <span className="italic">
                  Found {projects.length} results based on your criteria.
               </span>
@@ -198,24 +192,24 @@ const Projects = () => {
         </div>
       </div>
 
-      {/* --- WYNIKI Z SKELETON LOADERS --- */}
+      {/* --- WYNIKI --- */}
       {loading && projects.length === 0 ? (
-        // Wyświetlamy siatkę 6 szkieletów zamiast jednego spinnera
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(6)].map((_, i) => (
             <ProjectCardSkeleton key={i} />
           ))}
         </div>
       ) : projects.length === 0 ? (
-        <div className="text-center py-20 bg-surface/30 rounded-2xl border border-dashed border-white/5">
-          <div className="w-16 h-16 bg-surface rounded-full flex items-center justify-center mx-auto mb-4 text-gray-500">
+        // ZMIANA: bg-surface/30, border-border, text-textMain
+        <div className="text-center py-20 bg-surface/30 rounded-2xl border border-dashed border-border">
+          <div className="w-16 h-16 bg-surface rounded-full flex items-center justify-center mx-auto mb-4 text-textMuted">
              <Search size={32} />
           </div>
           <p className="text-xl text-textMain mb-2 font-bold">No projects found</p>
           <p className="text-textMuted max-w-md mx-auto">
             We couldn't find any projects matching your filters. Try clearing them to see more results.
           </p>
-          <button onClick={clearFilters} className="mt-6 px-6 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-textMain text-sm transition-colors border border-border">
+          <button onClick={clearFilters} className="mt-6 px-6 py-2 bg-surface hover:bg-surface/80 rounded-lg text-textMain text-sm transition-colors border border-border">
             Clear all filters
           </button>
         </div>
@@ -241,7 +235,7 @@ const Projects = () => {
               <button 
                 onClick={handleLoadMore}
                 disabled={loading}
-                className="group flex items-center gap-2 px-8 py-3 bg-surface border border-border rounded-xl text-textMain hover:bg-white/5 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/10 transition-all disabled:opacity-50"
+                className="group flex items-center gap-2 px-8 py-3 bg-surface border border-border rounded-xl text-textMain hover:bg-background hover:border-primary/30 hover:shadow-lg hover:shadow-primary/10 transition-all disabled:opacity-50"
               >
                 {loading ? <Loader2 className="animate-spin" size={20} /> : <ArrowDownCircle size={20} className="group-hover:translate-y-1 transition-transform" />}
                 {loading ? 'Loading...' : 'Load More Projects'}

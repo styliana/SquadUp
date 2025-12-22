@@ -205,7 +205,7 @@ const MyProjects = () => {
                   </div>
                 </div>
 
-                <div className="p-6 bg-[#161b22]">
+                <div className="p-6 bg-background border-t border-border">
                   {(!project.applications || project.applications.length === 0) ? (
                     <div className="flex flex-col items-center justify-center py-8 text-textMuted opacity-60">
                       <User size={32} className="mb-2" /><p>Waiting for candidates...</p>
@@ -223,7 +223,9 @@ const MyProjects = () => {
                                 <span className="font-bold text-textMain text-base hover:underline cursor-pointer" onClick={() => navigate(`/profile/${app.profiles?.id}`)}>{app.profiles?.full_name || 'Anonymous'}</span>
                                 <span className="text-xs text-textMuted truncate">{app.profiles?.university}</span>
                               </div>
-                              <div className="mt-1.5 text-sm text-gray-400 bg-black/20 p-2 rounded-lg border-l-2 border-primary italic">"{app.message}"</div>
+                              <div className="mt-1.5 text-sm text-textMuted bg-background border border-border p-3 rounded-lg border-l-4 border-l-primary italic">
+  "{app.message}"
+</div>
                             </div>
                           </div>
                           <div className="flex items-center gap-3 shrink-0 mt-3 md:mt-0 w-full md:w-auto justify-end">
