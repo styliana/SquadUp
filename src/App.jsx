@@ -1,11 +1,12 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom'; // 1. DODANO useLocation
+import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { Loader2, AlertTriangle } from 'lucide-react';
 
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminRoute from './components/AdminRoute';
 
 // --- LENIWE IMPORTY ---
 const Home = lazy(() => import('./pages/Home'));
@@ -18,12 +19,10 @@ const EditProject = lazy(() => import('./pages/EditProject'));
 const MyProjects = lazy(() => import('./pages/MyProjects'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Chat = lazy(() => import('./pages/Chat'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 
-// Strony prawne
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
-
-// Odzyskiwanie hasła
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 
 const PageLoader = () => (
@@ -38,21 +37,16 @@ const NotFound = () => (
       <AlertTriangle className="mx-auto text-yellow-500 mb-4" size={48} />
       <h1 className="text-3xl font-bold text-textMain mb-2">404</h1>
       <p className="text-xl text-textMain font-semibold mb-2">Page not found</p>
-      <p className="text-textMuted mb-8">The page you are looking for doesn't exist or has been moved.</p>
-      <Link 
-        to="/" 
-        className="inline-flex px-6 py-3 bg-primary text-textMain font-bold rounded-xl hover:bg-primary/90 transition-all shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.5)]"
-      >
+      <Link to="/" className="inline-flex px-6 py-3 bg-primary text-textMain font-bold rounded-xl hover:bg-primary/90 transition-all">
         Back to Home
       </Link>
     </div>
   </div>
 );
 
-// 2. NOWY KOMPONENT LAYOUTU (Wewnątrz Routera)
 const Layout = () => {
   const location = useLocation();
-  const isChatPage = location.pathname === '/chat'; // Sprawdź czy jesteśmy na czacie
+  const isChatPage = location.pathname === '/chat';
 
   return (
     <div className="min-h-screen bg-background text-textMain flex flex-col">
@@ -61,7 +55,6 @@ const Layout = () => {
       <div className="flex-grow">
         <Suspense fallback={<PageLoader />}>
           <Routes>
-            {/* TRASY PUBLICZNE */}
             <Route path="/" element={<Home />} />
             <Route path="/projects" element={<Projects />} />
             <Route path="/projects/:id" element={<ProjectDetails />} />
@@ -70,11 +63,8 @@ const Layout = () => {
             
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />
-            
-            {/* TRASA ODZYSKIWANIA HASŁA */}
             <Route path="/forgot-password" element={<ForgotPassword />} />
 
-            {/* TRASY CHRONIONE */}
             <Route element={<ProtectedRoute />}>
               <Route path="/create-project" element={<CreateProject />} />
               <Route path="/edit-project/:id" element={<EditProject />} />
@@ -83,12 +73,15 @@ const Layout = () => {
               <Route path="/chat" element={<Chat />} />
             </Route>
 
+            <Route element={<AdminRoute />}>
+              <Route path="/admin" element={<AdminDashboard />} />
+            </Route>
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
       </div>
 
-      {/* 3. Footer renderowany warunkowo */}
       {!isChatPage && <Footer />}
     </div>
   );

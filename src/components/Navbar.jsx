@@ -1,19 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-// DODANO: Sun, Moon
-import { Megaphone, PlusCircle, MessageSquare, Users, LogOut, Briefcase, Menu, X, Sun, Moon } from 'lucide-react';
+import { Megaphone, PlusCircle, MessageSquare, Users, LogOut, Briefcase, Menu, X, Sun, Moon, Shield } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabaseClient';
 import UserAvatar from './UserAvatar';
 import NotificationsMenu from './NotificationsMenu'; 
-// DODANO: Hook motywu
 import { useTheme } from '../hooks/useTheme';
 
 const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
-  // DODANO: Użycie hooka
+  const { user, signOut, isAdmin } = useAuth();
   const { theme, toggleTheme } = useTheme();
   
   const [avatarUrl, setAvatarUrl] = useState(null);
@@ -72,7 +69,6 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           
-          {/* LEWA STRONA: LOGO */}
           <div className="flex items-center gap-4">
             <Link to="/" className="flex items-center gap-2 group" aria-label="Go to Home Page">
               <div className="bg-gradient-to-br from-primary to-blue-600 p-1.5 rounded-lg group-hover:shadow-[0_0_15px_rgba(6,182,212,0.5)] transition-all duration-300">
@@ -84,7 +80,6 @@ const Navbar = () => {
             </Link>
           </div>
 
-          {/* ŚRODEK: DESKTOP MENU */}
           <div className="hidden md:flex items-center space-x-8">
             <NavLink to="/projects" icon={<Megaphone size={18} />} text="Find Projects" active={isActive('/projects')} />
             
@@ -109,15 +104,15 @@ const Navbar = () => {
                   </div>
                   <span>Chat</span>
                 </Link>
+
+                {isAdmin && (
+                   <NavLink to="/admin" icon={<Shield size={18} />} text="Admin" active={isActive('/admin')} />
+                )}
               </>
             )}
           </div>
 
-          {/* PRAWA STRONA: ACTIONS */}
           <div className="flex items-center gap-3">
-            
-            {/* --- NOWE: PRZYCISK ZMIANY MOTYWU --- */}
-            {/* Jest widoczny i na mobile, i na desktopie */}
             <button
               onClick={toggleTheme}
               className="p-2 rounded-lg text-textMuted hover:text-primary hover:bg-textMain/5 transition-all duration-300"
@@ -126,7 +121,6 @@ const Navbar = () => {
             >
               {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
             </button>
-            {/* ------------------------------------- */}
 
             {user ? (
               <>
@@ -149,7 +143,6 @@ const Navbar = () => {
                   <LogOut size={20} />
                 </button>
 
-                {/* MOBILE HAMBURGER BUTTON */}
                 <button 
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                   className="md:hidden p-2 text-textMuted hover:text-textMain transition-colors"
@@ -176,7 +169,6 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* MOBILE MENU DROPDOWN */}
       {isMobileMenuOpen && (
         <div className="md:hidden border-t border-border bg-surface animate-in slide-in-from-top-2 duration-200 shadow-xl">
           <div className="px-4 py-4 space-y-4">
@@ -205,6 +197,10 @@ const Navbar = () => {
                     </div>
                     <span className="font-medium">Chat</span>
                   </Link>
+
+                  {isAdmin && (
+                    <MobileNavLink to="/admin" icon={<Shield size={18} />} text="Admin Panel" active={isActive('/admin')} />
+                  )}
                 </>
               )}
             </div>
