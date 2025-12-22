@@ -32,7 +32,7 @@ const Profile = () => {
     email: "",
     github_url: "",
     linkedin_url: "",
-    skills: [], // Tu będą nazwy skilli
+    skills: [], 
     preferred_categories: [],
     avatar_url: "",
   });
@@ -71,7 +71,6 @@ const Profile = () => {
       if (profileError) throw profileError;
       
       if (profileData) {
-        // Mapowanie skilli z formatu relacyjnego na tablicę nazw
         const mappedSkills = profileData.profile_skills?.map(ps => ps.skills.name) || [];
         
         setProfile({
@@ -81,11 +80,20 @@ const Profile = () => {
         });
       }
 
-      // 2. Pobieranie statystyk
+      // 2. Pobieranie statystyk (Dostosowane do formatu TABLE z rpc)
       const { data: statsData, error: statsError } = await supabase
         .rpc('get_user_stats', { target_user_id: userId });
 
-      if (!statsError && statsData) setStats(statsData);
+      if (statsError) throw statsError;
+
+      // Supabase RPC zwraca tablicę dla funkcji typu RETURNS TABLE
+      if (statsData && statsData.length > 0) {
+        setStats({
+          created: Number(statsData[0].created) || 0,
+          applied: Number(statsData[0].applied) || 0,
+          accepted: Number(statsData[0].accepted) || 0
+        });
+      }
       
     } catch (error) {
       console.error('Critical Profile Error:', error);
@@ -102,7 +110,6 @@ const Profile = () => {
     try {
       setIsSaving(true);
       
-      // A. Aktualizacja danych podstawowych w 'profiles'
       const { error: profileUpdateError } = await supabase
         .from('profiles')
         .update({
@@ -119,11 +126,9 @@ const Profile = () => {
 
       if (profileUpdateError) throw profileUpdateError;
 
-      // B. Aktualizacja Skilli (Relacyjnie)
-      // 1. Usuń stare powiązania
+      // Aktualizacja Skilli
       await supabase.from('profile_skills').delete().eq('profile_id', user.id);
 
-      // 2. Pobierz ID dla nazw skilli i wstaw nowe powiązania
       if (profile.skills.length > 0) {
         const { data: skillIds } = await supabase
           .from('skills')
@@ -141,6 +146,8 @@ const Profile = () => {
 
       setIsEditing(false);
       toast.success('Profile updated successfully! 🔥');
+      // Odśwież dane po zapisie
+      fetchProfileData(targetUserId);
     } catch (error) {
       console.error(error);
       toast.error('Failed to update profile.');
@@ -324,17 +331,28 @@ const Profile = () => {
           <div className="bg-surface border border-white/5 rounded-2xl p-6">
             <h3 className="font-bold text-textMain mb-6">Activity</h3>
             <div className="space-y-6">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-3"><TrendingUp size={18} className="text-primary"/><span className="text-textMuted text-sm">Created Projects</span></div>
-                <span className="font-bold text-textMain text-lg">{stats.created}</span>
+              <div className="flex justify-between items-center group">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg text-primary"><TrendingUp size={18} /></div>
+                  <span className="text-textMuted text-sm">Created Projects</span>
+                </div>
+                <span className="font-bold text-textMain text-lg">{stats.created || 0}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-3"><Send size={18} className="text-blue-400"/><span className="text-textMuted text-sm">Applications Sent</span></div>
-                <span className="font-bold text-textMain text-lg">{stats.applied}</span>
+              
+              <div className="flex justify-between items-center group">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400"><Send size={18} /></div>
+                  <span className="text-textMuted text-sm">Applications Sent</span>
+                </div>
+                <span className="font-bold text-textMain text-lg">{stats.applied || 0}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-3"><CheckCircle size={18} className="text-green-400"/><span className="text-textMuted text-sm">Joined Teams</span></div>
-                <span className="font-bold text-textMain text-lg">{stats.accepted}</span>
+              
+              <div className="flex justify-between items-center group">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-500/10 rounded-lg text-green-400"><CheckCircle size={18} /></div>
+                  <span className="text-textMuted text-sm">Joined Teams</span>
+                </div>
+                <span className="font-bold text-textMain text-lg">{stats.accepted || 0}</span>
               </div>
             </div>
           </div>
