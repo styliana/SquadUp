@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import { useDebounce } from '../../hooks/useDebounce';
-import UserAvatar from '../UserAvatar'; // Importujemy nasz główny komponent
+import UserAvatar from '../common/UserAvatar'; // Importujemy nasz główny komponent
 
 const ChatSidebar = ({ users, selectedUser, onSelectUser, unreadMap, loading, onSearch }) => {
   const [searchTerm, setSearchTerm] = useState('');

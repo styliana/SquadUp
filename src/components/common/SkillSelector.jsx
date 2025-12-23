@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { Check, X, Search, Flame } from 'lucide-react';
-import { useSkills } from '../hooks/useSkills'; // Importujemy nasz nowy hook
+import { useSkills } from '../../hooks/useSkills';
 
 const SkillSelector = ({ selectedSkills, setSelectedSkills, showLabel = true }) => {
-  const { allSkills, popularSkills, loading } = useSkills(); // Używamy logiki
+  const { allSkills, popularSkills, loading } = useSkills(); 
   const [search, setSearch] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef(null);

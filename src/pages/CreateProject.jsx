@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 
 // Komponenty i Serwisy
-import SkillSelector from '../components/SkillSelector';
+import SkillSelector from '../components/common/SkillSelector';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import { projectService } from '../services/projectService';

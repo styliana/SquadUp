@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, MoreHorizontal, ArrowLeft } from 'lucide-react';
 import MessageBubble from './MessageBubble';
-import UserAvatar from '../UserAvatar'; // Importujemy UserAvatar
+import UserAvatar from '../common/UserAvatar'; // Importujemy UserAvatar
 import Button from '../ui/Button';     // Importujemy Button
 
 const ChatWindow = ({ selectedUser, messages, currentUser, onSendMessage, onTyping, isTyping, onBack }) => {

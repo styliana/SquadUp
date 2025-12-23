@@ -1,9 +1,9 @@
 import { Calendar, User, ArrowRight, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { PROJECT_TYPE_STYLES } from '../utils/constants';
-import UserAvatar from './UserAvatar';
-import { formatDate } from '../utils/formatDate';
-import Card from './ui/Card'; // Importujemy nasz komponent UI
+import { PROJECT_TYPE_STYLES } from '../../utils/constants';
+import UserAvatar from '../common/UserAvatar';
+import { formatDate } from '../../utils/formatDate';
+import Card from '../ui/Card'; // Importujemy nasz komponent UI
 
 const ProjectCard = ({ project, userSkills = [] }) => {
   

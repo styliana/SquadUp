@@ -3,29 +3,32 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react
 import { Toaster } from 'sonner';
 import { Loader2, AlertTriangle } from 'lucide-react';
 
-import Navbar from './components/Navbar';
-import Footer from './components/Footer';
-import ProtectedRoute from './components/ProtectedRoute';
-import AdminRoute from './components/AdminRoute';
-import ErrorBoundary from './components/ErrorBoundary'; // Zaimportowane, teraz użyjemy!
-import { AuthProvider } from './context/AuthContext'; // WAŻNE: Musi tu być
+// --- IMPORTY LAYOUTU I AUTH (Z NOWYCH FOLDERÓW) ---
+import Navbar from './components/layout/Navbar';
+import Footer from './components/layout/Footer'; 
+import ErrorBoundary from './components/ErrorBoundary';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import AdminRoute from './components/auth/AdminRoute'; 
+import { AuthProvider } from './context/AuthContext'; 
 
-// --- LENIWE IMPORTY ---
+// --- LENIWE IMPORTY STRON ---
 const Home = lazy(() => import('./pages/Home'));
 const Projects = lazy(() => import('./pages/Projects'));
-const ProjectDetails = lazy(() => import('./pages/ProjectDetails')); // Zaktualizowany (podzielony)
+const ProjectDetails = lazy(() => import('./pages/ProjectDetails')); 
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
 const CreateProject = lazy(() => import('./pages/CreateProject'));
 const EditProject = lazy(() => import('./pages/EditProject'));
 const MyProjects = lazy(() => import('./pages/MyProjects'));
-const Profile = lazy(() => import('./pages/Profile')); // Zaktualizowany (podzielony)
+const Profile = lazy(() => import('./pages/Profile')); 
 const Chat = lazy(() => import('./pages/Chat'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 
+// Legal
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const UpdatePassword = lazy(() => import('./pages/UpdatePassword')); // Dodałem UpdatePassword jeśli go masz
 
 // Loader strony
 const PageLoader = () => (
@@ -60,26 +63,29 @@ const ScrollToTop = () => {
 // Layout aplikacji (Navbar + Content + Footer)
 const Layout = () => {
   const location = useLocation();
+  // Ukrywamy footer na czacie, żeby było więcej miejsca
   const isChatPage = location.pathname === '/chat';
 
   return (
     <div className="min-h-screen bg-background text-textMain flex flex-col font-sans selection:bg-primary/30">
       <Navbar />
       
-      <div className="flex-grow pt-16"> {/* Padding top na wysokość navbara */}
+      {/* Padding top (pt-16) odpowiada wysokości navbara, żeby treść nie wchodziła pod spód */}
+      <div className="flex-grow pt-16"> 
         <Suspense fallback={<PageLoader />}>
           <Routes>
+            {/* PUBLICZNE */}
             <Route path="/" element={<Home />} />
             <Route path="/projects" element={<Projects />} />
             <Route path="/projects/:id" element={<ProjectDetails />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/update-password" element={<UpdatePassword />} /> {/* Ważne dla resetowania hasła */}
 
-            {/* Protected Routes */}
+            {/* CHRONIONE (Tylko zalogowani) */}
             <Route element={<ProtectedRoute />}>
               <Route path="/create-project" element={<CreateProject />} />
               <Route path="/edit-project/:id" element={<EditProject />} />
@@ -88,7 +94,7 @@ const Layout = () => {
               <Route path="/chat" element={<Chat />} />
             </Route>
 
-            {/* Admin Routes */}
+            {/* ADMIN (Tylko rola admina) */}
             <Route element={<AdminRoute />}>
               <Route path="/admin" element={<AdminDashboard />} />
             </Route>
@@ -107,11 +113,10 @@ const Layout = () => {
 function App() {
   return (
     <Router>
-      {/* 1. ErrorBoundary chroni przed "białym ekranem śmierci" */}
       <ErrorBoundary>
-        {/* 2. AuthProvider udostępnia dane o użytkowniku dla całej apki */}
         <AuthProvider>
-          <ScrollToTop /> {/* 3. Reset scrolla */}
+          <ScrollToTop />
+          {/* Ustawienia Toastów: ciemny motyw, na górze ekranu */}
           <Toaster position="top-center" theme="dark" richColors closeButton />
           <Layout />
         </AuthProvider>

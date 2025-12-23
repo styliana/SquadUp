@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Megaphone, PlusCircle, MessageSquare, Users, LogOut, Briefcase, Menu, X, Sun, Moon, Shield } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
-import { supabase } from '../supabaseClient';
-import UserAvatar from './UserAvatar';
-import NotificationsMenu from './NotificationsMenu'; 
-import { useTheme } from '../hooks/useTheme';
-import Button from './ui/Button'; // Importujemy Button
+import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../supabaseClient';
+import UserAvatar from '../common/UserAvatar';
+import NotificationsMenu from '../common/NotificationsMenu'; 
+import { useTheme } from '../../hooks/useTheme';
+import Button from '../ui/Button'; // Importujemy Button
 
 const Navbar = () => {
   const location = useLocation();

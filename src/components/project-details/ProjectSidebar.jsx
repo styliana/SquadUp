@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { User, MessageCircle, Send, Loader2, CheckCircle, AlertCircle, Users } from 'lucide-react';
-import UserAvatar from '../UserAvatar';
+import UserAvatar from '../common/UserAvatar';
 
 const ProjectSidebar = ({ 
   project, 

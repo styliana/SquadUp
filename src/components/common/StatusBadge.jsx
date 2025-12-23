@@ -1,4 +1,4 @@
-import { APPLICATION_STATUS_STYLES } from '../utils/constants';
+import { APPLICATION_STATUS_STYLES } from "../../utils/constants";
 
 const StatusBadge = ({ status, className = "" }) => {
   // Pobieramy styl ze stałych lub domyślny

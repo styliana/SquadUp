@@ -1,5 +1,5 @@
 import { Target } from 'lucide-react';
-import SkillSelector from '../SkillSelector';
+import SkillSelector from '../common/SkillSelector';
 import Card from '../ui/Card';
 
 const ProfileDetails = ({ profile, setProfile, isEditing, availableCategories }) => {

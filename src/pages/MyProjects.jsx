@@ -4,8 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { Briefcase, MessageCircle, User, Check, X, Trash2, Edit2, Clock, Eye, Sparkles } from 'lucide-react'; 
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import UserAvatar from '../components/UserAvatar';
-import StatusBadge from '../components/StatusBadge';
+import UserAvatar from '../components/common/UserAvatar';
+import StatusBadge from '../components/common/StatusBadge';
 import DashboardSkeleton from '../components/skeletons/DashboardSkeleton';
 import useThrowAsyncError from '../hooks/useThrowAsyncError';
 import { PROJECT_STATUS } from '../utils/constants'; // Import stałych

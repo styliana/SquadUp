@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { Search, Filter, Loader2, X, Sparkles, ArrowDownCircle } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
-import ProjectCard from '../components/ProjectCard';
-import SkillSelector from '../components/SkillSelector';
+import ProjectCard from '../components/projects/ProjectCard';
+import SkillSelector from '../components/common/SkillSelector';
 import { useProjects } from '../hooks/useProjects';
 import ProjectCardSkeleton from '../components/skeletons/ProjectCardSkeleton';
 

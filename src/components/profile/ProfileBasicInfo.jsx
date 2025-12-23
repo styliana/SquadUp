@@ -1,6 +1,6 @@
 import { GraduationCap, User } from 'lucide-react';
-import AvatarUpload from '../AvatarUpload'; 
-import Card from '../ui/Card'; // Używamy Card
+import AvatarUpload from '../common/AvatarUpload';
+import Card from '../ui/Card'; 
 
 const ProfileBasicInfo = ({ profile, setProfile, isEditing }) => {
   return (
