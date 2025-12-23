@@ -8,7 +8,7 @@ import UserAvatar from '../components/common/UserAvatar';
 import StatusBadge from '../components/common/StatusBadge';
 import DashboardSkeleton from '../components/skeletons/DashboardSkeleton';
 import useThrowAsyncError from '../hooks/useThrowAsyncError';
-import { PROJECT_STATUS } from '../utils/constants'; // Import stałych
+import { PROJECT_STATUS } from '../utils/constants'; 
 
 const MyProjects = () => {
   const { user } = useAuth();
@@ -20,13 +20,11 @@ const MyProjects = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('published');
 
-  // Używamy stałej zamiast magic number '2'
   const isProjectClosed = (project) => project.status_id === PROJECT_STATUS.CLOSED;
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      // 1. Pobieranie projektów autora
       const { data: myProjects, error: err1 } = await supabase
         .from('projects')
         .select(`
@@ -42,8 +40,15 @@ const MyProjects = () => {
 
       if (err1) throw err1;
 
-      // Sortowanie: Projekty wymagające uwagi (pending apps) na górze
-      const sortedMyProjects = (myProjects || []).sort((a, b) => {
+      const projectsWithCount = (myProjects || []).map(p => {
+        const acceptedCount = p.applications?.filter(a => a.status === 'accepted').length || 0;
+        return {
+          ...p,
+          members_current: 1 + acceptedCount 
+        };
+      });
+
+      const sortedMyProjects = projectsWithCount.sort((a, b) => {
         const aHasAction = a.applications?.some(app => app.status === 'pending');
         const bHasAction = b.applications?.some(app => app.status === 'pending');
         if (aHasAction && !bHasAction) return -1;
@@ -53,7 +58,6 @@ const MyProjects = () => {
 
       setCreatedProjects(sortedMyProjects);
 
-      // 2. Pobieranie aplikacji usera
       const { data: myApplications, error: err2 } = await supabase
         .from('applications')
         .select(`
@@ -115,25 +119,48 @@ const MyProjects = () => {
 
   const handleStatusChange = async (applicationId, projectId, newStatus) => {
     try {
-      let resultStatusId = PROJECT_STATUS.OPEN;
-
+      const targetProject = createdProjects.find(p => p.id === projectId);
+      
       if (newStatus === 'accepted') {
-        // RPC w bazie sprawdza czy full i zwraca 'FULL'
-        const { data, error } = await supabase.rpc('approve_candidate', { app_id: applicationId, proj_id: projectId });
+        const { error } = await supabase.rpc('approve_candidate', { app_id: applicationId, proj_id: projectId });
+        if (error) await supabase.from('applications').update({ status: newStatus }).eq('id', applicationId);
+
+        // Obliczamy czy po tej akceptacji team jest pełny
+        const newMembersCount = targetProject.members_current + 1;
         
-        if (error) {
-            console.error('RPC Error:', error);
-            // Fallback: ręczna aktualizacja
-            await supabase.from('applications').update({ status: newStatus }).eq('id', applicationId);
-        } else {
-            resultStatusId = data === 'FULL' ? PROJECT_STATUS.CLOSED : PROJECT_STATUS.OPEN;
+        if (targetProject && newMembersCount >= targetProject.members_max) {
+           // 1. Zamykamy projekt w bazie danych, aby zniknął z listy głównej
+           await supabase
+            .from('projects')
+            .update({ status_id: PROJECT_STATUS.CLOSED })
+            .eq('id', projectId);
+
+           // 2. Wysyłamy wiadomość do wszystkich członków
+           const recipients = targetProject.applications
+             .filter(app => app.status === 'accepted' || app.id === applicationId)
+             .map(app => app.applicant_id);
+
+           const uniqueRecipients = [...new Set(recipients)];
+           const messagesPayload = uniqueRecipients.map(recipientId => ({
+               project_id: projectId,
+               sender_id: user.id,
+               recipient_id: recipientId,
+               content: "We have a full team let's start working!"
+           }));
+
+           if (messagesPayload.length > 0) {
+               supabase.from('messages').insert(messagesPayload).then(({ error }) => {
+                   if (error) console.error("Message Error:", error);
+                   else toast.success("Team full! Group message sent.");
+               });
+           }
         }
       } else {
         const { error } = await supabase.from('applications').update({ status: newStatus }).eq('id', applicationId);
         if (error) throw error;
       }
 
-      // Aktualizacja stanu lokalnego (Optymistyczna + poprawki z bazy)
+      // Aktualizacja UI
       setCreatedProjects(prev => prev.map(project => {
         if (project.id !== projectId) return project;
         
@@ -141,15 +168,14 @@ const MyProjects = () => {
           app.id === applicationId ? { ...app, status: newStatus } : app
         ) || [];
         
-        let updatedMembers = project.members_current;
-        let updatedStatusId = project.status_id;
+        const acceptedCount = updatedApps.filter(a => a.status === 'accepted').length;
+        const updatedMembers = 1 + acceptedCount;
 
-        if (newStatus === 'accepted' && project.members_current < project.members_max) {
-            updatedMembers += 1;
-        }
-        
+        let updatedStatusId = project.status_id;
         if (updatedMembers >= project.members_max) {
             updatedStatusId = PROJECT_STATUS.CLOSED;
+        } else {
+            updatedStatusId = PROJECT_STATUS.OPEN;
         }
 
         return { 
@@ -170,8 +196,6 @@ const MyProjects = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      
-      {/* HEADER */}
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-textMain flex items-center gap-3">
           <div className="p-2 bg-gradient-to-br from-primary to-blue-600 rounded-xl shadow-lg shadow-primary/20">
@@ -181,7 +205,6 @@ const MyProjects = () => {
         </h1>
       </div>
 
-      {/* TABS */}
       <div className="flex gap-6 border-b border-border mb-8">
         <button onClick={() => setActiveTab('published')} className={`pb-4 px-2 text-lg font-medium transition-all relative ${activeTab === 'published' ? 'text-textMain' : 'text-textMuted hover:text-textMain'}`}>
           Published Projects 
@@ -195,12 +218,10 @@ const MyProjects = () => {
         </button>
       </div>
 
-      {/* CONTENT WITH SKELETON */}
       {loading ? (
         <DashboardSkeleton activeTab={activeTab} />
       ) : (
         <>
-          {/* TAB 1: PUBLISHED */}
           {activeTab === 'published' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               {createdProjects.length === 0 ? (
@@ -215,16 +236,12 @@ const MyProjects = () => {
                     <div className="p-6 border-b border-white/5 bg-white/[0.02] flex flex-col md:flex-row justify-between items-start gap-4">
                       <div>
                         <div className="flex items-center gap-3 mb-2">
-                          <h2 
-                            className="text-2xl font-bold text-textMain hover:text-primary transition-colors cursor-pointer" 
-                            onClick={() => navigate(`/projects/${project.id}`, { state: { from: '/my-projects' } })}
-                          >
+                          <h2 className="text-2xl font-bold text-textMain hover:text-primary transition-colors cursor-pointer" onClick={() => navigate(`/projects/${project.id}`, { state: { from: '/my-projects' } })}>
                             {project.title}
                           </h2>
                           <span className="px-2.5 py-0.5 rounded-md bg-white/5 border border-border text-xs font-medium text-textMuted">
                             {project.categories?.name || 'Unknown'}
                           </span>
-                          
                           {isProjectClosed(project) && (
                             <span className="px-2.5 py-0.5 rounded-md bg-green-500/20 border border-green-500/30 text-xs font-bold text-green-400 flex items-center gap-1">
                                 <Check size={12} /> TEAM FULL
@@ -236,7 +253,6 @@ const MyProjects = () => {
                           <span className="flex items-center gap-1.5"><User size={14} /> {project.members_current}/{project.members_max} Members</span>
                         </div>
                       </div>
-                      
                       <div className="flex items-center gap-2">
                         <Link to={`/projects/${project.id}`} state={{ from: '/my-projects' }} className="p-2 text-textMuted hover:text-textMain hover:bg-white/5 rounded-lg transition-colors"><Eye size={20} /></Link>
                         <button onClick={() => navigate(`/edit-project/${project.id}`)} className="p-2 text-textMuted hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"><Edit2 size={20} /></button>
@@ -244,7 +260,6 @@ const MyProjects = () => {
                       </div>
                     </div>
 
-                    {/* APPLICATIONS LIST */}
                     <div className="p-6 bg-background border-t border-border">
                       {(!project.applications || project.applications.length === 0) ? (
                         <div className="flex flex-col items-center justify-center py-8 text-textMuted opacity-60">
@@ -289,11 +304,10 @@ const MyProjects = () => {
             </div>
           )}
           
-          {/* TAB 2: APPLIED */}
           {activeTab === 'applied' && (
             <div className="grid grid-cols-1 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               {appliedProjects.length === 0 ? (
-                 <div className="text-center py-20 text-textMuted border border-dashed border-border rounded-3xl">You haven't applied to any projects yet. Go find some!</div>
+                 <div className="text-center py-20 text-textMuted border border-dashed border-border rounded-3xl">You haven't applied to any projects yet.</div>
               ) : (
                 appliedProjects.map(app => (
                   <div key={app.id} className="group bg-surface border border-white/5 rounded-2xl p-6 hover:border-primary/30 transition-all duration-300 shadow-lg relative overflow-hidden">
@@ -311,18 +325,17 @@ const MyProjects = () => {
                           <span className="flex items-center gap-1.5"><Clock size={14} className="text-primary"/> Applied on {new Date(app.created_at).toLocaleDateString()}</span>
                         </div>
                         <div className="relative pl-4 border-l-2 border-border">
-                          <p className="text-xs font-bold text-textMuted uppercase mb-1">Your Application Note</p>
                           <p className="text-sm text-textMuted italic">"{app.message}"</p>
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-3 min-w-[140px]">
                         {app.projects && (
-                            <Link to={`/projects/${app.project_id}`} state={{ from: '/my-projects' }} className="w-full py-2 px-4 rounded-xl border border-border text-textMain text-sm font-medium hover:bg-white/5 hover:border-border transition-all flex items-center justify-center gap-2">
-                            <Eye size={16} /> View Project
+                            <Link to={`/projects/${app.project_id}`} state={{ from: '/my-projects' }} className="w-full py-2 px-4 rounded-xl border border-border text-textMain text-sm font-medium hover:bg-white/5 transition-all flex items-center justify-center gap-2">
+                              <Eye size={16} /> View Project
                             </Link>
                         )}
                         {app.status === 'pending' && (
-                          <button onClick={() => handleWithdrawApplication(app.id)} className="w-full py-2 px-4 rounded-xl text-textMuted text-sm font-medium hover:text-red-400 hover:bg-red-500/10 transition-all flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 focus:opacity-100">
+                          <button onClick={() => handleWithdrawApplication(app.id)} className="w-full py-2 px-4 rounded-xl text-textMuted text-sm font-medium hover:text-red-400 hover:bg-red-500/10 transition-all flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
                             <Trash2 size={16} /> Withdraw
                           </button>
                         )}

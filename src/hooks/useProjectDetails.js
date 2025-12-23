@@ -12,7 +12,7 @@ export const useProjectDetails = (id) => {
       
       try {
         setLoading(true);
-        // Pobieramy projekt wraz z relacjami: autor, kategoria, skille
+        // ZMIANA: Dodajemy pobieranie tabeli applications wraz z profilami kandydatów
         const { data, error } = await supabase
           .from('projects')
           .select(`
@@ -21,6 +21,11 @@ export const useProjectDetails = (id) => {
             categories ( name ),
             project_skills (
               skills ( name )
+            ),
+            applications (
+              id,
+              status,
+              profiles:applicant_id (*)
             )
           `)
           .eq('id', id)
@@ -28,13 +33,19 @@ export const useProjectDetails = (id) => {
 
         if (error) throw error;
 
-        // Formatowanie danych pod widok (Frontend oczekuje pola 'type' i tablicy 'skills')
+        // Obliczamy aktualną liczbę członków: 1 (Lider) + liczba zaakceptowanych aplikacji
+        const acceptedCount = data.applications?.filter(app => app.status === 'accepted').length || 0;
+        const realMembersCurrent = 1 + acceptedCount;
+
+        // Formatowanie danych pod widok
         const formattedProject = {
             ...data,
-            // ZMIANA: Mapujemy obiekt kategorii na string (nazwę)
             type: data.categories?.name || 'Project', 
-            // ZMIANA: Spłaszczamy strukturę skilli do prostej tablicy nazw
-            skills: data.project_skills?.map(ps => ps.skills?.name) || []
+            skills: data.project_skills?.map(ps => ps.skills?.name) || [],
+            // ZMIANA: Przekazujemy pobrane aplikacje do widoku
+            applications: data.applications || [],
+            // ZMIANA: Nadpisujemy members_current wyliczoną wartością, aby licznik był zawsze zgodny z liczbą awatarów
+            members_current: realMembersCurrent
         };
         
         setProject(formattedProject);

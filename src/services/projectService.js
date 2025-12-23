@@ -11,6 +11,11 @@ export const projectService = {
         categories ( name ),
         project_skills (
           skills ( id, name )
+        ),
+        applications (
+          id,
+          status,
+          profiles:applicant_id (*)
         )
       `)
       .eq('id', id)
@@ -18,11 +23,17 @@ export const projectService = {
 
     if (error) throw error;
 
-    // Transformacja danych dla Frontendu (spłaszczamy struktury)
+    // Obliczamy count dynamicznie
+    const acceptedCount = data.applications?.filter(app => app.status === 'accepted').length || 0;
+    const realMembersCurrent = 1 + acceptedCount;
+
+    // Transformacja danych dla Frontendu
     return {
       ...data,
-      type: data.categories?.name || 'Unknown', // Mapowanie kategorii na string
-      skills: data.project_skills?.map(ps => ps.skills) || [] // Mapowanie skilli na tablicę obiektów
+      type: data.categories?.name || 'Unknown',
+      skills: data.project_skills?.map(ps => ps.skills) || [],
+      applications: data.applications || [],
+      members_current: realMembersCurrent // Aktualizacja licznika
     };
   },
 
@@ -53,7 +64,6 @@ export const projectService = {
 
   // 5. Aktualizacja skilli (używane w EditProject)
   updateSkills: async (projectId, newSkills) => {
-    // A. Najpierw usuwamy wszystkie stare powiązania dla tego projektu
     const { error: deleteError } = await supabase
       .from('project_skills')
       .delete()
@@ -61,7 +71,6 @@ export const projectService = {
     
     if (deleteError) throw deleteError;
 
-    // B. Następnie dodajemy nowe (jeśli są)
     if (newSkills && newSkills.length > 0) {
       return await supabase
         .from('project_skills')
@@ -77,7 +86,7 @@ export const projectService = {
       .eq('id', id);
   },
 
-  // 7. (Opcjonalnie) Pobieranie projektów autora (do MyProjects)
+  // 7. Pobieranie projektów autora
   getByAuthor: async (userId) => {
     const { data, error } = await supabase
         .from('projects')
