@@ -24,9 +24,9 @@ const EditProject = () => {
           .select(`
             *,
             project_skills (
-              skills ( name )
+              skills ( id, name ) 
             )
-          `)
+          `) // ZMIANA: Pobieramy id ORAZ name
           .eq('id', id)
           .single();
 
@@ -39,15 +39,19 @@ const EditProject = () => {
           return;
         }
 
-        // Mapowanie skilli z relacji na płaską tablicę nazw
-        const mappedSkills = project.project_skills?.map(ps => ps.skills.name) || [];
+        // ZMIANA: Mapowanie na obiekty {id, name}, a nie same stringi
+        // SkillSelector wymaga obiektów, aby móc je poprawnie usuwać po ID
+        const mappedSkills = project.project_skills?.map(ps => ({
+          id: ps.skills.id,
+          name: ps.skills.name
+        })) || [];
 
         // Mapowanie danych z bazy na format formularza
         setInitialData({
           title: project.title,
           type: project.type,
           description: project.description,
-          skills: mappedSkills,
+          skills: mappedSkills, // Teraz przekazujemy poprawne obiekty
           members_max: project.members_max,
           deadline: project.deadline
         });
@@ -70,7 +74,6 @@ const EditProject = () => {
 
     try {
       // KROK A: Aktualizacja danych podstawowych w tabeli 'projects'
-      // UWAGA: Nie wysyłamy pola 'skills', bo ono już nie istnieje w tej tabeli
       const { error: projectError } = await supabase
         .from('projects')
         .update({
@@ -95,27 +98,20 @@ const EditProject = () => {
       if (deleteError) throw deleteError;
 
       // 2. Wstawiamy nowe powiązania
+      // ZMIANA: Używamy bezpośrednio ID z obiektów w formData.skills
+      // Nie musimy już szukać ID po nazwie, bo mamy je w obiekcie
       if (formData.skills && formData.skills.length > 0) {
-        // Pobieramy ID wybranych skilli
-        const { data: skillRefs, error: skillFetchError } = await supabase
-          .from('skills')
-          .select('id')
-          .in('name', formData.skills);
+        
+        const skillMappings = formData.skills.map(s => ({
+          project_id: id,
+          skill_id: s.id
+        }));
 
-        if (skillFetchError) throw skillFetchError;
-
-        if (skillRefs && skillRefs.length > 0) {
-          const skillMappings = skillRefs.map(s => ({
-            project_id: id,
-            skill_id: s.id
-          }));
-
-          const { error: insertError } = await supabase
-            .from('project_skills')
-            .insert(skillMappings);
-          
-          if (insertError) throw insertError;
-        }
+        const { error: insertError } = await supabase
+          .from('project_skills')
+          .insert(skillMappings);
+        
+        if (insertError) throw insertError;
       }
 
       toast.success('Project updated successfully! 🚀');

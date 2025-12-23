@@ -9,6 +9,7 @@ import ProjectCardSkeleton from '../components/skeletons/ProjectCardSkeleton';
 
 const Projects = () => {
   const { user } = useAuth();
+  // Hook teraz idealnie pasuje do tego wywołania:
   const { projects, loading, hasMore, fetchProjects, userProfile } = useProjects(user);
 
   const [categories, setCategories] = useState(['All']);
@@ -37,6 +38,7 @@ const Projects = () => {
   useEffect(() => {
     setPage(0);
     const timeoutId = setTimeout(() => {
+      // isReset = true (nadpisujemy listę)
       fetchProjects({
         page: 0,
         searchTerm,
@@ -51,6 +53,7 @@ const Projects = () => {
   const handleLoadMore = () => {
     const nextPage = page + 1;
     setPage(nextPage);
+    // isReset = false (doklejamy do listy)
     fetchProjects({
       page: nextPage,
       searchTerm,
@@ -175,7 +178,7 @@ const Projects = () => {
                 key={project.id} 
                 project={{
                   ...project,
-                  tags: project.skills, // Nasz hook już to zmapował na tablicę stringów
+                  tags: project.skills, // Hook już przygotował pole 'skills' jako tablicę nazw
                   timePosted: new Date(project.created_at).toLocaleDateString(),
                   membersCurrent: project.members_current,
                   membersMax: project.members_max
