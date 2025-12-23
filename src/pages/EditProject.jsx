@@ -3,16 +3,20 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form'; 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
 import { Loader2, ArrowLeft, Save } from 'lucide-react';
-import SkillSelector from '../components/SkillSelector';
 
-// Schemat walidacji (taki sam jak w CreateProject)
+// Komponenty i Serwisy
+import SkillSelector from '../components/SkillSelector';
+import Button from '../components/ui/Button';
+import Card from '../components/ui/Card';
+import { projectService } from '../services/projectService';
+import { supabase } from '../supabaseClient'; 
+
 const projectSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters"),
-  type: z.string().min(1, "Project type is required"), // To jest nazwa kategorii dla UI
+  type: z.string().min(1, "Project type is required"), 
   description: z.string().min(20, "Description must be at least 20 characters"),
   skills: z.array(z.object({
     id: z.number(),
@@ -52,47 +56,32 @@ const EditProject = () => {
 
   const selectedType = watch('type');
 
-  // 1. Pobieramy kategorie i dane projektu
+  // Pobieranie danych
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
 
-        // A. Pobierz kategorie
+        // A. Pobierz kategorie (można to wyciągnąć do hooka useCategories)
         const { data: cats } = await supabase.from('categories').select('id, name');
         if (cats) setDbCategories(cats);
 
-        // B. Pobierz projekt
-        const { data: project, error } = await supabase
-          .from('projects')
-          .select(`
-            *,
-            categories ( name ),
-            project_skills (
-              skills ( id, name )
-            )
-          `)
-          .eq('id', id)
-          .single();
+        // B. Pobierz projekt przez Serwis
+        const project = await projectService.getById(id);
 
-        if (error) throw error;
-
-        // C. Sprawdź uprawnienia
         if (user && project.author_id !== user.id) {
           toast.error("You are not the owner of this project.");
           navigate('/projects');
           return;
         }
 
-        // D. Wypełnij formularz danymi z bazy
+        // D. Wypełnij formularz
         reset({
           title: project.title,
-          // Mapujemy category_id/categories.name na pole 'type' (string)
-          type: project.categories?.name || cats?.find(c => c.id === project.category_id)?.name || '',
+          type: project.type, // projectService.getById już mapuje category_id na type
           description: project.description,
           teamSize: project.members_max,
           deadline: project.deadline || '',
-          // Mapujemy skille do formatu {id, name}
           skills: project.project_skills?.map(ps => ps.skills) || []
         });
 
@@ -111,46 +100,28 @@ const EditProject = () => {
 
   const onSubmit = async (data) => {
     try {
-      // Znajdź ID wybranej kategorii
       const selectedCategoryObj = dbCategories.find(c => c.name === data.type);
       if (!selectedCategoryObj) return toast.error("Invalid category selected");
 
-      // 1. Aktualizacja tabeli projects
-      const { error: projectError } = await supabase
-        .from('projects')
-        .update({
-          title: data.title,
-          category_id: selectedCategoryObj.id, // WAŻNE: Aktualizujemy ID
-          description: data.description,
-          members_max: data.teamSize,
-          deadline: data.deadline || null,
-          // Status i author_id się nie zmieniają przy edycji
-        })
-        .eq('id', id);
+      // 1. Aktualizacja projektu
+      const updates = {
+        title: data.title,
+        category_id: selectedCategoryObj.id,
+        description: data.description,
+        members_max: data.teamSize,
+        deadline: data.deadline || null,
+      };
 
+      const { error: projectError } = await projectService.update(id, updates);
       if (projectError) throw projectError;
 
-      // 2. Aktualizacja skilli (Najprościej: Usuń stare -> Dodaj nowe)
-      // A. Usuń stare powiązania
-      const { error: deleteError } = await supabase
-        .from('project_skills')
-        .delete()
-        .eq('project_id', id);
-      
-      if (deleteError) throw deleteError;
-
-      // B. Dodaj nowe (jeśli są)
+      // 2. Aktualizacja skilli
       if (data.skills && data.skills.length > 0) {
         const skillsToInsert = data.skills.map(skillObj => ({
           project_id: id,
           skill_id: skillObj.id
         }));
-
-        const { error: insertError } = await supabase
-          .from('project_skills')
-          .insert(skillsToInsert);
-
-        if (insertError) throw insertError;
+        await projectService.updateSkills(id, skillsToInsert);
       }
 
       toast.success('Project updated successfully!');
@@ -175,108 +146,101 @@ const EditProject = () => {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="bg-surface border border-border rounded-2xl p-8 space-y-8 shadow-sm">
-        <div className="space-y-6">
-          
-          {/* TITLE */}
-          <div>
-            <label className="block text-sm font-medium text-textMain mb-2">Project Title</label>
-            <input 
-              {...register("title")}
-              className={`w-full bg-background border rounded-xl px-4 py-3 text-textMain focus:outline-none transition-colors ${errors.title ? 'border-red-500' : 'border-border focus:border-primary'}`}
-            />
-            {errors.title && <p className="text-xs text-red-400 mt-1">{errors.title.message}</p>}
-          </div>
-
-          {/* TYPE (Dynamiczne kategorie) */}
-          <div>
-            <label className="block text-sm font-medium text-textMain mb-3">Project Type</label>
-            <div className="flex flex-wrap gap-3">
-              {dbCategories.map(cat => (
-                <button
-                  type="button"
-                  key={cat.id}
-                  onClick={() => setValue("type", cat.name)}
-                  className={`px-6 py-2.5 rounded-full text-sm font-medium border transition-all ${
-                    selectedType === cat.name
-                    ? 'bg-primary/20 border-primary text-primary' 
-                    : 'bg-background border-border text-textMuted hover:border-primary/50 hover:text-textMain'
-                  }`}
-                >
-                  {cat.name}
-                </button>
-              ))}
-            </div>
-            {errors.type && <p className="text-xs text-red-400 mt-1">{errors.type.message}</p>}
-          </div>
-
-          {/* DESCRIPTION */}
-          <div>
-            <label className="block text-sm font-medium text-textMain mb-2">Description</label>
-            <textarea 
-              {...register("description")}
-              rows={5}
-              className={`w-full bg-background border rounded-xl px-4 py-3 text-textMain focus:outline-none resize-none transition-colors ${errors.description ? 'border-red-500' : 'border-border focus:border-primary'}`}
-            />
-            {errors.description && <p className="text-xs text-red-400 mt-1">{errors.description.message}</p>}
-          </div>
-        </div>
-
-        {/* SKILLS SELECTOR */}
-        <div className="pt-6 border-t border-border">
-          <Controller
-            control={control}
-            name="skills"
-            render={({ field: { onChange, value } }) => (
-              <SkillSelector 
-                selectedSkills={value} 
-                setSelectedSkills={onChange} 
+      <Card>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+          <div className="space-y-6">
+            
+            {/* TITLE */}
+            <div>
+              <label className="block text-sm font-medium text-textMain mb-2">Project Title</label>
+              <input 
+                {...register("title")}
+                className={`w-full bg-background border rounded-xl px-4 py-3 text-textMain focus:outline-none transition-colors ${errors.title ? 'border-red-500' : 'border-border focus:border-primary'}`}
               />
-            )}
-          />
-          {errors.skills && <p className="text-xs text-red-400 mt-1">{errors.skills.message}</p>}
-        </div>
+              {errors.title && <p className="text-xs text-red-400 mt-1">{errors.title.message}</p>}
+            </div>
 
-        {/* TEAM SIZE & DEADLINE */}
-        <div className="pt-6 border-t border-border grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-textMain mb-2">Team Size</label>
-            <input 
-              type="number"
-              {...register("teamSize")}
-              className={`w-full bg-background border rounded-xl px-4 py-3 text-textMain focus:outline-none transition-colors ${errors.teamSize ? 'border-red-500' : 'border-border focus:border-primary'}`}
-            />
-            {errors.teamSize && <p className="text-xs text-red-400 mt-1">{errors.teamSize.message}</p>}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-textMain mb-2">Deadline</label>
-            <input 
-              type="date" 
-              {...register("deadline")}
-              className="w-full bg-background border border-border rounded-xl px-4 py-3 text-textMain focus:outline-none focus:border-primary [color-scheme:dark]"
-            />
-          </div>
-        </div>
+            {/* TYPE */}
+            <div>
+              <label className="block text-sm font-medium text-textMain mb-3">Project Type</label>
+              <div className="flex flex-wrap gap-3">
+                {dbCategories.map(cat => (
+                  <button
+                    type="button"
+                    key={cat.id}
+                    onClick={() => setValue("type", cat.name)}
+                    className={`px-6 py-2.5 rounded-full text-sm font-medium border transition-all ${
+                      selectedType === cat.name
+                      ? 'bg-primary/20 border-primary text-primary' 
+                      : 'bg-background border-border text-textMuted hover:border-primary/50 hover:text-textMain'
+                    }`}
+                  >
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
+              {errors.type && <p className="text-xs text-red-400 mt-1">{errors.type.message}</p>}
+            </div>
 
-        {/* ACTIONS */}
-        <div className="pt-6 flex justify-end gap-4">
-          <button 
-            type="button" 
-            onClick={() => navigate(-1)}
-            className="px-6 py-3 rounded-xl border border-border text-textMain font-medium hover:bg-textMain/5"
-          >
-            Cancel
-          </button>
-          <button 
-            type="submit"
-            disabled={isSubmitting}
-            className="px-8 py-3 rounded-xl bg-gradient-to-r from-primary to-blue-600 text-white font-bold hover:shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
-            {isSubmitting ? 'Saving...' : 'Save Changes'}
-          </button>
-        </div>
-      </form>
+            {/* DESCRIPTION */}
+            <div>
+              <label className="block text-sm font-medium text-textMain mb-2">Description</label>
+              <textarea 
+                {...register("description")}
+                rows={5}
+                className={`w-full bg-background border rounded-xl px-4 py-3 text-textMain focus:outline-none resize-none transition-colors ${errors.description ? 'border-red-500' : 'border-border focus:border-primary'}`}
+              />
+              {errors.description && <p className="text-xs text-red-400 mt-1">{errors.description.message}</p>}
+            </div>
+          </div>
+
+          {/* SKILLS */}
+          <div className="pt-6 border-t border-border">
+            <Controller
+              control={control}
+              name="skills"
+              render={({ field: { onChange, value } }) => (
+                <SkillSelector 
+                  selectedSkills={value} 
+                  setSelectedSkills={onChange} 
+                />
+              )}
+            />
+            {errors.skills && <p className="text-xs text-red-400 mt-1">{errors.skills.message}</p>}
+          </div>
+
+          {/* TEAM SIZE & DEADLINE */}
+          <div className="pt-6 border-t border-border grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-textMain mb-2">Team Size</label>
+              <input 
+                type="number"
+                {...register("teamSize")}
+                className={`w-full bg-background border rounded-xl px-4 py-3 text-textMain focus:outline-none transition-colors ${errors.teamSize ? 'border-red-500' : 'border-border focus:border-primary'}`}
+              />
+              {errors.teamSize && <p className="text-xs text-red-400 mt-1">{errors.teamSize.message}</p>}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-textMain mb-2">Deadline</label>
+              <input 
+                type="date" 
+                {...register("deadline")}
+                className="w-full bg-background border border-border rounded-xl px-4 py-3 text-textMain focus:outline-none focus:border-primary [color-scheme:dark]"
+              />
+            </div>
+          </div>
+
+          {/* ACTIONS */}
+          <div className="pt-6 flex justify-end gap-4">
+            <Button variant="ghost" onClick={() => navigate(-1)} type="button">
+              Cancel
+            </Button>
+            <Button type="submit" isLoading={isSubmitting}>
+              <Save size={20} /> Save Changes
+            </Button>
+          </div>
+        </form>
+      </Card>
     </div>
   );
 };

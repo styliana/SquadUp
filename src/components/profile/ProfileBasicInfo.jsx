@@ -1,9 +1,10 @@
 import { GraduationCap, User } from 'lucide-react';
 import AvatarUpload from '../AvatarUpload'; 
+import Card from '../ui/Card'; // Używamy Card
 
 const ProfileBasicInfo = ({ profile, setProfile, isEditing }) => {
   return (
-    <div className="bg-surface border border-white/5 rounded-2xl p-8">
+    <Card className="p-8">
       <div className="flex items-center gap-2 text-textMain font-semibold mb-6">
         <User size={20} className="text-primary" /> Basic Information
       </div>
@@ -29,18 +30,28 @@ const ProfileBasicInfo = ({ profile, setProfile, isEditing }) => {
           <div>
             <label className="text-xs text-textMuted uppercase font-bold block mb-1">Full Name</label>
             {isEditing ? (
-              <input type="text" value={profile.full_name || ''} onChange={e => setProfile({...profile, full_name: e.target.value})} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-textMain focus:border-primary" />
+              <input 
+                type="text" 
+                value={profile.full_name || ''} 
+                onChange={e => setProfile({...profile, full_name: e.target.value})} 
+                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-textMain focus:border-primary focus:outline-none transition-colors" 
+              />
             ) : (<h2 className="text-2xl font-bold text-textMain">{profile.full_name || 'Anonymous User'}</h2>)}
           </div>
           <div>
             <label className="text-xs text-textMuted uppercase font-bold block mb-1">University</label>
             {isEditing ? (
-              <input type="text" value={profile.university || ''} onChange={e => setProfile({...profile, university: e.target.value})} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-textMain focus:border-primary" />
+              <input 
+                type="text" 
+                value={profile.university || ''} 
+                onChange={e => setProfile({...profile, university: e.target.value})} 
+                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-textMain focus:border-primary focus:outline-none transition-colors" 
+              />
             ) : (<div className="flex items-center gap-2 text-textMuted"><GraduationCap size={18} />{profile.university || 'Not specified'}</div>)}
           </div>
         </div>
       </div>
-    </div>
+    </Card>
   );
 };
 

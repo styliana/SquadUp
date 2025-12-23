@@ -1,4 +1,27 @@
-// Definicje kolorów dla typów projektów
+// Statusy projektów (zgodne z bazą danych)
+export const PROJECT_STATUS = {
+  OPEN: 1,
+  CLOSED: 2,
+  ARCHIVED: 3
+};
+
+// Statusy aplikacji (tekstowe)
+export const APPLICATION_STATUS = {
+  PENDING: 'pending',
+  ACCEPTED: 'accepted',
+  REJECTED: 'rejected'
+};
+
+// Nazwy tabel w bazie (dla porządku)
+export const TABLE_NAMES = {
+  PROJECTS: 'projects',
+  PROFILES: 'profiles',
+  APPLICATIONS: 'applications',
+  CATEGORIES: 'categories',
+  SKILLS: 'skills'
+};
+
+// Style wizualne (Badge)
 export const PROJECT_TYPE_STYLES = {
   'Hackathon': 'bg-blue-500/20 text-blue-400 border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.15)]',
   'Competition': 'bg-purple-500/20 text-purple-400 border-purple-500/30 shadow-[0_0_10px_rgba(168,85,247,0.15)]',
@@ -6,11 +29,9 @@ export const PROJECT_TYPE_STYLES = {
   'Startup': 'bg-orange-500/20 text-orange-400 border-orange-500/30 shadow-[0_0_10px_rgba(249,115,22,0.15)]',
   'Research': 'bg-pink-500/20 text-pink-400 border-pink-500/30 shadow-[0_0_10px_rgba(236,72,153,0.15)]',
   'Non-profit': 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.15)]',
-  // Fallback (domyślny styl)
   'Default': 'bg-gray-500/20 text-gray-400 border-gray-500/30'
 };
 
-// Definicje kolorów dla statusów aplikacji
 export const APPLICATION_STATUS_STYLES = {
   pending: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20 shadow-[0_0_10px_rgba(234,179,8,0.1)]",
   accepted: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_10px_rgba(52,211,153,0.1)]",

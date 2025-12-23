@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
-import { useDebounce } from '../../hooks/useDebounce'; // Upewnij się co do ścieżki
+import { useDebounce } from '../../hooks/useDebounce';
+import UserAvatar from '../UserAvatar'; // Importujemy nasz główny komponent
 
 const ChatSidebar = ({ users, selectedUser, onSelectUser, unreadMap, loading, onSearch }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  // Debounce: czekamy 500ms po zakończeniu pisania zanim wywołamy API
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
-  // Reagujemy na zmianę debouncedSearchTerm -> wywołujemy onSearch (z hooka useChat)
   useEffect(() => {
     if (onSearch) {
       onSearch(debouncedSearchTerm);
@@ -16,10 +15,11 @@ const ChatSidebar = ({ users, selectedUser, onSelectUser, unreadMap, loading, on
 
   return (
     <div className={`w-full md:w-80 border-r border-border flex flex-col bg-surface/50 ${selectedUser ? 'hidden md:flex' : 'flex'}`}>
+      {/* HEADER */}
       <div className="p-4 border-b border-border">
         <h2 className="text-xl font-bold text-textMain mb-4">Messages</h2>
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-textMuted" size={18} />
           <input 
             type="text" 
             placeholder="Search users..." 
@@ -30,6 +30,7 @@ const ChatSidebar = ({ users, selectedUser, onSelectUser, unreadMap, loading, on
         </div>
       </div>
 
+      {/* LISTA UŻYTKOWNIKÓW */}
       <div className="flex-1 overflow-y-auto">
         {loading ? (
           <div className="p-4 text-textMuted text-center text-sm">Loading contacts...</div>
@@ -55,7 +56,14 @@ const ChatSidebar = ({ users, selectedUser, onSelectUser, unreadMap, loading, on
                 }`}
               >
                 <div className="relative shrink-0">
-                  <UserAvatar u={u} hasUnread={hasUnread} />
+                  <UserAvatar 
+                    avatarUrl={u.avatar_url} 
+                    name={u.full_name || u.email} 
+                    className="w-10 h-10" 
+                  />
+                  {hasUnread && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 w-3 h-3 rounded-full border-2 border-surface animate-pulse"></span>
+                  )}
                 </div>
                 
                 <div className="flex-1 min-w-0">
@@ -76,21 +84,5 @@ const ChatSidebar = ({ users, selectedUser, onSelectUser, unreadMap, loading, on
     </div>
   );
 };
-
-// Mały pomocnik do Avatara, żeby kod był czystszy
-const UserAvatar = ({ u, hasUnread }) => (
-  <>
-    {u.avatar_url ? (
-      <img src={u.avatar_url} className="w-10 h-10 rounded-full object-cover" alt="User" />
-    ) : (
-      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-textMain font-bold uppercase">
-        {u.email ? u.email.charAt(0) : '?'}
-      </div>
-    )}
-    {hasUnread && (
-      <span className="absolute -top-1 -right-1 bg-red-500 w-3 h-3 rounded-full border-2 border-surface"></span>
-    )}
-  </>
-);
 
 export default ChatSidebar;

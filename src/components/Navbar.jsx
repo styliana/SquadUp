@@ -6,6 +6,7 @@ import { supabase } from '../supabaseClient';
 import UserAvatar from './UserAvatar';
 import NotificationsMenu from './NotificationsMenu'; 
 import { useTheme } from '../hooks/useTheme';
+import Button from './ui/Button'; // Importujemy Button
 
 const Navbar = () => {
   const location = useLocation();
@@ -69,6 +70,7 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           
+          {/* LOGO */}
           <div className="flex items-center gap-4">
             <Link to="/" className="flex items-center gap-2 group" aria-label="Go to Home Page">
               <div className="bg-gradient-to-br from-primary to-blue-600 p-1.5 rounded-lg group-hover:shadow-[0_0_15px_rgba(6,182,212,0.5)] transition-all duration-300">
@@ -80,6 +82,7 @@ const Navbar = () => {
             </Link>
           </div>
 
+          {/* DESKTOP MENU */}
           <div className="hidden md:flex items-center space-x-8">
             <NavLink to="/projects" icon={<Megaphone size={18} />} text="Find Projects" active={isActive('/projects')} />
             
@@ -112,21 +115,22 @@ const Navbar = () => {
             )}
           </div>
 
+          {/* RIGHT SIDE ACTIONS */}
           <div className="flex items-center gap-3">
-            <button
+            <Button
+              variant="ghost"
               onClick={toggleTheme}
-              className="p-2 rounded-lg text-textMuted hover:text-primary hover:bg-textMain/5 transition-all duration-300"
+              className="p-2 h-10 w-10 rounded-lg"
               title="Toggle Theme"
-              aria-label="Toggle Dark Mode"
             >
               {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
+            </Button>
 
             {user ? (
               <>
                 <NotificationsMenu user={user} />
 
-                <Link to="/profile" className="hidden md:flex items-center gap-2 group ml-2" aria-label="Go to Profile Settings">
+                <Link to="/profile" className="hidden md:flex items-center gap-2 group ml-2">
                   <UserAvatar 
                     avatarUrl={avatarUrl} 
                     name={user.email} 
@@ -135,44 +139,47 @@ const Navbar = () => {
                   />
                 </Link>
                 
-                <button 
+                <Button 
+                  variant="ghost"
                   onClick={handleLogout}
-                  className="hidden md:block p-2 text-textMuted hover:text-red-400 transition-colors"
+                  className="hidden md:flex p-2 h-10 w-10 text-textMuted hover:text-red-400"
                   title="Log out"
                 >
                   <LogOut size={20} />
-                </button>
+                </Button>
 
-                <button 
+                <Button 
+                  variant="ghost"
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                  className="md:hidden p-2 text-textMuted hover:text-textMain transition-colors"
+                  className="md:hidden p-2 h-10 w-10"
                 >
                   {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-                </button>
+                </Button>
               </>
             ) : (
               <div className="flex items-center gap-2">
                 <Link to="/login">
-                  <button className="bg-gradient-to-r from-primary to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white font-medium py-2 px-5 rounded-lg transition-all duration-300 text-sm shadow-[0_0_10px_rgba(6,182,212,0.3)]">
+                  <Button className="py-2 px-5 text-sm">
                     Sign In
-                  </button>
+                  </Button>
                 </Link>
-                <button 
+                <Button 
+                  variant="ghost"
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                  className="md:hidden p-2 text-textMuted hover:text-textMain ml-1"
+                  className="md:hidden p-2 h-10 w-10"
                 >
                   {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-                </button>
+                </Button>
               </div>
             )}
           </div>
         </div>
       </div>
 
+      {/* MOBILE MENU */}
       {isMobileMenuOpen && (
         <div className="md:hidden border-t border-border bg-surface animate-in slide-in-from-top-2 duration-200 shadow-xl">
           <div className="px-4 py-4 space-y-4">
-            
             <div className="space-y-2">
               <MobileNavLink to="/projects" icon={<Megaphone size={18} />} text="Find Projects" active={isActive('/projects')} />
               

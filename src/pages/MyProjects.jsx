@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
-import { Briefcase, MessageCircle, User, Check, X, Trash2, Edit2, Clock, Eye, Sparkles, Loader2 } from 'lucide-react'; 
+import { Briefcase, MessageCircle, User, Check, X, Trash2, Edit2, Clock, Eye, Sparkles } from 'lucide-react'; 
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import UserAvatar from '../components/UserAvatar';
 import StatusBadge from '../components/StatusBadge';
-import useThrowAsyncError from '../hooks/useThrowAsyncError';
-
-// Import skeletonu
 import DashboardSkeleton from '../components/skeletons/DashboardSkeleton';
+import useThrowAsyncError from '../hooks/useThrowAsyncError';
+import { PROJECT_STATUS } from '../utils/constants'; // Import stałych
 
 const MyProjects = () => {
   const { user } = useAuth();
@@ -21,7 +20,8 @@ const MyProjects = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('published');
 
-  const isProjectClosed = (project) => project.status_id === 2;
+  // Używamy stałej zamiast magic number '2'
+  const isProjectClosed = (project) => project.status_id === PROJECT_STATUS.CLOSED;
 
   const fetchData = async () => {
     setLoading(true);
@@ -42,6 +42,7 @@ const MyProjects = () => {
 
       if (err1) throw err1;
 
+      // Sortowanie: Projekty wymagające uwagi (pending apps) na górze
       const sortedMyProjects = (myProjects || []).sort((a, b) => {
         const aHasAction = a.applications?.some(app => app.status === 'pending');
         const bHasAction = b.applications?.some(app => app.status === 'pending');
@@ -114,45 +115,63 @@ const MyProjects = () => {
 
   const handleStatusChange = async (applicationId, projectId, newStatus) => {
     try {
-      let resultStatusId = 1;
+      let resultStatusId = PROJECT_STATUS.OPEN;
+
       if (newStatus === 'accepted') {
+        // RPC w bazie sprawdza czy full i zwraca 'FULL'
         const { data, error } = await supabase.rpc('approve_candidate', { app_id: applicationId, proj_id: projectId });
+        
         if (error) {
             console.error('RPC Error:', error);
+            // Fallback: ręczna aktualizacja
             await supabase.from('applications').update({ status: newStatus }).eq('id', applicationId);
         } else {
-            resultStatusId = data === 'FULL' ? 2 : 1;
+            resultStatusId = data === 'FULL' ? PROJECT_STATUS.CLOSED : PROJECT_STATUS.OPEN;
         }
       } else {
         const { error } = await supabase.from('applications').update({ status: newStatus }).eq('id', applicationId);
         if (error) throw error;
       }
 
+      // Aktualizacja stanu lokalnego (Optymistyczna + poprawki z bazy)
       setCreatedProjects(prev => prev.map(project => {
         if (project.id !== projectId) return project;
+        
         const updatedApps = project.applications?.map(app => 
           app.id === applicationId ? { ...app, status: newStatus } : app
         ) || [];
+        
         let updatedMembers = project.members_current;
         let updatedStatusId = project.status_id;
-        if (newStatus === 'accepted' && project.members_current < project.members_max) updatedMembers += 1;
-        if (updatedMembers >= project.members_max) updatedStatusId = 2;
-        return { ...project, status_id: updatedStatusId, members_current: updatedMembers, applications: updatedApps };
+
+        if (newStatus === 'accepted' && project.members_current < project.members_max) {
+            updatedMembers += 1;
+        }
+        
+        if (updatedMembers >= project.members_max) {
+            updatedStatusId = PROJECT_STATUS.CLOSED;
+        }
+
+        return { 
+            ...project, 
+            status_id: updatedStatusId, 
+            members_current: updatedMembers, 
+            applications: updatedApps 
+        };
       }));
+
       toast.success(newStatus === 'accepted' ? "Candidate accepted!" : "Candidate rejected.");
+
     } catch (error) {
       console.error(error);
       toast.error("Action failed.");
     }
   };
 
-  // USUNIĘTO: if (loading) return <Loader ... /> 
-  // Zamiast tego renderujemy strukturę poniżej:
-
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       
-      {/* HEADER - Zawsze widoczny */}
+      {/* HEADER */}
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-textMain flex items-center gap-3">
           <div className="p-2 bg-gradient-to-br from-primary to-blue-600 rounded-xl shadow-lg shadow-primary/20">
@@ -162,7 +181,7 @@ const MyProjects = () => {
         </h1>
       </div>
 
-      {/* TABS - Zawsze widoczne */}
+      {/* TABS */}
       <div className="flex gap-6 border-b border-border mb-8">
         <button onClick={() => setActiveTab('published')} className={`pb-4 px-2 text-lg font-medium transition-all relative ${activeTab === 'published' ? 'text-textMain' : 'text-textMuted hover:text-textMain'}`}>
           Published Projects 
@@ -176,14 +195,12 @@ const MyProjects = () => {
         </button>
       </div>
 
-      {/* CONTENT AREA */}
+      {/* CONTENT WITH SKELETON */}
       {loading ? (
-        // --- SKELETON LOADER ---
         <DashboardSkeleton activeTab={activeTab} />
       ) : (
-        // --- REAL CONTENT ---
         <>
-          {/* TAB 1: PUBLISHED PROJECTS */}
+          {/* TAB 1: PUBLISHED */}
           {activeTab === 'published' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               {createdProjects.length === 0 ? (
@@ -227,6 +244,7 @@ const MyProjects = () => {
                       </div>
                     </div>
 
+                    {/* APPLICATIONS LIST */}
                     <div className="p-6 bg-background border-t border-border">
                       {(!project.applications || project.applications.length === 0) ? (
                         <div className="flex flex-col items-center justify-center py-8 text-textMuted opacity-60">
@@ -271,7 +289,7 @@ const MyProjects = () => {
             </div>
           )}
           
-          {/* TAB 2: APPLICATIONS SENT */}
+          {/* TAB 2: APPLIED */}
           {activeTab === 'applied' && (
             <div className="grid grid-cols-1 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               {appliedProjects.length === 0 ? (

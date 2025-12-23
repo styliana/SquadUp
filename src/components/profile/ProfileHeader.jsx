@@ -1,5 +1,6 @@
 import { Save, Edit2, Loader2, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import Button from '../ui/Button';
 
 const ProfileHeader = ({ 
   profile, 
@@ -15,7 +16,10 @@ const ProfileHeader = ({
     <div className="flex justify-between items-center mb-8">
       <div className="flex items-center gap-4">
         {!isOwner && (
-          <button onClick={() => navigate(-1)} className="p-2 text-textMuted hover:text-textMain transition-colors rounded-lg bg-surface/50 border border-border">
+          <button 
+            onClick={() => navigate(-1)} 
+            className="p-2 text-textMuted hover:text-textMain transition-colors rounded-lg bg-surface/50 border border-border"
+          >
             <ArrowLeft size={20} />
           </button>
         )}
@@ -25,15 +29,14 @@ const ProfileHeader = ({
       </div>
 
       {isOwner && (
-        <button 
+        <Button 
           onClick={() => isEditing ? updateProfile() : setIsEditing(true)}
           disabled={isSaving}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-medium transition-all ${
-            isEditing ? 'bg-primary text-textMain border-primary' : 'border-border text-textMain hover:bg-white/5'
-          }`}
+          isLoading={isSaving}
+          variant={isEditing ? 'primary' : 'secondary'}
         >
-          {isSaving ? <Loader2 size={18} className="animate-spin" /> : isEditing ? <><Save size={18} /> Save</> : <><Edit2 size={18} /> Edit</>}
-        </button>
+          {isEditing ? <><Save size={18} /> Save</> : <><Edit2 size={18} /> Edit</>}
+        </Button>
       )}
     </div>
   );

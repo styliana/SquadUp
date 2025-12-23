@@ -6,7 +6,11 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabaseClient';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { User, Mail, Lock, Check, X, BadgeCheck, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { User, Mail, Lock, Check, BadgeCheck, AlertCircle, Eye, EyeOff } from 'lucide-react';
+
+// Import UI Kit
+import Button from '../components/ui/Button';
+import Card from '../components/ui/Card';
 
 // --- 1. SCHEMAT WALIDACJI (ZOD) ---
 const registerSchema = z.object({
@@ -26,35 +30,31 @@ const registerSchema = z.object({
   }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match",
-  path: ["confirmPassword"], // Tutaj pokaże się błąd
+  path: ["confirmPassword"],
 });
 
 const Register = () => {
   const { signUp } = useAuth();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
+  
   // --- 2. KONFIGURACJA REACT HOOK FORM ---
   const {
     register,
     handleSubmit,
     watch,
-    formState: { errors }
+    formState: { errors, isSubmitting }
   } = useForm({
     resolver: zodResolver(registerSchema),
-    mode: "onChange" // Walidacja w czasie rzeczywistym
+    mode: "onChange"
   });
 
-  // Obserwujemy hasło, żeby dynamicznie wyświetlać pasek siły (tylko do UI)
   const passwordValue = watch("password", "");
 
   // --- 3. LOGIKA OBSŁUGI FORMULARZA ---
   const onSubmit = async (data) => {
-    setIsSubmitting(true);
-    
     try {
-      // Dodatkowe sprawdzenie unikalności na backendzie (można to też zrobić w Zod z async refine, ale tu jest bezpieczniej)
+      // Sprawdzenie unikalności username
       const { count: usernameCount } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true })
@@ -62,11 +62,10 @@ const Register = () => {
 
       if (usernameCount > 0) {
         toast.error("Username already taken");
-        setIsSubmitting(false);
         return;
       }
 
-      // Rejestracja w Supabase Auth
+      // Rejestracja
       const { error } = await signUp({ 
         email: data.email, 
         password: data.password,
@@ -92,12 +91,10 @@ const Register = () => {
       } else {
         toast.error("Registration failed.", { description: error.message });
       }
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
-  // Helpery do UI
+  // Helpery do UI hasła
   const checkRequirement = (regex) => regex.test(passwordValue);
   const passwordStrength = [
     passwordValue.length >= 6,
@@ -113,13 +110,13 @@ const Register = () => {
 
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-64px)] py-12 px-4">
-      <div className="bg-surface p-8 rounded-3xl border border-border w-full max-w-lg shadow-2xl animate-in fade-in zoom-in duration-300">
+      {/* Używamy Card z dodatkowymi klasami dla animacji i szerokości */}
+      <Card className="w-full max-w-lg shadow-2xl animate-in fade-in zoom-in duration-300 p-8">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-textMain mb-2">Create Account</h2>
           <p className="text-textMuted">Join the squad and start building.</p>
         </div>
         
-        {/* onSubmit z RHF automatycznie blokuje wywołanie, jeśli walidacja Zod nie przejdzie */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           
           {/* IMIĘ */}
@@ -242,19 +239,19 @@ const Register = () => {
             {errors.termsAccepted && <p className="text-xs text-red-400 mt-1 ml-1">{errors.termsAccepted.message}</p>}
           </div>
 
-          <button 
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full py-4 bg-gradient-to-r from-primary to-blue-600 hover:shadow-lg hover:shadow-primary/25 text-textMain font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-[0.98] mt-4 flex items-center justify-center gap-2"
+          <Button 
+            type="submit" 
+            isLoading={isSubmitting} 
+            className="w-full py-4 mt-4"
           >
-            {isSubmitting ? <Loader2 className="animate-spin" /> : 'Create Account'}
-          </button>
+            Create Account
+          </Button>
         </form>
         
         <p className="text-center text-textMuted mt-8 text-sm">
           Already have an account? <Link to="/login" className="text-primary hover:underline font-medium">Log In</Link>
         </p>
-      </div>
+      </Card>
     </div>
   );
 };

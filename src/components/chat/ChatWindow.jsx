@@ -1,27 +1,25 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, MoreHorizontal } from 'lucide-react';
+import { Send, MoreHorizontal, ArrowLeft } from 'lucide-react';
 import MessageBubble from './MessageBubble';
+import UserAvatar from '../UserAvatar'; // Importujemy UserAvatar
+import Button from '../ui/Button';     // Importujemy Button
 
 const ChatWindow = ({ selectedUser, messages, currentUser, onSendMessage, onTyping, isTyping, onBack }) => {
   const [newMessage, setNewMessage] = useState("");
-  
-  // ZMIANA: Ref do kontenera (diva z paskiem przewijania), a nie do "końca wiadomości"
   const chatContainerRef = useRef(null);
 
-  // ZMIANA: Scrollujemy tylko wewnętrzny kontener
+  // Auto-scroll na dół
   useEffect(() => {
     if (chatContainerRef.current) {
       const { scrollHeight, clientHeight } = chatContainerRef.current;
-      
-      // Jeśli treści jest więcej niż miejsca, przewiń na dół
       if (scrollHeight > clientHeight) {
         chatContainerRef.current.scrollTo({
           top: scrollHeight,
-          behavior: 'smooth' // Płynne przewijanie
+          behavior: 'smooth'
         });
       }
     }
-  }, [messages, isTyping]); // Uruchom, gdy przyjdą wiadomości lub ktoś pisze
+  }, [messages, isTyping]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -38,8 +36,10 @@ const ChatWindow = ({ selectedUser, messages, currentUser, onSendMessage, onTypi
   if (!selectedUser) {
     return (
       <div className="hidden md:flex flex-1 flex-col items-center justify-center text-textMuted bg-background">
-        <MoreHorizontal size={48} opacity={0.2} />
-        <p className="text-lg mt-4">Select a conversation to start chatting</p>
+        <div className="p-6 bg-surface border border-white/5 rounded-full mb-4">
+            <MoreHorizontal size={48} opacity={0.3} />
+        </div>
+        <p className="text-lg font-medium">Select a conversation to start chatting</p>
       </div>
     );
   }
@@ -47,17 +47,21 @@ const ChatWindow = ({ selectedUser, messages, currentUser, onSendMessage, onTypi
   return (
     <div className="flex-1 flex flex-col bg-background h-full">
       {/* HEADER */}
-      <div className="h-16 border-b border-border flex items-center gap-3 px-6 bg-surface/30 shrink-0">
-        <button onClick={onBack} className="md:hidden text-textMuted mr-2">←</button>
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-textMain font-bold uppercase overflow-hidden">
-          {selectedUser.avatar_url ? (
-             <img src={selectedUser.avatar_url} className="w-full h-full object-cover" alt="Avatar" />
-          ) : (
-             selectedUser.email ? selectedUser.email.charAt(0) : '?'
-          )}
+      <div className="h-16 border-b border-border flex items-center gap-3 px-4 md:px-6 bg-surface/30 shrink-0 backdrop-blur-sm">
+        <div className="md:hidden">
+            <Button variant="ghost" onClick={onBack} className="p-2 h-auto rounded-lg">
+                <ArrowLeft size={20} />
+            </Button>
         </div>
+        
+        <UserAvatar 
+            avatarUrl={selectedUser.avatar_url} 
+            name={selectedUser.full_name || selectedUser.email} 
+            className="w-10 h-10" 
+        />
+        
         <div>
-          <h3 className="font-bold text-textMain">{selectedUser.full_name || selectedUser.email}</h3>
+          <h3 className="font-bold text-textMain text-sm md:text-base">{selectedUser.full_name || selectedUser.email}</h3>
           <p className="text-xs text-primary flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
             Online
@@ -65,11 +69,10 @@ const ChatWindow = ({ selectedUser, messages, currentUser, onSendMessage, onTypi
         </div>
       </div>
 
-      {/* LISTA WIADOMOŚCI */}
-      {/* Tutaj przypisujemy ref do kontenera, który ma overflow-y-auto */}
+      {/* MESSAGES LIST */}
       <div 
         ref={chatContainerRef}
-        className="flex-1 overflow-y-auto p-6 space-y-4"
+        className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4"
       >
         {messages.map((msg) => (
           <MessageBubble 
@@ -90,7 +93,7 @@ const ChatWindow = ({ selectedUser, messages, currentUser, onSendMessage, onTypi
         )}
       </div>
 
-      {/* FORMULARZ */}
+      {/* INPUT FORM */}
       <div className="p-4 border-t border-border bg-surface/30 shrink-0">
         <form onSubmit={handleSubmit} className="flex gap-3">
           <input 
@@ -100,9 +103,13 @@ const ChatWindow = ({ selectedUser, messages, currentUser, onSendMessage, onTypi
             placeholder="Type a message..." 
             className="flex-1 bg-surface border border-border rounded-xl px-4 py-3 text-textMain focus:outline-none focus:border-primary transition-colors"
           />
-          <button disabled={!newMessage.trim()} className="p-3 bg-primary hover:bg-primary/90 text-textMain rounded-xl disabled:opacity-50">
+          <Button 
+            type="submit" 
+            disabled={!newMessage.trim()} 
+            className="w-12 h-12 p-0 rounded-xl" // Kwadratowy przycisk
+          >
             <Send size={20} />
-          </button>
+          </Button>
         </form>
       </div>
     </div>

@@ -1,8 +1,9 @@
 import { TrendingUp, Send, CheckCircle } from 'lucide-react';
+import Card from '../ui/Card';
 
 const ProfileStats = ({ stats }) => {
   return (
-    <div className="bg-surface border border-white/5 rounded-2xl p-6">
+    <Card className="p-6">
       <h3 className="font-bold text-textMain mb-6">Activity</h3>
       <div className="space-y-6">
         <div className="flex justify-between items-center group">
@@ -29,7 +30,7 @@ const ProfileStats = ({ stats }) => {
           <span className="font-bold text-textMain text-lg">{stats.accepted || 0}</span>
         </div>
       </div>
-    </div>
+    </Card>
   );
 };
 

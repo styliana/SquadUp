@@ -5,7 +5,11 @@ import { z } from 'zod';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Mail, Lock, Loader2, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
+
+// Import UI Kit
+import Button from '../components/ui/Button';
+import Card from '../components/ui/Card';
 
 // 1. SCHEMAT WALIDACJI
 const loginSchema = z.object({
@@ -54,7 +58,8 @@ const Login = () => {
 
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-64px)] py-10 px-4">
-      <div className="bg-surface p-8 rounded-3xl border border-border w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-300">
+      {/* Używamy Card zamiast zwykłego diva */}
+      <Card className="w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-300 p-8">
         
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-textMain mb-2">Welcome Back</h2>
@@ -122,17 +127,13 @@ const Login = () => {
             </Link>
           </div>
 
-          <button 
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full py-3 bg-gradient-to-r from-primary to-blue-600 hover:shadow-lg hover:shadow-primary/25 text-textMain font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-[0.98] flex items-center justify-center gap-2"
+          <Button 
+            type="submit" 
+            isLoading={isSubmitting} 
+            className="w-full py-3"
           >
-            {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : (
-              <>
-                Log In <ArrowRight size={18} />
-              </>
-            )}
-          </button>
+            Log In <ArrowRight size={18} />
+          </Button>
         </form>
         
         <div className="mt-8 pt-6 border-t border-border text-center">
@@ -144,7 +145,7 @@ const Login = () => {
           </p>
         </div>
 
-      </div>
+      </Card>
     </div>
   );
 };

@@ -1,20 +1,22 @@
 import React from 'react';
-// IMPORT NARZĘDZIA
-import { formatDate } from '../../utils/formatDate'; // Ścieżka o jeden poziom wyżej (components/chat -> utils)
+import { formatDate } from '../../utils/formatDate';
+import { cn } from '../../utils/cn'; // Używamy utility do łączenia klas
 
 const MessageBubble = ({ message, isMe }) => {
-  // Usunęliśmy funkcję formatMessageDate, bo mamy teraz formatDate
-
   return (
-    <div className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[75%] rounded-2xl p-4 ${
+    <div className={cn("flex", isMe ? 'justify-end' : 'justify-start')}>
+      <div className={cn(
+        "max-w-[75%] rounded-2xl p-4 shadow-sm relative", 
         isMe 
-          ? 'bg-gradient-to-r from-primary to-blue-600 text-textMain rounded-br-none' 
-          : 'bg-surface border border-border text-textMain rounded-bl-none' 
-      }`}>
+          ? 'bg-gradient-to-r from-primary to-blue-600 text-white rounded-br-none' 
+          : 'bg-surface border border-border text-textMain rounded-bl-none'
+      )}>
         <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
-        <div className={`text-[10px] mt-1 text-right flex items-center justify-end gap-1 ${isMe ? 'text-blue-100' : 'text-gray-500'}`}>
-          {/* UŻYCIE formatDate */}
+        
+        <div className={cn(
+            "text-[10px] mt-1 text-right flex items-center justify-end gap-1 opacity-70",
+            isMe ? 'text-blue-100' : 'text-textMuted'
+        )}>
           <span>{formatDate(message.created_at, { relative: true })}</span>
           {isMe && <span>{message.is_read ? '✓✓' : '✓'}</span>}
         </div>
