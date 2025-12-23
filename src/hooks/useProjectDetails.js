@@ -1,39 +1,26 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { toast } from 'sonner';
 
 export const useProjectDetails = (id) => {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!id) return;
-
-    const fetchProjectDetails = async () => {
-      setLoading(true);
+    const fetchProject = async () => {
+      if (!id) return;
+      
       try {
+        setLoading(true);
+        // Pobieramy projekt wraz z relacjami: autor, kategoria, skille
         const { data, error } = await supabase
           .from('projects')
           .select(`
             *,
-            profiles (
-              id,
-              full_name,
-              avatar_url,
-              university
-            ),
+            profiles:author_id (*),
+            categories ( name ),
             project_skills (
-              skills (
-                name
-              )
-            ),
-            applications (
-              id,
-              status,
-              profiles (
-                id,
-                full_name,
-                avatar_url
-              )
+              skills ( name )
             )
           `)
           .eq('id', id)
@@ -41,21 +28,26 @@ export const useProjectDetails = (id) => {
 
         if (error) throw error;
 
-        // Mapowanie relacyjnych skilli na płaską tablicę nazw dla komponentu
+        // Formatowanie danych pod widok (Frontend oczekuje pola 'type' i tablicy 'skills')
         const formattedProject = {
-          ...data,
-          skills: data.project_skills?.map(ps => ps.skills.name) || []
+            ...data,
+            // ZMIANA: Mapujemy obiekt kategorii na string (nazwę)
+            type: data.categories?.name || 'Project', 
+            // ZMIANA: Spłaszczamy strukturę skilli do prostej tablicy nazw
+            skills: data.project_skills?.map(ps => ps.skills?.name) || []
         };
-
+        
         setProject(formattedProject);
+
       } catch (error) {
-        console.error('Error fetching project details:', error);
+        console.error("Error fetching project:", error);
+        toast.error("Project not found");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchProjectDetails();
+    fetchProject();
   }, [id]);
 
   return { project, loading };
