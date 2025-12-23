@@ -118,81 +118,78 @@ const MyProjects = () => {
   };
 
   const handleStatusChange = async (applicationId, projectId, newStatus) => {
-    try {
-      const targetProject = createdProjects.find(p => p.id === projectId);
+  try {
+    const targetProject = createdProjects.find(p => p.id === projectId);
+    
+    if (newStatus === 'accepted') {
+      // Wywołujemy RPC, które teraz załatwia akceptację I ewentualne zamknięcie projektu
+      const { error: rpcError } = await supabase.rpc('approve_candidate', { 
+        app_id: applicationId, 
+        proj_id: projectId 
+      });
+
+      if (rpcError) throw rpcError;
+
+      // Logika powiadomień po pełnym składzie
+      const newMembersCount = targetProject.members_current + 1;
+      if (targetProject && newMembersCount >= targetProject.members_max) {
+         const recipients = targetProject.applications
+           .filter(app => app.status === 'accepted' || app.id === applicationId)
+           .map(app => app.applicant_id);
+
+         const uniqueRecipients = [...new Set(recipients)];
+         const messagesPayload = uniqueRecipients.map(recipientId => ({
+             project_id: projectId,
+             sender_id: user.id,
+             recipient_id: recipientId,
+             content: "We have a full team let's start working!"
+         }));
+
+         if (messagesPayload.length > 0) {
+             const { error: msgError } = await supabase.from('messages').insert(messagesPayload);
+             if (!msgError) toast.success("Team full! Group message sent.");
+         }
+      }
+    } else {
+      // Odrzucenie aplikacji pozostaje standardowym update'em
+      const { error } = await supabase.from('applications')
+        .update({ status: newStatus })
+        .eq('id', applicationId);
+      if (error) throw error;
+    }
+
+    // AKTUALIZACJA UI (Synchronizacja lokalnego stanu z tym, co zrobiła baza)
+    setCreatedProjects(prev => prev.map(project => {
+      if (project.id !== projectId) return project;
       
-      if (newStatus === 'accepted') {
-        const { error } = await supabase.rpc('approve_candidate', { app_id: applicationId, proj_id: projectId });
-        if (error) await supabase.from('applications').update({ status: newStatus }).eq('id', applicationId);
+      const updatedApps = project.applications?.map(app => 
+        app.id === applicationId ? { ...app, status: newStatus } : app
+      ) || [];
+      
+      const acceptedCount = updatedApps.filter(a => a.status === 'accepted').length;
+      const updatedMembersCount = 1 + acceptedCount;
 
-        // Obliczamy czy po tej akceptacji team jest pełny
-        const newMembersCount = targetProject.members_current + 1;
-        
-        if (targetProject && newMembersCount >= targetProject.members_max) {
-           // 1. Zamykamy projekt w bazie danych, aby zniknął z listy głównej
-           await supabase
-            .from('projects')
-            .update({ status_id: PROJECT_STATUS.CLOSED })
-            .eq('id', projectId);
-
-           // 2. Wysyłamy wiadomość do wszystkich członków
-           const recipients = targetProject.applications
-             .filter(app => app.status === 'accepted' || app.id === applicationId)
-             .map(app => app.applicant_id);
-
-           const uniqueRecipients = [...new Set(recipients)];
-           const messagesPayload = uniqueRecipients.map(recipientId => ({
-               project_id: projectId,
-               sender_id: user.id,
-               recipient_id: recipientId,
-               content: "We have a full team let's start working!"
-           }));
-
-           if (messagesPayload.length > 0) {
-               supabase.from('messages').insert(messagesPayload).then(({ error }) => {
-                   if (error) console.error("Message Error:", error);
-                   else toast.success("Team full! Group message sent.");
-               });
-           }
-        }
-      } else {
-        const { error } = await supabase.from('applications').update({ status: newStatus }).eq('id', applicationId);
-        if (error) throw error;
+      // Jeśli status to accepted i dobiliśmy do limitu, ustawiamy lokalnie CLOSED
+      let finalStatusId = project.status_id;
+      if (newStatus === 'accepted' && updatedMembersCount >= project.members_max) {
+          finalStatusId = PROJECT_STATUS.CLOSED;
       }
 
-      // Aktualizacja UI
-      setCreatedProjects(prev => prev.map(project => {
-        if (project.id !== projectId) return project;
-        
-        const updatedApps = project.applications?.map(app => 
-          app.id === applicationId ? { ...app, status: newStatus } : app
-        ) || [];
-        
-        const acceptedCount = updatedApps.filter(a => a.status === 'accepted').length;
-        const updatedMembers = 1 + acceptedCount;
+      return { 
+          ...project, 
+          status_id: finalStatusId, 
+          members_current: updatedMembersCount, 
+          applications: updatedApps 
+      };
+    }));
 
-        let updatedStatusId = project.status_id;
-        if (updatedMembers >= project.members_max) {
-            updatedStatusId = PROJECT_STATUS.CLOSED;
-        } else {
-            updatedStatusId = PROJECT_STATUS.OPEN;
-        }
+    toast.success(newStatus === 'accepted' ? "Candidate accepted!" : "Candidate rejected.");
 
-        return { 
-            ...project, 
-            status_id: updatedStatusId, 
-            members_current: updatedMembers, 
-            applications: updatedApps 
-        };
-      }));
-
-      toast.success(newStatus === 'accepted' ? "Candidate accepted!" : "Candidate rejected.");
-
-    } catch (error) {
-      console.error(error);
-      toast.error("Action failed.");
-    }
-  };
+  } catch (error) {
+    console.error("Status Change Error:", error);
+    toast.error("Action failed.");
+  }
+};
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
