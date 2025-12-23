@@ -76,6 +76,7 @@ const ProjectCard = ({ project, userSkills = [] }) => {
            </div>
            <div className="flex items-center gap-1.5" title="Deadline">
              <Calendar size={14} />
+             {/* Jeśli deadline jest NULL, wyświetl 'Flexible' */}
              <span>{project.deadline || 'Flexible'}</span>
            </div>
         </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form'; 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,9 +12,8 @@ import SkillSelector from '../components/SkillSelector';
 // Definicja schematu walidacji Zod
 const projectSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters"),
-  type: z.string().min(1, "Project type is required"),
+  type: z.string().min(1, "Project type is required"), // To nadal nazwa (dla UI), mapujemy na ID przy wysyłce
   description: z.string().min(20, "Description must be at least 20 characters"),
-  // ZMIANA: Teraz oczekujemy tablicy obiektów {id, name} ze SkillSelector
   skills: z.array(z.object({
     id: z.number(),
     name: z.string()
@@ -26,6 +25,7 @@ const projectSchema = z.object({
 const CreateProject = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [dbCategories, setDbCategories] = useState([]); // Pobierane z bazy
   
   const {
     register,
@@ -38,7 +38,7 @@ const CreateProject = () => {
     resolver: zodResolver(projectSchema),
     defaultValues: {
       title: '',
-      type: 'Hackathon',
+      type: '', // Puste na start, user musi wybrać
       description: '',
       skills: [],
       teamSize: 4,
@@ -47,38 +47,53 @@ const CreateProject = () => {
   });
 
   const selectedType = watch('type');
-  const categories = ['Hackathon', 'Portfolio', 'Startup', 'Research', 'Competition', 'Non-profit'];
+
+  // 1. Pobieramy dostępne kategorie z bazy
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const { data } = await supabase.from('categories').select('id, name');
+      if (data) setDbCategories(data);
+      // Ustawiamy domyślnie pierwszą, jeśli formularz jest pusty
+      if (data && data.length > 0 && !selectedType) {
+         setValue('type', data[0].name); 
+      }
+    };
+    fetchCategories();
+  }, [setValue, selectedType]);
 
   const onSubmit = async (data) => {
     if (!user) return toast.error('Login required');
     
+    // Znajdź ID wybranej kategorii
+    const selectedCategoryObj = dbCategories.find(c => c.name === data.type);
+    if (!selectedCategoryObj) return toast.error("Invalid category selected");
+
     try {
-      // KROK 1: Wstawienie projektu do tabeli 'projects'
-        const { data: newProject, error: projectError } = await supabase
-          .from('projects')
-          .insert([
-            {
-              title: data.title,
-              type: data.type,
-              description: data.description,
-              members_max: data.teamSize,
-              members_current: 1,
-              // NAPRAWA: Jeśli brak daty, wyślij NULL, a nie tekst 'Flexible'
-              deadline: data.deadline || null, 
-              author_id: user.id,
-              status_id: 1,
-            }
-          ])
+      // KROK 1: Wstawienie projektu
+      const { data: newProject, error: projectError } = await supabase
+        .from('projects')
+        .insert([
+          {
+            title: data.title,
+            category_id: selectedCategoryObj.id, // ZMIANA: Wysyłamy ID zamiast tekstu 'type'
+            description: data.description,
+            members_max: data.teamSize,
+            members_current: 1,
+            deadline: data.deadline || null, // NAPRAWA: null zamiast pustego stringa/Flexible
+            author_id: user.id,
+            status_id: 1,
+          }
+        ])
         .select()
         .single();
 
       if (projectError) throw projectError;
 
-      // KROK 2: Wstawienie powiązań do tabeli 'project_skills'
+      // KROK 2: Wstawienie skilli
       if (data.skills && data.skills.length > 0) {
         const skillsToInsert = data.skills.map(skillObj => ({
           project_id: newProject.id,
-          skill_id: skillObj.id // Używamy bigint ID z bazy
+          skill_id: skillObj.id
         }));
 
         const { error: skillsError } = await supabase
@@ -91,7 +106,7 @@ const CreateProject = () => {
       toast.success('Project created successfully! 🎉');
       navigate('/my-projects');
     } catch (error) {
-      console.error("Błąd podczas tworzenia projektu:", error);
+      console.error("Error creating project:", error);
       toast.error(`Failed to create project: ${error.message}`);
     }
   };
@@ -117,24 +132,28 @@ const CreateProject = () => {
             {errors.title && <p className="text-xs text-red-400 mt-1">{errors.title.message}</p>}
           </div>
 
-          {/* TYPE */}
+          {/* TYPE (Dynamiczne kategorie) */}
           <div>
             <label className="block text-sm font-medium text-textMain mb-3">Project Type *</label>
             <div className="flex flex-wrap gap-3">
-              {categories.map(cat => (
+              {dbCategories.length > 0 ? dbCategories.map(cat => (
                 <button
                   type="button"
-                  key={cat}
-                  onClick={() => setValue("type", cat)}
+                  key={cat.id}
+                  onClick={() => setValue("type", cat.name)}
                   className={`px-6 py-2.5 rounded-full text-sm font-medium border transition-all ${
-                    selectedType === cat 
+                    selectedType === cat.name
                     ? 'bg-primary/20 border-primary text-primary' 
                     : 'bg-background border-border text-textMuted hover:border-primary/50 hover:text-textMain'
                   }`}
                 >
-                  {cat}
+                  {cat.name}
                 </button>
-              ))}
+              )) : (
+                <div className="flex items-center gap-2 text-textMuted text-sm">
+                   <Loader2 className="animate-spin" size={16} /> Loading categories...
+                </div>
+              )}
             </div>
             {errors.type && <p className="text-xs text-red-400 mt-1">{errors.type.message}</p>}
           </div>

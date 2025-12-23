@@ -23,6 +23,8 @@ const Profile = () => {
   
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  
+  // ZMIANA: Przechowujemy obiekty {id, name}, a nie same stringi
   const [availableCategories, setAvailableCategories] = useState([]);
 
   const [profile, setProfile] = useState({
@@ -33,17 +35,19 @@ const Profile = () => {
     github_url: "",
     linkedin_url: "",
     skills: [], 
-    preferred_categories: [],
+    preferred_categories: [], // To teraz będzie tablica ID (np. [1, 3])
     avatar_url: "",
   });
 
   const [stats, setStats] = useState({ created: 0, applied: 0, accepted: 0 });
 
   useEffect(() => {
+    // 1. Pobieramy słownik kategorii (ID -> Nazwa)
     const fetchCats = async () => {
-      const { data, error } = await supabase.from('categories').select('name');
+      // ZMIANA: Pobieramy id i name
+      const { data, error } = await supabase.from('categories').select('id, name');
       if (error) console.error("Error fetching categories:", error);
-      if (data) setAvailableCategories(data.map(c => c.name));
+      if (data) setAvailableCategories(data);
     };
     fetchCats();
 
@@ -56,7 +60,6 @@ const Profile = () => {
     try {
       setLoading(true);
       
-      // 1. Pobieranie profilu + relacyjnych skilli
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select(`
@@ -76,17 +79,16 @@ const Profile = () => {
         setProfile({
           ...profileData,
           skills: mappedSkills,
-          preferred_categories: profileData.preferred_categories || []
+          // Upewniamy się, że to tablica (może przyjść null)
+          preferred_categories: profileData.preferred_categories || [] 
         });
       }
 
-      // 2. Pobieranie statystyk (Dostosowane do formatu TABLE z rpc)
       const { data: statsData, error: statsError } = await supabase
         .rpc('get_user_stats', { target_user_id: userId });
 
       if (statsError) throw statsError;
 
-      // Supabase RPC zwraca tablicę dla funkcji typu RETURNS TABLE
       if (statsData && statsData.length > 0) {
         setStats({
           created: Number(statsData[0].created) || 0,
@@ -118,7 +120,8 @@ const Profile = () => {
           bio: profile.bio,
           github_url: profile.github_url,
           linkedin_url: profile.linkedin_url,
-          preferred_categories: profile.preferred_categories,
+          // To teraz wysyła tablicę ID (bigint[]) do bazy - zgodnie z nowym schematem
+          preferred_categories: profile.preferred_categories, 
           avatar_url: profile.avatar_url,
           updated_at: new Date(),
         })
@@ -146,7 +149,6 @@ const Profile = () => {
 
       setIsEditing(false);
       toast.success('Profile updated successfully! 🔥');
-      // Odśwież dane po zapisie
       fetchProfileData(targetUserId);
     } catch (error) {
       console.error(error);
@@ -156,13 +158,20 @@ const Profile = () => {
     }
   };
 
-  const toggleCategory = (category) => {
+  // ZMIANA: Funkcja przyjmuje teraz ID kategorii, a nie nazwę
+  const toggleCategory = (categoryId) => {
     setProfile(prev => {
       const current = prev.preferred_categories || [];
-      return current.includes(category) 
-        ? { ...prev, preferred_categories: current.filter(c => c !== category) }
-        : { ...prev, preferred_categories: [...current, category] };
+      return current.includes(categoryId) 
+        ? { ...prev, preferred_categories: current.filter(c => c !== categoryId) }
+        : { ...prev, preferred_categories: [...current, categoryId] };
     });
+  };
+
+  // Helper do znalezienia nazwy kategorii po ID (dla trybu wyświetlania)
+  const getCategoryName = (id) => {
+    const cat = availableCategories.find(c => c.id === id);
+    return cat ? cat.name : 'Unknown';
   };
 
   const validateLinks = () => {
@@ -289,13 +298,31 @@ const Profile = () => {
             </div>
             <div className="flex flex-wrap gap-3">
               {isEditing ? (
+                // TRYB EDYCJI: Mapujemy dostępne kategorie i sprawdzamy po ID
                 availableCategories.map(cat => (
-                  <button key={cat} onClick={() => toggleCategory(cat)} className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${profile.preferred_categories?.includes(cat) ? 'bg-secondary/20 border-secondary text-secondary' : 'bg-background border-border text-gray-400'}`}>
-                    {cat}
+                  <button 
+                    key={cat.id} 
+                    onClick={() => toggleCategory(cat.id)} 
+                    className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
+                      profile.preferred_categories?.includes(cat.id) 
+                      ? 'bg-secondary/20 border-secondary text-secondary' 
+                      : 'bg-background border-border text-gray-400 hover:text-textMain'
+                    }`}
+                  >
+                    {cat.name}
                   </button>
                 ))
               ) : (
-                profile.preferred_categories?.map(cat => <span key={cat} className="px-4 py-2 rounded-xl bg-secondary/10 border border-secondary/20 text-secondary text-sm font-medium">{cat}</span>)
+                // TRYB PODGLĄDU: Mapujemy ID z profilu na nazwy
+                profile.preferred_categories?.length > 0 ? (
+                  profile.preferred_categories.map(catId => (
+                    <span key={catId} className="px-4 py-2 rounded-xl bg-secondary/10 border border-secondary/20 text-secondary text-sm font-medium">
+                      {getCategoryName(catId)}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-textMuted italic">No preferences selected.</span>
+                )
               )}
             </div>
           </div>
