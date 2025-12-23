@@ -1,155 +1,129 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
-import { X, Sparkles, Search } from 'lucide-react';
-import { useDebounce } from '../hooks/useDebounce';
+import { useState, useEffect, useRef } from 'react';
+import { Check, X, Search, Flame } from 'lucide-react';
+import { useSkills } from '../hooks/useSkills'; // Importujemy nasz nowy hook
 
 const SkillSelector = ({ selectedSkills, setSelectedSkills, showLabel = true }) => {
-  const [query, setQuery] = useState('');
-  const debouncedQuery = useDebounce(query, 300);
-  
-  const [suggestions, setSuggestions] = useState([]);
-  const [popularSkills, setPopularSkills] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const { allSkills, popularSkills, loading } = useSkills(); // Używamy logiki
+  const [search, setSearch] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+  const wrapperRef = useRef(null);
 
-  // 1. Pobieranie popularnych skilli (z ID i Name)
+  // Filtrowanie listy po wpisaniu tekstu
+  const filteredSkills = search 
+    ? allSkills.filter(s => s.name.toLowerCase().includes(search.toLowerCase()))
+    : allSkills;
+
+  // Zamykanie dropdowna po kliknięciu poza
   useEffect(() => {
-    const fetchPopular = async () => {
-      const { data } = await supabase
-        .from('skills')
-        .select('id, name') // Pobieramy oba pola
-        .order('usage_count', { ascending: false })
-        .limit(10);
-      
-      if (data) setPopularSkills(data);
+    const handleClickOutside = (event) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
     };
-    fetchPopular();
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // 2. Wyszukiwanie sugestii
-  useEffect(() => {
-    const fetchSuggestions = async () => {
-      if (debouncedQuery.length < 2) {
-        setSuggestions([]);
-        return;
-      }
-
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('skills')
-        .select('id, name')
-        .ilike('name', `%${debouncedQuery}%`)
-        .limit(5);
-
-      if (!error && data) {
-        // Filtrujemy, aby nie pokazywać skilli, które już są wybrane (porównujemy po ID)
-        const filtered = data.filter(
-          s => !selectedSkills.some(sel => sel.id === s.id)
-        );
-        setSuggestions(filtered);
-      }
-      setLoading(false);
-    };
-
-    fetchSuggestions();
-  }, [debouncedQuery, selectedSkills]);
-
-  // Funkcja dodawania - teraz przyjmuje cały obiekt {id, name}
-  const addSkill = (skillObj) => {
-    if (!selectedSkills.some(s => s.id === skillObj.id)) {
-      setSelectedSkills([...selectedSkills, skillObj]);
+  const toggleSkill = (skill) => {
+    // Sprawdzamy czy skill już jest wybrany (porównujemy po ID)
+    const exists = selectedSkills.some(s => s.id === skill.id);
+    
+    if (exists) {
+      setSelectedSkills(selectedSkills.filter(s => s.id !== skill.id));
+    } else {
+      setSelectedSkills([...selectedSkills, { id: skill.id, name: skill.name }]);
     }
-    setQuery('');
-    setSuggestions([]);
   };
 
-  const removeSkill = (skillId) => {
-    setSelectedSkills(selectedSkills.filter(skill => skill.id !== skillId));
-  };
-
-  // Filtrowanie popularnych
-  const visiblePopularSkills = popularSkills.filter(
-    skill => !selectedSkills.some(sel => sel.id === skill.id)
-  );
+  const isSelected = (skillId) => selectedSkills.some(s => s.id === skillId);
 
   return (
-    <div className="relative">
-      {showLabel && (
-        <label className="block text-sm font-medium text-textMain mb-2">
-          Required Skills
-        </label>
-      )}
-
-      {/* INPUT */}
-      <div className="relative">
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-textMuted">
-            <Search size={16} />
-        </div>
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Type to search skills (e.g. React)..."
-          className="w-full bg-background border border-border rounded-xl py-3 pl-10 pr-4 text-textMain focus:outline-none focus:border-primary transition-colors placeholder:text-gray-600"
-        />
+    <div className="w-full relative" ref={wrapperRef}>
+      {showLabel && <label className="block text-sm font-medium text-textMain mb-2">Technologies & Skills</label>}
+      
+      {/* INPUT SEARCH */}
+      <div 
+        className="flex flex-wrap items-center gap-2 p-3 bg-background border border-border rounded-xl focus-within:border-primary transition-colors min-h-[50px] cursor-text"
+        onClick={() => setIsOpen(true)}
+      >
+        <Search size={16} className="text-textMuted ml-1" />
         
-        {loading && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-          </div>
-        )}
-
-        {suggestions.length > 0 && (
-          <div className="absolute z-20 w-full mt-1 bg-surface border border-border rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-            {suggestions.map(skill => (
-              <button
-                key={skill.id}
-                type="button"
-                onClick={() => addSkill(skill)}
-                className="w-full text-left px-4 py-2 text-textMuted hover:bg-primary/20 hover:text-textMain transition-colors block"
-              >
-                {skill.name}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* POPULAR SKILLS */}
-      {query.length === 0 && visiblePopularSkills.length > 0 && (
-        <div className="mt-3 animate-in fade-in">
-          <div className="text-xs text-textMuted mb-2 flex items-center gap-1">
-            <Sparkles size={12} className="text-primary" /> Popular:
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {visiblePopularSkills.map(skill => (
-              <button
-                key={skill.id}
-                type="button"
-                onClick={() => addSkill(skill)}
-                className="px-2.5 py-1 rounded-md bg-white/5 border border-white/5 text-xs text-gray-400 hover:text-textMain hover:border-border hover:bg-white/10 transition-all"
-              >
-                + {skill.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* SELECTED SKILLS TAGS */}
-      <div className="flex flex-wrap gap-2 mt-4">
+        {/* Renderowanie wybranych (jako tagi w inpucie) */}
         {selectedSkills.map(skill => (
-          <span key={skill.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-primary text-sm font-medium animate-in fade-in zoom-in duration-200">
+          <span key={skill.id} className="bg-primary/10 border border-primary/20 text-primary px-2 py-1 rounded-lg text-xs font-medium flex items-center gap-1">
             {skill.name}
             <button 
-              type="button" 
-              onClick={() => removeSkill(skill.id)} 
-              className="hover:text-textMain transition-colors"
+              type="button"
+              onClick={(e) => { e.stopPropagation(); toggleSkill(skill); }}
+              className="hover:text-red-400"
             >
-              <X size={14} />
+              <X size={12} />
             </button>
           </span>
         ))}
+
+        <input 
+          type="text" 
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setIsOpen(true); }}
+          className="bg-transparent outline-none flex-grow min-w-[120px] text-sm text-textMain placeholder:text-textMuted/50"
+          placeholder={selectedSkills.length === 0 ? "Select skills (e.g. React, Python)..." : ""}
+        />
       </div>
+
+      {/* DROPDOWN */}
+      {isOpen && (
+        <div className="absolute top-full left-0 right-0 mt-2 bg-surface border border-border rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
+          
+          {/* SEKCJA POPULARNE (Tylko gdy nie szukamy) */}
+          {!search && popularSkills.length > 0 && (
+            <div className="p-2 border-b border-border bg-white/[0.02]">
+              <div className="text-xs font-bold text-textMuted uppercase mb-2 px-2 flex items-center gap-1">
+                <Flame size={12} className="text-orange-500" /> Popular
+              </div>
+              <div className="flex flex-wrap gap-2 px-1">
+                {popularSkills.map(skill => (
+                  <button
+                    key={skill.id}
+                    type="button"
+                    onClick={() => toggleSkill(skill)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+                      isSelected(skill.id) 
+                        ? 'bg-primary/20 border-primary text-primary' 
+                        : 'bg-surface border-border text-textMuted hover:border-primary/50 hover:text-textMain'
+                    }`}
+                  >
+                    {skill.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* LISTA WSZYSTKICH */}
+          <div className="p-1">
+            {loading ? (
+              <div className="p-4 text-center text-textMuted text-xs">Loading skills...</div>
+            ) : filteredSkills.length > 0 ? (
+              filteredSkills.map(skill => (
+                <button
+                  key={skill.id}
+                  type="button"
+                  onClick={() => toggleSkill(skill)}
+                  className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 flex items-center justify-between group transition-colors"
+                >
+                  <span className={`text-sm ${isSelected(skill.id) ? 'text-primary font-medium' : 'text-textMuted group-hover:text-textMain'}`}>
+                    {skill.name}
+                  </span>
+                  {isSelected(skill.id) && <Check size={14} className="text-primary" />}
+                </button>
+              ))
+            ) : (
+              <div className="p-4 text-center text-textMuted text-xs">No skills found.</div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

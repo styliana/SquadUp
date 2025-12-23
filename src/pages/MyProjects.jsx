@@ -18,18 +18,24 @@ const MyProjects = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('published');
 
-  // Helper do sprawdzania czy projekt jest zamknięty
-  // Zakładamy: 1 = Open, 2 = Closed
+  // Helper do sprawdzania czy projekt jest zamknięty (2 = Closed)
   const isProjectClosed = (project) => project.status_id === 2;
 
   const fetchData = async () => {
     setLoading(true);
     try {
       // 1. Pobieranie projektów autora
-      // Wybieramy status_id zamiast status
+      // ZMIANA: Pobieramy relację categories(name)
       const { data: myProjects, error: err1 } = await supabase
         .from('projects')
-        .select(`*, applications(*, profiles:applicant_id(*))`)
+        .select(`
+          *,
+          categories ( name ),
+          applications (
+            *,
+            profiles:applicant_id (*)
+          )
+        `)
         .eq('author_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -47,9 +53,16 @@ const MyProjects = () => {
       setCreatedProjects(sortedMyProjects);
 
       // 2. Pobieranie aplikacji usera
+      // ZMIANA: Pobieramy kategorię wewnątrz obiektu projects
       const { data: myApplications, error: err2 } = await supabase
         .from('applications')
-        .select('*, projects!project_id(*)')
+        .select(`
+          *,
+          projects!project_id (
+            *,
+            categories ( name )
+          )
+        `)
         .eq('applicant_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -71,7 +84,6 @@ const MyProjects = () => {
   const handleDeleteProject = async (projectId) => {
     if (!window.confirm("Are you sure? This will delete the project permanently.")) return;
     try {
-      // DELETE kaskadowy w bazie powinien załatwić aplikacje, ale dla pewności usuwamy
       const { error } = await supabase.from('projects').delete().eq('id', projectId);
       
       if (error) throw error;
@@ -85,7 +97,6 @@ const MyProjects = () => {
   };
 
   const handleWithdrawApplication = async (applicationId) => {
-    // Używamy natywnego confirm dla szybkości, lub Twojego toasta (zostawiam Twój styl)
     toast("Are you sure?", {
       action: {
         label: "Yes, Withdraw",
@@ -106,18 +117,15 @@ const MyProjects = () => {
 
   const handleStatusChange = async (applicationId, projectId, newStatus) => {
     try {
-      let resultStatusId = 1; // Domyślnie Open
+      let resultStatusId = 1;
 
       if (newStatus === 'accepted') {
-        // RPC: approve_candidate (logika SQL)
         const { data, error } = await supabase.rpc('approve_candidate', { app_id: applicationId, proj_id: projectId });
         
         if (error) {
             console.error('RPC Error:', error);
-            // Fallback: ręczna aktualizacja jeśli RPC zawiedzie
             await supabase.from('applications').update({ status: newStatus }).eq('id', applicationId);
         } else {
-            // RPC zwraca 'FULL' lub 'OPEN'. Mapujemy na status_id
             resultStatusId = data === 'FULL' ? 2 : 1;
         }
       } else {
@@ -125,7 +133,6 @@ const MyProjects = () => {
         if (error) throw error;
       }
 
-      // Aktualizacja stanu lokalnego (UI)
       setCreatedProjects(prev => prev.map(project => {
         if (project.id !== projectId) return project;
         
@@ -133,7 +140,6 @@ const MyProjects = () => {
           app.id === applicationId ? { ...app, status: newStatus } : app
         ) || [];
         
-        // Symulujemy logikę Triggera w UI
         let updatedMembers = project.members_current;
         let updatedStatusId = project.status_id;
 
@@ -141,9 +147,8 @@ const MyProjects = () => {
             updatedMembers += 1;
         }
         
-        // Jeśli po dodaniu członka jest full -> zamykamy (UI optimistic update)
         if (updatedMembers >= project.members_max) {
-            updatedStatusId = 2; // Closed
+            updatedStatusId = 2;
         }
 
         return { 
@@ -154,9 +159,6 @@ const MyProjects = () => {
         };
       }));
 
-      // Sprawdźmy co się stało dla Toast message
-      const projectAfterUpdate = createdProjects.find(p => p.id === projectId);
-      // Uwaga: używamy stanu sprzed update w tej linii, więc logika toasta jest uproszczona
       toast.success(newStatus === 'accepted' ? "Candidate accepted!" : "Candidate rejected.");
 
     } catch (error) {
@@ -189,6 +191,7 @@ const MyProjects = () => {
         </button>
       </div>
 
+      {/* --- PUBLISHED PROJECTS --- */}
       {activeTab === 'published' && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {createdProjects.length === 0 ? (
@@ -209,9 +212,11 @@ const MyProjects = () => {
                       >
                         {project.title}
                       </h2>
-                      <span className="px-2.5 py-0.5 rounded-md bg-white/5 border border-border text-xs font-medium text-textMuted">{project.type}</span>
+                      {/* ZMIANA: Wyświetlamy nazwę kategorii z relacji */}
+                      <span className="px-2.5 py-0.5 rounded-md bg-white/5 border border-border text-xs font-medium text-textMuted">
+                        {project.categories?.name || 'Unknown'}
+                      </span>
                       
-                      {/* ZMIANA: Sprawdzamy status_id === 2 */}
                       {isProjectClosed(project) && (
                         <span className="px-2.5 py-0.5 rounded-md bg-green-500/20 border border-green-500/30 text-xs font-bold text-green-400 flex items-center gap-1">
                             <Check size={12} /> TEAM FULL
@@ -275,6 +280,7 @@ const MyProjects = () => {
         </div>
       )}
       
+      {/* --- APPLICATIONS SENT --- */}
       {activeTab === 'applied' && (
         <div className="grid grid-cols-1 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {appliedProjects.length === 0 ? (
@@ -290,7 +296,10 @@ const MyProjects = () => {
                       <StatusBadge status={app.status} />
                     </div>
                     <div className="flex flex-wrap gap-4 text-sm text-textMuted mb-4">
-                      <span className="bg-white/5 px-2.5 py-0.5 rounded-md text-textMuted border border-white/5">{app.projects?.type}</span>
+                      {/* ZMIANA: Wyświetlamy nazwę kategorii z relacji */}
+                      <span className="bg-white/5 px-2.5 py-0.5 rounded-md text-textMuted border border-white/5">
+                        {app.projects?.categories?.name || 'Unknown'}
+                      </span>
                       <span className="flex items-center gap-1.5"><Clock size={14} className="text-primary"/> Applied on {new Date(app.created_at).toLocaleDateString()}</span>
                     </div>
                     <div className="relative pl-4 border-l-2 border-border">
@@ -299,7 +308,6 @@ const MyProjects = () => {
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-3 min-w-[140px]">
-                    {/* Sprawdzamy czy app.projects istnieje (bo mógł zostać usunięty) */}
                     {app.projects && (
                         <Link to={`/projects/${app.project_id}`} state={{ from: '/my-projects' }} className="w-full py-2 px-4 rounded-xl border border-border text-textMain text-sm font-medium hover:bg-white/5 hover:border-border transition-all flex items-center justify-center gap-2">
                         <Eye size={16} /> View Project
