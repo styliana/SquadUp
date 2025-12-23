@@ -81,7 +81,8 @@ const EditProject = () => {
           type: formData.type,
           description: formData.description,
           members_max: formData.members_max,
-          deadline: formData.deadline || 'Flexible',
+          // NAPRAWA: Wyślij NULL zamiast 'Flexible'
+          deadline: formData.deadline || null,
         })
         .eq('id', id);
 

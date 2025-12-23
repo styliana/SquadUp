@@ -54,20 +54,21 @@ const CreateProject = () => {
     
     try {
       // KROK 1: Wstawienie projektu do tabeli 'projects'
-      const { data: newProject, error: projectError } = await supabase
-        .from('projects')
-        .insert([
-          {
-            title: data.title,
-            type: data.type,
-            description: data.description,
-            members_max: data.teamSize,
-            members_current: 1,
-            deadline: data.deadline || 'Flexible',
-            author_id: user.id,
-            status_id: 1, // Domyślny status 'Open'
-          }
-        ])
+        const { data: newProject, error: projectError } = await supabase
+          .from('projects')
+          .insert([
+            {
+              title: data.title,
+              type: data.type,
+              description: data.description,
+              members_max: data.teamSize,
+              members_current: 1,
+              // NAPRAWA: Jeśli brak daty, wyślij NULL, a nie tekst 'Flexible'
+              deadline: data.deadline || null, 
+              author_id: user.id,
+              status_id: 1,
+            }
+          ])
         .select()
         .single();
 
