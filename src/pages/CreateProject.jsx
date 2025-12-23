@@ -44,50 +44,70 @@ const CreateProject = () => {
   const selectedType = watch('type');
   const categories = ['Hackathon', 'Portfolio', 'Startup', 'Research', 'Competition', 'Non-profit'];
 
-  const onSubmit = async (data) => {
-    if (!user) return toast.error('Login required');
-    try {
-      const { error } = await supabase
-        .from('projects')
-        .insert([
-          {
-            title: data.title,
-            type: data.type,
-            description: data.description,
-            skills: data.skills,
-            members_max: data.teamSize,
-            members_current: 1,
-            deadline: data.deadline || 'Flexible',
-            author_id: user.id,
-            author: user.user_metadata?.full_name || user.email?.split('@')[0], 
-            role: 'Leader',
-          }
-        ]);
-      if (error) throw error;
-      toast.success('Project created successfully! 🎉');
-      navigate('/my-projects');
-    } catch (error) {
-      console.error(error);
-      toast.error('Failed to create project.');
+const onSubmit = async (data) => {
+  if (!user) return toast.error('Login required');
+  
+  try {
+    // 1. Tworzymy projekt
+    const { data: newProject, error: projectError } = await supabase
+      .from('projects')
+      .insert([{
+        title: data.title,
+        type: data.type,
+        description: data.description,
+        members_max: data.teamSize,
+        members_current: 1,
+        deadline: data.deadline || 'Flexible',
+        author_id: user.id,
+        status_id: 1, 
+      }])
+      .select().single();
+
+    if (projectError) throw projectError;
+
+    // 2. Pobieramy ID dla wybranych skilli (bo baza wymaga bigint, a nie tekstu)
+    if (data.skills && data.skills.length > 0) {
+      const { data: skillsFromDb, error: fetchError } = await supabase
+        .from('skills')
+        .select('id')
+        .in('name', data.skills); // Zakładamy, że w tabeli 'skills' masz kolumnę 'name'
+
+      if (fetchError) throw fetchError;
+
+      // 3. Zapisujemy powiązania w project_skills używając ID
+      const skillsToInsert = skillsFromDb.map(skill => ({
+        project_id: newProject.id,
+        skill_id: skill.id // Teraz wysyłamy bigint (liczbę)
+      }));
+
+      const { error: skillsError } = await supabase
+        .from('project_skills')
+        .insert(skillsToInsert);
+
+      if (skillsError) throw skillsError;
     }
-  };
+
+    toast.success('Project created successfully with skills! 🎉');
+    navigate('/my-projects');
+  } catch (error) {
+    console.error("Szczegóły błędu:", error);
+    toast.error(`Failed to create project: ${error.message}`);
+  }
+};
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
       <div className="mb-8">
-        {/* ZMIANA: text-textMain */}
         <h1 className="text-3xl font-bold text-textMain mb-2">Create Listing</h1>
         <p className="text-textMuted">Describe your project and find the perfect team members.</p>
       </div>
 
-      {/* ZMIANA: bg-surface border-border */}
       <form onSubmit={handleSubmit(onSubmit)} className="bg-surface border border-border rounded-2xl p-8 space-y-8 shadow-sm">
         <div className="space-y-6">
           
           {/* TITLE */}
           <div>
             <label className="block text-sm font-medium text-textMain mb-2">Project Title *</label>
-            {/* ZMIANA: bg-background border-border text-textMain */}
             <input 
               {...register("title")}
               className={`w-full bg-background border rounded-xl px-4 py-3 text-textMain focus:outline-none transition-colors ${errors.title ? 'border-red-500' : 'border-border focus:border-primary'}`}
@@ -105,7 +125,6 @@ const CreateProject = () => {
                   type="button"
                   key={cat}
                   onClick={() => setValue("type", cat)}
-                  // ZMIANA: bg-background border-border text-textMuted
                   className={`px-6 py-2.5 rounded-full text-sm font-medium border transition-all ${
                     selectedType === cat 
                     ? 'bg-primary/20 border-primary text-primary' 
@@ -125,7 +144,6 @@ const CreateProject = () => {
             <textarea 
               {...register("description")}
               rows={5}
-              // ZMIANA: bg-background border-border text-textMain
               className={`w-full bg-background border rounded-xl px-4 py-3 text-textMain focus:outline-none resize-none transition-colors ${errors.description ? 'border-red-500' : 'border-border focus:border-primary'}`}
               placeholder="Describe your project idea..."
             />
@@ -164,8 +182,7 @@ const CreateProject = () => {
             <input 
               type="date" 
               {...register("deadline")}
-              // ZMIANA: text-textMain
-              className="w-full bg-background border border-border rounded-xl px-4 py-3 text-textMain focus:outline-none focus:border-primary [color-scheme:dark] dark:[color-scheme:dark] light:[color-scheme:light]"
+              className="w-full bg-background border border-border rounded-xl px-4 py-3 text-textMain focus:outline-none focus:border-primary [color-scheme:dark]"
             />
           </div>
         </div>
@@ -174,7 +191,6 @@ const CreateProject = () => {
           <button 
             type="button" 
             onClick={() => navigate(-1)}
-            // ZMIANA: border-border text-textMain hover:bg-textMain/5
             className="px-6 py-3 rounded-xl border border-border text-textMain font-medium hover:bg-textMain/5"
           >
             Cancel
