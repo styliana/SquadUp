@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, MoreHorizontal, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom'; // 1. Import useNavigate
 import MessageBubble from './MessageBubble';
-import UserAvatar from '../common/UserAvatar'; // Importujemy UserAvatar
-import Button from '../ui/Button';     // Importujemy Button
+import UserAvatar from '../common/UserAvatar';
+import Button from '../ui/Button';
 
 const ChatWindow = ({ selectedUser, messages, currentUser, onSendMessage, onTyping, isTyping, onBack }) => {
   const [newMessage, setNewMessage] = useState("");
   const chatContainerRef = useRef(null);
+  const navigate = useNavigate(); // 2. Inicjalizacja hooka
 
   // Auto-scroll na dół
   useEffect(() => {
@@ -33,6 +35,12 @@ const ChatWindow = ({ selectedUser, messages, currentUser, onSendMessage, onTypi
     if (onTyping) onTyping();
   };
 
+  const handleProfileClick = () => {
+    if (selectedUser?.id) {
+      navigate(`/profile/${selectedUser.id}`);
+    }
+  };
+
   if (!selectedUser) {
     return (
       <div className="hidden md:flex flex-1 flex-col items-center justify-center text-textMuted bg-background">
@@ -54,18 +62,27 @@ const ChatWindow = ({ selectedUser, messages, currentUser, onSendMessage, onTypi
             </Button>
         </div>
         
-        <UserAvatar 
-            avatarUrl={selectedUser.avatar_url} 
-            name={selectedUser.full_name || selectedUser.email} 
-            className="w-10 h-10" 
-        />
-        
-        <div>
-          <h3 className="font-bold text-textMain text-sm md:text-base">{selectedUser.full_name || selectedUser.email}</h3>
-          <p className="text-xs text-primary flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
-            Online
-          </p>
+        {/* 3. Owinęliśmy Avatar i Dane w klikalny div */}
+        <div 
+          className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity flex-1"
+          onClick={handleProfileClick}
+          title="View Profile"
+        >
+          <UserAvatar 
+              avatarUrl={selectedUser.avatar_url} 
+              name={selectedUser.full_name || selectedUser.email} 
+              className="w-10 h-10" 
+          />
+          
+          <div>
+            <h3 className="font-bold text-textMain text-sm md:text-base hover:underline decoration-primary decoration-2 underline-offset-4">
+              {selectedUser.full_name || selectedUser.email}
+            </h3>
+            <p className="text-xs text-primary flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+              Online
+            </p>
+          </div>
         </div>
       </div>
 
@@ -106,7 +123,7 @@ const ChatWindow = ({ selectedUser, messages, currentUser, onSendMessage, onTypi
           <Button 
             type="submit" 
             disabled={!newMessage.trim()} 
-            className="w-12 h-12 p-0 rounded-xl" // Kwadratowy przycisk
+            className="w-12 h-12 p-0 rounded-xl"
           >
             <Send size={20} />
           </Button>
