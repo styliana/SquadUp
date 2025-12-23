@@ -18,11 +18,14 @@ export const useChat = (currentUser) => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
   
+  // Stan paginacji
+  const [hasMore, setHasMore] = useState(true);
+  const MESSAGES_PER_PAGE = 10;
+  
   const channelRef = useRef(null);
   const typingTimeoutRef = useRef(null);
-  const searchTimeoutRef = useRef(null); // Ref do obsługi debouncing wyszukiwania
 
-  // Funkcja pomocnicza do odświeżania listy kontaktów (sortowanie po dacie)
+  // Odświeżanie listy kontaktów
   const refreshContactList = useCallback(async () => {
     if (!currentUser) return;
     try {
@@ -33,7 +36,7 @@ export const useChat = (currentUser) => {
     }
   }, [currentUser]);
 
-  // 1. INICJALIZACJA I NASŁUCH GLOBALNY
+  // Inicjalizacja i nasłuch globalny
   useEffect(() => {
     if (!currentUser) return;
 
@@ -54,7 +57,6 @@ export const useChat = (currentUser) => {
 
     initData();
 
-    // Nasłuch na nowe wiadomości przychodzące (zmienia kolejność na liście)
     const globalChannel = supabase.channel('global_chat_updates')
       .on('postgres_changes', { 
         event: 'INSERT', 
@@ -63,13 +65,10 @@ export const useChat = (currentUser) => {
         filter: `receiver_id=eq.${currentUser.id}` 
       },
         async (payload) => {
-          // Zwiększ licznik nieprzeczytanych
           setUnreadMap(prev => ({ 
             ...prev, 
             [payload.new.sender_id]: (prev[payload.new.sender_id] || 0) + 1 
           }));
-          
-          // KLUCZOWE: Odśwież listę, aby osoba która napisała wskoczyła na górę
           await refreshContactList();
         }
       ).subscribe();
@@ -77,26 +76,38 @@ export const useChat = (currentUser) => {
     return () => { supabase.removeChannel(globalChannel); };
   }, [currentUser, refreshContactList]);
 
-  // NOWA FUNKCJA: Obsługa wyszukiwania
-  const handleSearch = async (query) => {
-    if (!query) {
-      refreshContactList();
-      return;
-    }
-    
+  // Paginacja: Ładowanie starszych wiadomości
+  const loadMoreMessages = async () => {
+    if (!hasMore || !selectedUser || messages.length === 0) return;
+
+    // Pobieramy timestamp najstarszej wiadomości jaką mamy w stanie
+    const oldestTimestamp = messages[0].created_at;
+
     try {
-      const results = await searchUsers(query, currentUser.id);
-      setUsers(results);
+      const olderMessages = await getConversation(
+        currentUser.id, 
+        selectedUser.id, 
+        MESSAGES_PER_PAGE, 
+        oldestTimestamp
+      );
+
+      if (olderMessages.length < MESSAGES_PER_PAGE) {
+        setHasMore(false);
+      }
+
+      // Doklejamy starsze wiadomości na początek listy
+      setMessages(prev => [...olderMessages, ...prev]);
     } catch (error) {
-      console.error("Search error", error);
+      console.error("Load more messages error:", error);
+      toast.error("Could not load older messages");
     }
   };
 
   const selectUser = useCallback(async (userToChat) => {
     if (!currentUser) return;
     setSelectedUser(userToChat);
+    setHasMore(true); // Resetujemy flagę "więcej" dla nowego rozmówcy
     
-    // Wyczyść nieprzeczytane dla tego użytkownika lokalnie
     setUnreadMap(prev => { 
       const newMap = { ...prev }; 
       delete newMap[userToChat.id]; 
@@ -104,8 +115,14 @@ export const useChat = (currentUser) => {
     });
 
     try {
-      const history = await getConversation(currentUser.id, userToChat.id);
+      // Pobieramy pierwszą paczkę (10 najnowszych)
+      const history = await getConversation(currentUser.id, userToChat.id, MESSAGES_PER_PAGE);
       setMessages(history || []);
+      setHasMore(history.length === MESSAGES_PER_PAGE);
+      // Jeśli pobraliśmy mniej niż limit, to znaczy że nie ma więcej historii
+      if (history.length < MESSAGES_PER_PAGE) {
+        setHasMore(false);
+      }
       
       const unreadIds = history?.filter(m => m.receiver_id === currentUser.id && !m.is_read).map(m => m.id);
       if (unreadIds?.length > 0) markMessagesAsRead(unreadIds);
@@ -166,13 +183,23 @@ export const useChat = (currentUser) => {
     try {
       const realMessage = await sendMessageToApi(currentUser.id, selectedUser.id, content);
       setMessages(prev => prev.map(msg => msg.id === tempId ? { ...msg, id: realMessage.id } : msg));
-      
-      // KLUCZOWE: Po wysłaniu wiadomości odśwież listę, aby rozmówca wskoczył na górę Twojej listy
       await refreshContactList();
-      
     } catch (error) { 
       console.error(error); 
       toast.error("Failed to send"); 
+    }
+  };
+
+  const handleSearch = async (query) => {
+    if (!query) {
+      refreshContactList();
+      return;
+    }
+    try {
+      const results = await searchUsers(query, currentUser.id);
+      setUsers(results);
+    } catch (error) {
+      console.error("Search error", error);
     }
   };
 
@@ -201,6 +228,8 @@ export const useChat = (currentUser) => {
     sendMessage,
     sendTypingSignal,
     deselectUser: () => setSelectedUser(null),
-    handleSearch 
+    handleSearch,
+    hasMore,             // Eksportujemy stan paginacji
+    loadMoreMessages      // Eksportujemy funkcję ładowania
   };
 };
