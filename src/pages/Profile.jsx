@@ -8,7 +8,7 @@ import useThrowAsyncError from '../hooks/useThrowAsyncError';
 
 // Komponenty
 import ProfileHeader from '../components/profile/ProfileHeader';
-import ProfileBasicInfo from '../components/profile/ProfileBasicInfo'; // <-- Nowy import
+import ProfileBasicInfo from '../components/profile/ProfileBasicInfo';
 import ProfileDetails from '../components/profile/ProfileDetails';
 import ProfileContact from '../components/profile/ProfileContact';
 import ProfileStats from '../components/profile/ProfileStats';
@@ -36,8 +36,8 @@ const Profile = () => {
     email: "",
     github_url: "",
     linkedin_url: "",
-    skills: [], 
-    preferred_categories: [],
+    skills: [], // Tu muszą być obiekty {id, name}, a nie stringi!
+    preferred_categories: [], // Tu muszą być ID (liczby)
     avatar_url: "",
   });
 
@@ -61,17 +61,28 @@ const Profile = () => {
       
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select(`*, profile_skills ( skills ( id, name ) )`)
+        .select(`
+          *,
+          profile_skills (
+            skills ( id, name )
+          )
+        `)
         .eq('id', userId)
         .maybeSingle();
 
       if (profileError) throw profileError;
       
       if (profileData) {
-        const mappedSkills = profileData.profile_skills?.map(ps => ps.skills.name) || [];
+        // NAPRAWA: Mapujemy skille na obiekty { id, name }, żeby SkillSelector działał poprawnie
+        const mappedSkills = profileData.profile_skills?.map(ps => ({
+          id: ps.skills?.id,
+          name: ps.skills?.name
+        })).filter(s => s.id && s.name) || []; // Filtrujemy puste
+
         setProfile({
           ...profileData,
           skills: mappedSkills,
+          // Upewniamy się, że kategorie to tablica (może przyjść null z bazy)
           preferred_categories: profileData.preferred_categories || [] 
         });
       }
@@ -96,6 +107,7 @@ const Profile = () => {
   const updateProfile = async () => {
     if (!isOwner) return;
     
+    // Walidacja
     if (profile.github_url && !profile.github_url.match(/^https:\/\/(www\.)?github\.com\//)) {
       toast.error("Invalid GitHub URL"); return;
     }
@@ -103,29 +115,44 @@ const Profile = () => {
     try {
       setIsSaving(true);
       
+      // 1. Aktualizacja danych profilu (Teksty + Kategorie)
       const { error } = await supabase.from('profiles').update({
           full_name: profile.full_name,
           university: profile.university,
           bio: profile.bio,
           github_url: profile.github_url,
           linkedin_url: profile.linkedin_url,
-          preferred_categories: profile.preferred_categories, 
+          preferred_categories: profile.preferred_categories, // To jest tablica ID, baza to przyjmie
           avatar_url: profile.avatar_url,
           updated_at: new Date(),
         }).eq('id', user.id);
 
       if (error) throw error;
 
+      // 2. Aktualizacja Skilli (NAPRAWIONA)
+      // Najpierw usuwamy stare powiązania
       await supabase.from('profile_skills').delete().eq('profile_id', user.id);
-      if (profile.skills.length > 0) {
-        const { data: skillIds } = await supabase.from('skills').select('id').in('name', profile.skills);
-        if (skillIds) {
-          await supabase.from('profile_skills').insert(skillIds.map(s => ({ profile_id: user.id, skill_id: s.id })));
+
+      // Jeśli są wybrane skille, dodajemy je na nowo
+      if (profile.skills && profile.skills.length > 0) {
+        // Mapujemy obiekty skilli na format do wstawienia: { profile_id, skill_id }
+        const skillsToInsert = profile.skills.map(skillObj => ({
+          profile_id: user.id,
+          skill_id: skillObj.id // Używamy ID z obiektu
+        }));
+
+        if (skillsToInsert.length > 0) {
+          const { error: skillError } = await supabase
+            .from('profile_skills')
+            .insert(skillsToInsert);
+          
+          if (skillError) throw skillError;
         }
       }
 
       setIsEditing(false);
       toast.success('Profile updated successfully!');
+      // Odświeżamy dane, żeby upewnić się, że wszystko się zapisało
       fetchProfileData(targetUserId);
     } catch (error) {
       console.error(error);
@@ -151,7 +178,7 @@ const Profile = () => {
   if (loading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-primary" size={40} /></div>;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 relative">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 relative animate-in fade-in duration-500">
       
       <ProfileHeader 
         profile={profile} 
@@ -162,10 +189,9 @@ const Profile = () => {
         isSaving={isSaving}
       />
 
-      {/* NOWY UKŁAD GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* LEWA KOLUMNA (2/3): Basic Info na górze, potem Details */}
+        {/* LEWA KOLUMNA */}
         <div className="lg:col-span-2 space-y-6">
           <ProfileBasicInfo 
             profile={profile} 
@@ -181,7 +207,7 @@ const Profile = () => {
           />
         </div>
 
-        {/* PRAWA KOLUMNA (1/3): Contact na górze (równo z Basic Info), potem Stats */}
+        {/* PRAWA KOLUMNA */}
         <div className="space-y-6">
           <ProfileContact 
             profile={profile} 
