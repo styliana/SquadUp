@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { Loader2, AlertTriangle } from 'lucide-react';
@@ -7,17 +7,19 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
+import ErrorBoundary from './components/ErrorBoundary'; // Zaimportowane, teraz użyjemy!
+import { AuthProvider } from './context/AuthContext'; // WAŻNE: Musi tu być
 
 // --- LENIWE IMPORTY ---
 const Home = lazy(() => import('./pages/Home'));
 const Projects = lazy(() => import('./pages/Projects'));
-const ProjectDetails = lazy(() => import('./pages/ProjectDetails'));
+const ProjectDetails = lazy(() => import('./pages/ProjectDetails')); // Zaktualizowany (podzielony)
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
 const CreateProject = lazy(() => import('./pages/CreateProject'));
 const EditProject = lazy(() => import('./pages/EditProject'));
 const MyProjects = lazy(() => import('./pages/MyProjects'));
-const Profile = lazy(() => import('./pages/Profile'));
+const Profile = lazy(() => import('./pages/Profile')); // Zaktualizowany (podzielony)
 const Chat = lazy(() => import('./pages/Chat'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 
@@ -25,12 +27,14 @@ const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 
+// Loader strony
 const PageLoader = () => (
   <div className="flex justify-center items-center h-[calc(100vh-64px)]">
     <Loader2 className="animate-spin text-primary" size={40} />
   </div>
 );
 
+// Komponent 404
 const NotFound = () => (
   <div className="flex flex-col items-center justify-center h-[calc(100vh-64px)] text-center px-4">
     <div className="bg-surface/50 p-8 rounded-3xl border border-border backdrop-blur-sm max-w-md w-full">
@@ -44,15 +48,25 @@ const NotFound = () => (
   </div>
 );
 
+// Komponent wymuszający przewinięcie do góry przy zmianie strony
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+};
+
+// Layout aplikacji (Navbar + Content + Footer)
 const Layout = () => {
   const location = useLocation();
   const isChatPage = location.pathname === '/chat';
 
   return (
-    <div className="min-h-screen bg-background text-textMain flex flex-col">
+    <div className="min-h-screen bg-background text-textMain flex flex-col font-sans selection:bg-primary/30">
       <Navbar />
       
-      <div className="flex-grow">
+      <div className="flex-grow pt-16"> {/* Padding top na wysokość navbara */}
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/" element={<Home />} />
@@ -65,6 +79,7 @@ const Layout = () => {
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
 
+            {/* Protected Routes */}
             <Route element={<ProtectedRoute />}>
               <Route path="/create-project" element={<CreateProject />} />
               <Route path="/edit-project/:id" element={<EditProject />} />
@@ -73,10 +88,12 @@ const Layout = () => {
               <Route path="/chat" element={<Chat />} />
             </Route>
 
+            {/* Admin Routes */}
             <Route element={<AdminRoute />}>
               <Route path="/admin" element={<AdminDashboard />} />
             </Route>
 
+            {/* 404 */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
@@ -90,8 +107,15 @@ const Layout = () => {
 function App() {
   return (
     <Router>
-      <Toaster position="top-center" theme="dark" richColors />
-      <Layout />
+      {/* 1. ErrorBoundary chroni przed "białym ekranem śmierci" */}
+      <ErrorBoundary>
+        {/* 2. AuthProvider udostępnia dane o użytkowniku dla całej apki */}
+        <AuthProvider>
+          <ScrollToTop /> {/* 3. Reset scrolla */}
+          <Toaster position="top-center" theme="dark" richColors closeButton />
+          <Layout />
+        </AuthProvider>
+      </ErrorBoundary>
     </Router>
   );
 }
