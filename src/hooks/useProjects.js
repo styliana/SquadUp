@@ -100,6 +100,8 @@ export const useProjects = (user) => {
         members_current: 1 + (p.applications?.filter(a => a.status === 'accepted').length || 0)
       }));
 
+      formattedData = formattedData.filter(p => p.members_current < p.members_max);
+
       if (selectedSkills.length > 0) {
         const requiredSkills = selectedSkills.map(s => s.name?.toLowerCase()).filter(Boolean); 
         formattedData = formattedData.filter(p => 
