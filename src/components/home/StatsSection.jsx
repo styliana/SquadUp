@@ -12,11 +12,27 @@ const StatsSection = () => {
 
   useEffect(() => {
     const fetchStats = async () => {
-      const { data, error } = await supabase.rpc('get_landing_stats');
-      if (!error && data) {
-        setStats(data);
+      try {
+        const { data, error } = await supabase.rpc('get_landing_stats');
+        
+        if (error) {
+            console.error('Error fetching stats:', error);
+            return;
+        }
+
+        // Sprawdzamy czy data istnieje, jeśli nie - zostawiamy zera
+        if (data) {
+          setStats({
+            projects: data.projects || 0,
+            users: data.users || 0,
+            matches: data.matches || 0
+          });
+        }
+      } catch (err) {
+        console.error('Unexpected error:', err);
       }
     };
+    
     fetchStats();
   }, []);
 
