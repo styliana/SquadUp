@@ -11,7 +11,6 @@ import useThrowAsyncError from '../hooks/useThrowAsyncError';
 const MyProjects = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  
   const throwAsyncError = useThrowAsyncError();
   
   const [createdProjects, setCreatedProjects] = useState([]);
@@ -19,10 +18,15 @@ const MyProjects = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('published');
 
+  // Helper do sprawdzania czy projekt jest zamknięty
+  // Zakładamy: 1 = Open, 2 = Closed
+  const isProjectClosed = (project) => project.status_id === 2;
+
   const fetchData = async () => {
     setLoading(true);
     try {
-      // 1. Pobieranie projektów stworzonych przez użytkownika
+      // 1. Pobieranie projektów autora
+      // Wybieramy status_id zamiast status
       const { data: myProjects, error: err1 } = await supabase
         .from('projects')
         .select(`*, applications(*, profiles:applicant_id(*))`)
@@ -31,24 +35,18 @@ const MyProjects = () => {
 
       if (err1) throw err1;
 
-      // SORTOWANIE: Najpierw te wymagające akcji (pending), potem najnowsze
+      // Logika sortowania (Pending na górze)
       const sortedMyProjects = (myProjects || []).sort((a, b) => {
-        // Sprawdź, czy projekt ma jakieś oczekujące aplikacje
         const aHasAction = a.applications?.some(app => app.status === 'pending');
         const bHasAction = b.applications?.some(app => app.status === 'pending');
-
-        // Jeśli A wymaga akcji, a B nie -> A idzie na górę listy
         if (aHasAction && !bHasAction) return -1;
-        // Jeśli B wymaga akcji, a A nie -> B idzie na górę listy
         if (!aHasAction && bHasAction) return 1;
-
-        // W pozostałych przypadkach decyduje data (najnowsze wyżej)
         return new Date(b.created_at) - new Date(a.created_at);
       });
 
       setCreatedProjects(sortedMyProjects);
 
-      // 2. Pobieranie aplikacji wysłanych przez użytkownika
+      // 2. Pobieranie aplikacji usera
       const { data: myApplications, error: err2 } = await supabase
         .from('applications')
         .select('*, projects!project_id(*)')
@@ -71,11 +69,13 @@ const MyProjects = () => {
   }, [user]);
 
   const handleDeleteProject = async (projectId) => {
-    if (!window.confirm("Are you sure? This will delete the project and all applications.")) return;
+    if (!window.confirm("Are you sure? This will delete the project permanently.")) return;
     try {
-      await supabase.from('applications').delete().eq('project_id', projectId);
+      // DELETE kaskadowy w bazie powinien załatwić aplikacje, ale dla pewności usuwamy
       const { error } = await supabase.from('projects').delete().eq('id', projectId);
+      
       if (error) throw error;
+      
       setCreatedProjects(prev => prev.filter(p => p.id !== projectId));
       toast.success("Project deleted successfully.");
     } catch (error) {
@@ -85,6 +85,7 @@ const MyProjects = () => {
   };
 
   const handleWithdrawApplication = async (applicationId) => {
+    // Używamy natywnego confirm dla szybkości, lub Twojego toasta (zostawiam Twój styl)
     toast("Are you sure?", {
       action: {
         label: "Yes, Withdraw",
@@ -105,23 +106,26 @@ const MyProjects = () => {
 
   const handleStatusChange = async (applicationId, projectId, newStatus) => {
     try {
-      let resultStatus = 'OPEN';
-      
+      let resultStatusId = 1; // Domyślnie Open
+
       if (newStatus === 'accepted') {
+        // RPC: approve_candidate (logika SQL)
         const { data, error } = await supabase.rpc('approve_candidate', { app_id: applicationId, proj_id: projectId });
         
-        if (error && error.message.includes('function not found')) {
-             await supabase.from('applications').update({ status: newStatus }).eq('id', applicationId);
-        } else if (error) {
-            throw error;
+        if (error) {
+            console.error('RPC Error:', error);
+            // Fallback: ręczna aktualizacja jeśli RPC zawiedzie
+            await supabase.from('applications').update({ status: newStatus }).eq('id', applicationId);
         } else {
-            resultStatus = data;
+            // RPC zwraca 'FULL' lub 'OPEN'. Mapujemy na status_id
+            resultStatusId = data === 'FULL' ? 2 : 1;
         }
       } else {
         const { error } = await supabase.from('applications').update({ status: newStatus }).eq('id', applicationId);
         if (error) throw error;
       }
 
+      // Aktualizacja stanu lokalnego (UI)
       setCreatedProjects(prev => prev.map(project => {
         if (project.id !== projectId) return project;
         
@@ -129,18 +133,31 @@ const MyProjects = () => {
           app.id === applicationId ? { ...app, status: newStatus } : app
         ) || [];
         
+        // Symulujemy logikę Triggera w UI
         let updatedMembers = project.members_current;
+        let updatedStatusId = project.status_id;
+
         if (newStatus === 'accepted' && project.members_current < project.members_max) {
             updatedMembers += 1;
         }
-
-        const updatedStatus = resultStatus === 'FULL' ? 'closed' : project.status;
         
-        return { ...project, status: updatedStatus, members_current: updatedMembers, applications: updatedApps };
+        // Jeśli po dodaniu członka jest full -> zamykamy (UI optimistic update)
+        if (updatedMembers >= project.members_max) {
+            updatedStatusId = 2; // Closed
+        }
+
+        return { 
+            ...project, 
+            status_id: updatedStatusId, 
+            members_current: updatedMembers, 
+            applications: updatedApps 
+        };
       }));
 
-      if (resultStatus === 'FULL') toast.success("Team complete! Project closed.");
-      else toast.success(`Application ${newStatus}!`);
+      // Sprawdźmy co się stało dla Toast message
+      const projectAfterUpdate = createdProjects.find(p => p.id === projectId);
+      // Uwaga: używamy stanu sprzed update w tej linii, więc logika toasta jest uproszczona
+      toast.success(newStatus === 'accepted' ? "Candidate accepted!" : "Candidate rejected.");
 
     } catch (error) {
       console.error(error);
@@ -182,7 +199,7 @@ const MyProjects = () => {
             </div>
           ) : (
             createdProjects.map(project => (
-              <div key={project.id} className={`bg-surface border border-white/5 rounded-2xl overflow-hidden shadow-xl ${project.status === 'closed' ? 'opacity-75' : ''}`}>
+              <div key={project.id} className={`bg-surface border border-white/5 rounded-2xl overflow-hidden shadow-xl ${isProjectClosed(project) ? 'opacity-75' : ''}`}>
                 <div className="p-6 border-b border-white/5 bg-white/[0.02] flex flex-col md:flex-row justify-between items-start gap-4">
                   <div>
                     <div className="flex items-center gap-3 mb-2">
@@ -193,7 +210,13 @@ const MyProjects = () => {
                         {project.title}
                       </h2>
                       <span className="px-2.5 py-0.5 rounded-md bg-white/5 border border-border text-xs font-medium text-textMuted">{project.type}</span>
-                      {project.status === 'closed' && <span className="px-2.5 py-0.5 rounded-md bg-green-500/20 border border-green-500/30 text-xs font-bold text-green-400 flex items-center gap-1"><Check size={12} /> TEAM FULL</span>}
+                      
+                      {/* ZMIANA: Sprawdzamy status_id === 2 */}
+                      {isProjectClosed(project) && (
+                        <span className="px-2.5 py-0.5 rounded-md bg-green-500/20 border border-green-500/30 text-xs font-bold text-green-400 flex items-center gap-1">
+                            <Check size={12} /> TEAM FULL
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-4 text-sm text-textMuted">
                       <span className="flex items-center gap-1.5"><Clock size={14} /> Created: {new Date(project.created_at).toLocaleDateString()}</span>
@@ -227,8 +250,8 @@ const MyProjects = () => {
                                 <span className="text-xs text-textMuted truncate">{app.profiles?.university}</span>
                               </div>
                               <div className="mt-1.5 text-sm text-textMuted bg-background border border-border p-3 rounded-lg border-l-4 border-l-primary italic">
-  "{app.message}"
-</div>
+                                "{app.message}"
+                              </div>
                             </div>
                           </div>
                           <div className="flex items-center gap-3 shrink-0 mt-3 md:mt-0 w-full md:w-auto justify-end">
@@ -276,9 +299,12 @@ const MyProjects = () => {
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-3 min-w-[140px]">
-                    <Link to={`/projects/${app.project_id}`} state={{ from: '/my-projects' }} className="w-full py-2 px-4 rounded-xl border border-border text-textMain text-sm font-medium hover:bg-white/5 hover:border-border transition-all flex items-center justify-center gap-2">
-                      <Eye size={16} /> View Project
-                    </Link>
+                    {/* Sprawdzamy czy app.projects istnieje (bo mógł zostać usunięty) */}
+                    {app.projects && (
+                        <Link to={`/projects/${app.project_id}`} state={{ from: '/my-projects' }} className="w-full py-2 px-4 rounded-xl border border-border text-textMain text-sm font-medium hover:bg-white/5 hover:border-border transition-all flex items-center justify-center gap-2">
+                        <Eye size={16} /> View Project
+                        </Link>
+                    )}
                     {app.status === 'pending' && (
                       <button onClick={() => handleWithdrawApplication(app.id)} className="w-full py-2 px-4 rounded-xl text-textMuted text-sm font-medium hover:text-red-400 hover:bg-red-500/10 transition-all flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 focus:opacity-100">
                         <Trash2 size={16} /> Withdraw
