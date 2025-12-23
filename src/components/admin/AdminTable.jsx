@@ -1,4 +1,4 @@
-import { Loader2, Edit2, Trash2, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, Edit2, Trash2, ExternalLink, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import Button from '../ui/Button';
@@ -12,7 +12,9 @@ const AdminTable = ({
   totalCount, 
   setPage, 
   onEdit, 
-  onDelete 
+  onDelete,
+  sortConfig,
+  onSort 
 }) => {
   const ITEMS_PER_PAGE = 10;
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
@@ -22,7 +24,33 @@ const AdminTable = ({
     try { return format(new Date(dateString), 'MMM d, yyyy'); } catch (e) { return '-'; }
   };
 
-  // Renderowanie wiersza Użytkownika
+  // Komponent nagłówka tabeli z obsługą kliknięcia
+  const SortableHeader = ({ label, column, className = "" }) => {
+    // Sprawdzamy, czy ta kolumna jest aktualnie sortowana
+    const isActive = sortConfig?.column === column;
+    const isAsc = sortConfig?.direction === 'asc';
+
+    return (
+      <th 
+        className={`p-4 font-medium cursor-pointer hover:text-primary transition-colors select-none group ${className}`}
+        onClick={() => onSort(column)} // Wywołanie funkcji sortowania po kliknięciu
+        title={`Sort by ${label}`}
+      >
+        <div className={`flex items-center gap-1 ${className.includes('right') ? 'justify-end' : className.includes('center') ? 'justify-center' : 'justify-start'}`}>
+          {label}
+          <span className="text-textMuted group-hover:text-primary transition-colors">
+            {isActive ? (
+              isAsc ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+            ) : (
+              <ArrowUpDown size={14} className="opacity-30 group-hover:opacity-100" />
+            )}
+          </span>
+        </div>
+      </th>
+    );
+  };
+
+  // Wiersz Użytkownika
   const renderUserRow = (item) => (
     <tr key={item.id} className="hover:bg-white/[0.02] transition-colors border-t border-border">
       <td className="p-4">
@@ -54,7 +82,7 @@ const AdminTable = ({
     </tr>
   );
 
-  // Renderowanie wiersza Projektu
+  // Wiersz Projektu
   const renderProjectRow = (item) => (
     <tr key={item.id} className="hover:bg-white/[0.02] transition-colors border-t border-border">
       <td className="p-4">
@@ -108,21 +136,22 @@ const AdminTable = ({
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-background/50 text-textMuted text-xs uppercase tracking-wider border-b border-border">
+                  {/* Używamy SortableHeader z nazwami kolumn z bazy danych */}
                   {activeTab === 'users' ? (
                     <>
-                      <th className="p-4 font-medium">User</th>
-                      <th className="p-4 font-medium">Full Name</th>
-                      <th className="p-4 font-medium">Email</th>
-                      <th className="p-4 font-medium">Role</th>
+                      <SortableHeader label="User (ID)" column="username" />
+                      <SortableHeader label="Full Name" column="full_name" />
+                      <SortableHeader label="Email" column="email" />
+                      <SortableHeader label="Role" column="role_id" />
                       <th className="p-4 font-medium text-center">Profile</th>
                       <th className="p-4 font-medium text-right">Actions</th>
                     </>
                   ) : (
                     <>
-                      <th className="p-4 font-medium w-1/4">Project Name</th>
-                      <th className="p-4 font-medium">Leader</th>
-                      <th className="p-4 font-medium">Created</th>
-                      <th className="p-4 font-medium text-center">Status</th>
+                      <SortableHeader label="Project Name" column="title" className="w-1/4" />
+                      <SortableHeader label="Leader ID" column="author_id" />
+                      <SortableHeader label="Created" column="created_at" />
+                      <SortableHeader label="Status" column="status_id" className="text-center" />
                       <th className="p-4 font-medium text-center">View</th>
                       <th className="p-4 font-medium text-right">Actions</th>
                     </>
