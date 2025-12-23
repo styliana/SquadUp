@@ -9,11 +9,16 @@ import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import SkillSelector from '../components/SkillSelector';
 
+// Definicja schematu walidacji Zod
 const projectSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters"),
   type: z.string().min(1, "Project type is required"),
   description: z.string().min(20, "Description must be at least 20 characters"),
-  skills: z.array(z.string()).min(1, "Select at least one skill"),
+  // ZMIANA: Teraz oczekujemy tablicy obiektów {id, name} ze SkillSelector
+  skills: z.array(z.object({
+    id: z.number(),
+    name: z.string()
+  })).min(1, "Select at least one skill"),
   teamSize: z.coerce.number().min(2, "Team size must be at least 2").max(10, "Max 10 members"),
   deadline: z.string().optional(),
 });
@@ -44,56 +49,51 @@ const CreateProject = () => {
   const selectedType = watch('type');
   const categories = ['Hackathon', 'Portfolio', 'Startup', 'Research', 'Competition', 'Non-profit'];
 
-const onSubmit = async (data) => {
-  if (!user) return toast.error('Login required');
-  
-  try {
-    // 1. Tworzymy projekt
-    const { data: newProject, error: projectError } = await supabase
-      .from('projects')
-      .insert([{
-        title: data.title,
-        type: data.type,
-        description: data.description,
-        members_max: data.teamSize,
-        members_current: 1,
-        deadline: data.deadline || 'Flexible',
-        author_id: user.id,
-        status_id: 1, 
-      }])
-      .select().single();
+  const onSubmit = async (data) => {
+    if (!user) return toast.error('Login required');
+    
+    try {
+      // KROK 1: Wstawienie projektu do tabeli 'projects'
+      const { data: newProject, error: projectError } = await supabase
+        .from('projects')
+        .insert([
+          {
+            title: data.title,
+            type: data.type,
+            description: data.description,
+            members_max: data.teamSize,
+            members_current: 1,
+            deadline: data.deadline || 'Flexible',
+            author_id: user.id,
+            status_id: 1, // Domyślny status 'Open'
+          }
+        ])
+        .select()
+        .single();
 
-    if (projectError) throw projectError;
+      if (projectError) throw projectError;
 
-    // 2. Pobieramy ID dla wybranych skilli (bo baza wymaga bigint, a nie tekstu)
-    if (data.skills && data.skills.length > 0) {
-      const { data: skillsFromDb, error: fetchError } = await supabase
-        .from('skills')
-        .select('id')
-        .in('name', data.skills); // Zakładamy, że w tabeli 'skills' masz kolumnę 'name'
+      // KROK 2: Wstawienie powiązań do tabeli 'project_skills'
+      if (data.skills && data.skills.length > 0) {
+        const skillsToInsert = data.skills.map(skillObj => ({
+          project_id: newProject.id,
+          skill_id: skillObj.id // Używamy bigint ID z bazy
+        }));
 
-      if (fetchError) throw fetchError;
+        const { error: skillsError } = await supabase
+          .from('project_skills')
+          .insert(skillsToInsert);
 
-      // 3. Zapisujemy powiązania w project_skills używając ID
-      const skillsToInsert = skillsFromDb.map(skill => ({
-        project_id: newProject.id,
-        skill_id: skill.id // Teraz wysyłamy bigint (liczbę)
-      }));
+        if (skillsError) throw skillsError;
+      }
 
-      const { error: skillsError } = await supabase
-        .from('project_skills')
-        .insert(skillsToInsert);
-
-      if (skillsError) throw skillsError;
+      toast.success('Project created successfully! 🎉');
+      navigate('/my-projects');
+    } catch (error) {
+      console.error("Błąd podczas tworzenia projektu:", error);
+      toast.error(`Failed to create project: ${error.message}`);
     }
-
-    toast.success('Project created successfully with skills! 🎉');
-    navigate('/my-projects');
-  } catch (error) {
-    console.error("Szczegóły błędu:", error);
-    toast.error(`Failed to create project: ${error.message}`);
-  }
-};
+  };
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
@@ -151,7 +151,7 @@ const onSubmit = async (data) => {
           </div>
         </div>
 
-        {/* SKILLS */}
+        {/* SKILLS SELECTOR */}
         <div className="pt-6 border-t border-border">
           <Controller
             control={control}
@@ -187,6 +187,7 @@ const onSubmit = async (data) => {
           </div>
         </div>
 
+        {/* ACTIONS */}
         <div className="pt-6 flex justify-end gap-4">
           <button 
             type="button" 
