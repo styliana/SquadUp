@@ -94,7 +94,7 @@ const MyProjects = () => {
       toast.success("Project deleted successfully.");
     } catch (error) {
       console.error(error);
-      toast.error("Failed to delete project.");
+      toast.error(`Delete failed: ${error.message}`);
     }
   };
 
@@ -110,86 +110,130 @@ const MyProjects = () => {
             toast.success("Application withdrawn.");
           } catch (error) {
             console.error(error);
-            toast.error("Failed to withdraw.");
+            toast.error(`Withdraw failed: ${error.message}`);
           }
         }
       },
     });
   };
 
+  // --- POPRAWIONA I ZDIAGNOZOWANA FUNKCJA ZMIANY STATUSU ---
   const handleStatusChange = async (applicationId, projectId, newStatus) => {
-  try {
-    const targetProject = createdProjects.find(p => p.id === projectId);
-    
-    if (newStatus === 'accepted') {
-      // Wywołujemy RPC, które teraz załatwia akceptację I ewentualne zamknięcie projektu
-      const { error: rpcError } = await supabase.rpc('approve_candidate', { 
-        app_id: applicationId, 
-        proj_id: projectId 
-      });
-
-      if (rpcError) throw rpcError;
-
-      // Logika powiadomień po pełnym składzie
-      const newMembersCount = targetProject.members_current + 1;
-      if (targetProject && newMembersCount >= targetProject.members_max) {
-         const recipients = targetProject.applications
-           .filter(app => app.status === 'accepted' || app.id === applicationId)
-           .map(app => app.applicant_id);
-
-         const uniqueRecipients = [...new Set(recipients)];
-         const messagesPayload = uniqueRecipients.map(recipientId => ({
-             project_id: projectId,
-             sender_id: user.id,
-             recipient_id: recipientId,
-             content: "We have a full team let's start working!"
-         }));
-
-         if (messagesPayload.length > 0) {
-             const { error: msgError } = await supabase.from('messages').insert(messagesPayload);
-             if (!msgError) toast.success("Team full! Group message sent.");
-         }
+    try {
+      const targetProject = createdProjects.find(p => p.id === projectId);
+      
+      if (!targetProject) {
+          throw new Error("Project not found in local state (please refresh page)");
       }
-    } else {
-      // Odrzucenie aplikacji pozostaje standardowym update'em
-      const { error } = await supabase.from('applications')
-        .update({ status: newStatus })
-        .eq('id', applicationId);
-      if (error) throw error;
+
+      // 1. Logika AKCEPTACJI
+      if (newStatus === 'accepted') {
+        // Sprawdź czy jest miejsce
+        if (targetProject.members_current >= targetProject.members_max) {
+           toast.error("Team is already full!");
+           return;
+        }
+
+        // A. Aktualizuj status aplikacji (ZWYKŁY UPDATE)
+        const { error: updateAppError } = await supabase
+          .from('applications')
+          .update({ status: 'accepted' })
+          .eq('id', applicationId);
+
+        if (updateAppError) {
+            // Rzucamy błąd z konkretną treścią z bazy danych
+            throw new Error(`DB Error (Applications): ${updateAppError.message} (Details: ${updateAppError.details || 'none'})`);
+        }
+
+        // B. Sprawdź czy projekt się zapełnił i ewentualnie go zamknij
+        const newMembersCount = targetProject.members_current + 1;
+        const isNowFull = newMembersCount >= targetProject.members_max;
+
+        if (isNowFull) {
+           // Jeśli pełny -> zamknij projekt w bazie
+           const { error: projectUpdateError } = await supabase
+                .from('projects')
+                .update({ status_id: PROJECT_STATUS.CLOSED })
+                .eq('id', projectId);
+
+           if (projectUpdateError) {
+               console.error("Failed to close project:", projectUpdateError);
+               // Nie przerywamy, bo akceptacja kandydata się udała
+               toast.warning("Candidate accepted, but failed to close project status.");
+           }
+
+           // Logika powiadomień po pełnym składzie
+           try {
+               const recipients = targetProject.applications
+                 .filter(app => app.status === 'accepted' || app.id === applicationId)
+                 .map(app => app.applicant_id);
+
+               const uniqueRecipients = [...new Set(recipients)];
+               const messagesPayload = uniqueRecipients.map(recipientId => ({
+                   project_id: projectId,
+                   sender_id: user.id,
+                   recipient_id: recipientId,
+                   content: "We have a full team let's start working!"
+               }));
+
+               if (messagesPayload.length > 0) {
+                   // Sprawdź czy tabela messages w ogóle istnieje, żeby nie rzucać błędu
+                   const { error: msgError } = await supabase.from('messages').insert(messagesPayload);
+                   if (msgError) {
+                        console.error("Message insert error:", msgError);
+                        // Ignorujemy błąd wiadomości - to opcjonalne
+                   } else {
+                        toast.success("Team full! Group message sent.");
+                   }
+               }
+           } catch (msgLogicError) {
+               console.error("Message logic error:", msgLogicError);
+           }
+        }
+      } 
+      // 2. Logika ODRZUCENIA
+      else {
+        const { error: rejectError } = await supabase.from('applications')
+          .update({ status: newStatus })
+          .eq('id', applicationId);
+        
+        if (rejectError) {
+            throw new Error(`DB Error (Reject): ${rejectError.message}`);
+        }
+      }
+
+      // 3. AKTUALIZACJA UI
+      setCreatedProjects(prev => prev.map(project => {
+        if (project.id !== projectId) return project;
+        
+        const updatedApps = project.applications?.map(app => 
+          app.id === applicationId ? { ...app, status: newStatus } : app
+        ) || [];
+        
+        const acceptedCount = updatedApps.filter(a => a.status === 'accepted').length;
+        const updatedMembersCount = 1 + acceptedCount;
+
+        let finalStatusId = project.status_id;
+        if (newStatus === 'accepted' && updatedMembersCount >= project.members_max) {
+            finalStatusId = PROJECT_STATUS.CLOSED;
+        }
+
+        return { 
+            ...project, 
+            status_id: finalStatusId, 
+            members_current: updatedMembersCount, 
+            applications: updatedApps 
+        };
+      }));
+
+      toast.success(newStatus === 'accepted' ? "Candidate accepted!" : "Candidate rejected.");
+
+    } catch (error) {
+      console.error("Status Change Error FULL OBJECT:", error);
+      // Wyświetl PEŁNY komunikat błędu użytkownikowi
+      toast.error(`Action failed: ${error.message}`);
     }
-
-    // AKTUALIZACJA UI (Synchronizacja lokalnego stanu z tym, co zrobiła baza)
-    setCreatedProjects(prev => prev.map(project => {
-      if (project.id !== projectId) return project;
-      
-      const updatedApps = project.applications?.map(app => 
-        app.id === applicationId ? { ...app, status: newStatus } : app
-      ) || [];
-      
-      const acceptedCount = updatedApps.filter(a => a.status === 'accepted').length;
-      const updatedMembersCount = 1 + acceptedCount;
-
-      // Jeśli status to accepted i dobiliśmy do limitu, ustawiamy lokalnie CLOSED
-      let finalStatusId = project.status_id;
-      if (newStatus === 'accepted' && updatedMembersCount >= project.members_max) {
-          finalStatusId = PROJECT_STATUS.CLOSED;
-      }
-
-      return { 
-          ...project, 
-          status_id: finalStatusId, 
-          members_current: updatedMembersCount, 
-          applications: updatedApps 
-      };
-    }));
-
-    toast.success(newStatus === 'accepted' ? "Candidate accepted!" : "Candidate rejected.");
-
-  } catch (error) {
-    console.error("Status Change Error:", error);
-    toast.error("Action failed.");
-  }
-};
+  };
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">

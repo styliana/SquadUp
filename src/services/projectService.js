@@ -103,5 +103,17 @@ export const projectService = {
         
     if (error) throw error;
     return data;
+  },
+
+  // 8. Aktualizacja statusu aplikacji (TEGO BRAKOWAŁO)
+  updateApplicationStatus: async (applicationId, newStatus) => {
+    const { data, error } = await supabase
+      .from('applications')
+      .update({ status: newStatus })
+      .eq('id', applicationId)
+      .select();
+
+    if (error) throw error;
+    return data;
   }
 };

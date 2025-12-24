@@ -62,7 +62,7 @@ const NotificationsMenu = ({ user }) => {
     };
   }, [user]);
 
-  // 2. Obsługa kliknięcia (POPRAWIONA LOGIKA)
+  // 2. Obsługa kliknięcia
   const handleNotificationClick = (n) => {
     // Najpierw oznacz jako przeczytane
     if (!n.is_read) markAsRead(n.id);
@@ -76,16 +76,16 @@ const NotificationsMenu = ({ user }) => {
     }
 
     // 2. Jeśli nie ma linku, zgadujemy na podstawie typu
-    // Sprawdź jakie masz "type" w bazie danych, tutaj dałem uniwersalne
     const type = n.type || ''; 
 
     if (type.includes('message') || type.includes('chat')) {
         navigate('/chat');
     } else if (type.includes('project') && type.includes('new')) {
-        // Np. nowy projekt -> lista projektów
+        // Np. ktoś utworzył nowy projekt -> idź do listy wszystkich projektów
         navigate('/projects');
     } else {
-        // Domyślnie (aplikacje, statusy, systemowe) -> Dashboard
+        // Domyślnie (aplikacje, zmiany statusu) -> idź do dashboardu "My Projects",
+        // tam zazwyczaj zarządza się kandydatami
         navigate('/my-projects');
     }
   };
