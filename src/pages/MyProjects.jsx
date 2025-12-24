@@ -117,7 +117,7 @@ const MyProjects = () => {
     });
   };
 
-  // --- POPRAWIONA I ZDIAGNOZOWANA FUNKCJA ZMIANY STATUSU ---
+  // --- ZAKTUALIZOWANA FUNKCJA Z WIADOMOŚCIĄ POWITALNĄ ---
   const handleStatusChange = async (applicationId, projectId, newStatus) => {
     try {
       const targetProject = createdProjects.find(p => p.id === projectId);
@@ -134,23 +134,44 @@ const MyProjects = () => {
            return;
         }
 
-        // A. Aktualizuj status aplikacji (ZWYKŁY UPDATE)
+        // A. Aktualizuj status aplikacji
         const { error: updateAppError } = await supabase
           .from('applications')
           .update({ status: 'accepted' })
           .eq('id', applicationId);
 
         if (updateAppError) {
-            // Rzucamy błąd z konkretną treścią z bazy danych
-            throw new Error(`DB Error (Applications): ${updateAppError.message} (Details: ${updateAppError.details || 'none'})`);
+            throw new Error(`DB Error (Applications): ${updateAppError.message}`);
         }
 
-        // B. Sprawdź czy projekt się zapełnił i ewentualnie go zamknij
+        // B. --- NOWOŚĆ: WYŚLIJ WIADOMOŚĆ POWITALNĄ DO NOWEGO CZŁONKA ---
+        try {
+            // Znajdź ID użytkownika, którego właśnie zaakceptowaliśmy
+            const applicationData = targetProject.applications.find(app => app.id === applicationId);
+            const applicantId = applicationData?.applicant_id;
+
+            if (applicantId) {
+                const welcomeMsg = {
+                    project_id: projectId,
+                    sender_id: user.id, // Ty (Lider)
+                    recipient_id: applicantId, // Nowy członek
+                    content: `Congrats! You got accepted: ${targetProject.title}! Let's start working!`
+                };
+
+                const { error: msgError } = await supabase.from('messages').insert([welcomeMsg]);
+                if (msgError) console.error("Failed to send welcome message:", msgError);
+                else toast.success("Welcome message sent to candidate!");
+            }
+        } catch (msgLogicError) {
+            console.error("Welcome message logic error:", msgLogicError);
+        }
+        // ----------------------------------------------------------------
+
+        // C. Sprawdź czy projekt się zapełnił i ewentualnie go zamknij
         const newMembersCount = targetProject.members_current + 1;
         const isNowFull = newMembersCount >= targetProject.members_max;
 
         if (isNowFull) {
-           // Jeśli pełny -> zamknij projekt w bazie
            const { error: projectUpdateError } = await supabase
                 .from('projects')
                 .update({ status_id: PROJECT_STATUS.CLOSED })
@@ -158,36 +179,30 @@ const MyProjects = () => {
 
            if (projectUpdateError) {
                console.error("Failed to close project:", projectUpdateError);
-               // Nie przerywamy, bo akceptacja kandydata się udała
-               toast.warning("Candidate accepted, but failed to close project status.");
            }
 
-           // Logika powiadomień po pełnym składzie
+           // Logika powiadomień po pełnym składzie (opcjonalna, jeśli chcesz wysłać info do WSZYSTKICH)
            try {
                const recipients = targetProject.applications
                  .filter(app => app.status === 'accepted' || app.id === applicationId)
                  .map(app => app.applicant_id);
 
                const uniqueRecipients = [...new Set(recipients)];
+               // Filtrujemy, żeby nie wysłać powtórnie do osoby którą przed chwilą powitaliśmy (opcjonalnie)
+               // Ale tutaj zostawiam wiadomość grupową "Team full"
                const messagesPayload = uniqueRecipients.map(recipientId => ({
                    project_id: projectId,
                    sender_id: user.id,
                    recipient_id: recipientId,
-                   content: "We have a full team let's start working!"
+                   content: "We have a full team! Let's start working!"
                }));
 
                if (messagesPayload.length > 0) {
-                   // Sprawdź czy tabela messages w ogóle istnieje, żeby nie rzucać błędu
-                   const { error: msgError } = await supabase.from('messages').insert(messagesPayload);
-                   if (msgError) {
-                        console.error("Message insert error:", msgError);
-                        // Ignorujemy błąd wiadomości - to opcjonalne
-                   } else {
-                        toast.success("Team full! Group message sent.");
-                   }
+                   const { error: groupMsgError } = await supabase.from('messages').insert(messagesPayload);
+                   if (!groupMsgError) toast.success("Team full! Group message sent.");
                }
-           } catch (msgLogicError) {
-               console.error("Message logic error:", msgLogicError);
+           } catch (groupMsgError) {
+               console.error("Group message error:", groupMsgError);
            }
         }
       } 
@@ -226,11 +241,15 @@ const MyProjects = () => {
         };
       }));
 
-      toast.success(newStatus === 'accepted' ? "Candidate accepted!" : "Candidate rejected.");
+      // Główny komunikat sukcesu
+      if (newStatus === 'accepted') {
+          // Toast jest wywoływany wcześniej dla wiadomości, więc tu opcjonalnie
+      } else {
+          toast.success("Candidate rejected.");
+      }
 
     } catch (error) {
-      console.error("Status Change Error FULL OBJECT:", error);
-      // Wyświetl PEŁNY komunikat błędu użytkownikowi
+      console.error("Status Change Error:", error);
       toast.error(`Action failed: ${error.message}`);
     }
   };
