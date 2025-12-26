@@ -1,7 +1,8 @@
 import { supabase } from '../supabaseClient';
+import { APPLICATION_STATUS } from '../utils/constants'; // <--- Importujemy nasze stałe!
 
 export const projectService = {
-  // 1. Pobieranie szczegółów projektu (READ)
+  // 1. Pobieranie szczegółów projektu
   getById: async (id) => {
     const { data, error } = await supabase
       .from('projects')
@@ -23,70 +24,51 @@ export const projectService = {
 
     if (error) throw error;
 
-    // Obliczamy count dynamicznie
-    const acceptedCount = data.applications?.filter(app => app.status === 'accepted').length || 0;
+    // POPRAWKA: Używamy stałej zamiast wpisywać 'accepted' z ręki
+    const acceptedCount = data.applications?.filter(
+        app => app.status === APPLICATION_STATUS.ACCEPTED
+    ).length || 0;
+    
+    // Liczba członków = autor (1) + zaakceptowani
     const realMembersCurrent = 1 + acceptedCount;
 
-    // Transformacja danych dla Frontendu
     return {
       ...data,
       type: data.categories?.name || 'Unknown',
       skills: data.project_skills?.map(ps => ps.skills) || [],
       applications: data.applications || [],
-      members_current: realMembersCurrent // Aktualizacja licznika
+      members_current: realMembersCurrent
     };
   },
 
-  // 2. Tworzenie projektu (CREATE)
+  // ... (metody create, update, delete, addSkills, updateSkills, getByAuthor - zostaw bez zmian) ...
+  // Upewnij się tylko, że nie skasujesz ich przy wklejaniu! :)
+
   create: async (projectData) => {
-    return await supabase
-      .from('projects')
-      .insert([projectData])
-      .select()
-      .single();
+    return await supabase.from('projects').insert([projectData]).select().single();
   },
 
-  // 3. Aktualizacja projektu (UPDATE)
   update: async (id, updates) => {
-    return await supabase
-      .from('projects')
-      .update(updates)
-      .eq('id', id);
+    return await supabase.from('projects').update(updates).eq('id', id);
   },
 
-  // 4. Dodawanie skilli (używane w CreateProject)
   addSkills: async (skills) => {
     if (!skills || skills.length === 0) return;
-    return await supabase
-      .from('project_skills')
-      .insert(skills);
+    return await supabase.from('project_skills').insert(skills);
   },
 
-  // 5. Aktualizacja skilli (używane w EditProject)
   updateSkills: async (projectId, newSkills) => {
-    const { error: deleteError } = await supabase
-      .from('project_skills')
-      .delete()
-      .eq('project_id', projectId);
-    
+    const { error: deleteError } = await supabase.from('project_skills').delete().eq('project_id', projectId);
     if (deleteError) throw deleteError;
-
     if (newSkills && newSkills.length > 0) {
-      return await supabase
-        .from('project_skills')
-        .insert(newSkills);
+      return await supabase.from('project_skills').insert(newSkills);
     }
   },
 
-  // 6. Usuwanie projektu (DELETE)
   delete: async (id) => {
-    return await supabase
-      .from('projects')
-      .delete()
-      .eq('id', id);
+    return await supabase.from('projects').delete().eq('id', id);
   },
 
-  // 7. Pobieranie projektów autora
   getByAuthor: async (userId) => {
     const { data, error } = await supabase
         .from('projects')
@@ -100,13 +82,13 @@ export const projectService = {
         `)
         .eq('author_id', userId)
         .order('created_at', { ascending: false });
-        
     if (error) throw error;
     return data;
   },
 
-  // 8. Aktualizacja statusu aplikacji (TEGO BRAKOWAŁO)
+  // 8. Aktualizacja statusu aplikacji
   updateApplicationStatus: async (applicationId, newStatus) => {
+    // newStatus powinno pochodzić z APPLICATION_STATUS
     const { data, error } = await supabase
       .from('applications')
       .update({ status: newStatus })

@@ -1,27 +1,21 @@
-// Statusy projektów (zgodne z bazą danych)
+// src/utils/constants.js
+
+// Statusy aplikacji (Muszą idealnie pasować do ENUM w bazie danych!)
+export const APPLICATION_STATUS = {
+  PENDING: 'pending',
+  ACCEPTED: 'accepted',
+  REJECTED: 'rejected',
+  CANCELLED: 'cancelled'
+};
+
+// Statusy projektów (ID bazujące na tabeli 'project_statuses')
 export const PROJECT_STATUS = {
   OPEN: 1,
   CLOSED: 2,
   ARCHIVED: 3
 };
 
-// Statusy aplikacji (tekstowe)
-export const APPLICATION_STATUS = {
-  PENDING: 'pending',
-  ACCEPTED: 'accepted',
-  REJECTED: 'rejected'
-};
-
-// Nazwy tabel w bazie (dla porządku)
-export const TABLE_NAMES = {
-  PROJECTS: 'projects',
-  PROFILES: 'profiles',
-  APPLICATIONS: 'applications',
-  CATEGORIES: 'categories',
-  SKILLS: 'skills'
-};
-
-// Style wizualne (Badge)
+// Style wizualne dla typów projektów (Badges)
 export const PROJECT_TYPE_STYLES = {
   'Hackathon': 'bg-blue-500/20 text-blue-400 border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.15)]',
   'Competition': 'bg-purple-500/20 text-purple-400 border-purple-500/30 shadow-[0_0_10px_rgba(168,85,247,0.15)]',
@@ -32,9 +26,20 @@ export const PROJECT_TYPE_STYLES = {
   'Default': 'bg-gray-500/20 text-gray-400 border-gray-500/30'
 };
 
+// Style wizualne dla statusów aplikacji
+// Używamy kluczy z obiektu APPLICATION_STATUS, żeby było spójnie
 export const APPLICATION_STATUS_STYLES = {
-  pending: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20 shadow-[0_0_10px_rgba(234,179,8,0.1)]",
-  accepted: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_10px_rgba(52,211,153,0.1)]",
-  rejected: "bg-red-500/10 text-red-400 border-red-500/20 shadow-[0_0_10px_rgba(248,113,113,0.1)]",
-  closed: "bg-gray-500/10 text-gray-400 border-gray-500/20"
+  [APPLICATION_STATUS.PENDING]: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20 shadow-[0_0_10px_rgba(234,179,8,0.1)]",
+  [APPLICATION_STATUS.ACCEPTED]: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_10px_rgba(52,211,153,0.1)]",
+  [APPLICATION_STATUS.REJECTED]: "bg-red-500/10 text-red-400 border-red-500/20 shadow-[0_0_10px_rgba(248,113,113,0.1)]",
+  [APPLICATION_STATUS.CANCELLED]: "bg-gray-500/10 text-gray-400 border-gray-500/20"
+};
+
+// Nazwy tabel (opcjonalne, ale dobre dla porządku)
+export const TABLE_NAMES = {
+  PROJECTS: 'projects',
+  PROFILES: 'profiles',
+  APPLICATIONS: 'applications',
+  CATEGORIES: 'categories',
+  SKILLS: 'skills'
 };
