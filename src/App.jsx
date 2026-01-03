@@ -28,7 +28,7 @@ const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
-const UpdatePassword = lazy(() => import('./pages/UpdatePassword')); // Dodałem UpdatePassword jeśli go masz
+const UpdatePassword = lazy(() => import('./pages/UpdatePassword'));
 
 // Loader strony
 const PageLoader = () => (
@@ -63,15 +63,16 @@ const ScrollToTop = () => {
 // Layout aplikacji (Navbar + Content + Footer)
 const Layout = () => {
   const location = useLocation();
-  // Ukrywamy footer na czacie, żeby było więcej miejsca
   const isChatPage = location.pathname === '/chat';
 
   return (
     <div className="min-h-screen bg-background text-textMain flex flex-col font-sans selection:bg-primary/30">
       <Navbar />
       
-      {/* Padding top (pt-16) odpowiada wysokości navbara, żeby treść nie wchodziła pod spód */}
-      <div className="flex-grow pt-16"> 
+      {/* --- ZMIANA TUTAJ --- */}
+      {/* Jeśli jesteśmy na czacie, usuwamy padding (pt-16), żeby czat przylegał do navbara. */}
+      {/* Na innych stronach zostawiamy padding, żeby treść miała odstęp. */}
+      <div className={`flex-grow ${isChatPage ? '' : 'pt-16'}`}> 
         <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* PUBLICZNE */}
@@ -83,7 +84,7 @@ const Layout = () => {
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/update-password" element={<UpdatePassword />} /> {/* Ważne dla resetowania hasła */}
+            <Route path="/update-password" element={<UpdatePassword />} />
 
             {/* CHRONIONE (Tylko zalogowani) */}
             <Route element={<ProtectedRoute />}>
