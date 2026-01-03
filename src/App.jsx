@@ -1,9 +1,11 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Toaster } from 'sonner';
 import { Loader2, AlertTriangle } from 'lucide-react';
 
-// --- IMPORTY LAYOUTU I AUTH (Z NOWYCH FOLDERÓW) ---
+// --- NOWY IMPORT ---
+import AppToaster from './components/common/AppToaster'; // <-- Nasz nowy plik
+
+// --- IMPORTY LAYOUTU I AUTH ---
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer'; 
 import ErrorBoundary from './components/ErrorBoundary';
@@ -30,14 +32,14 @@ const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const UpdatePassword = lazy(() => import('./pages/UpdatePassword'));
 
-// Loader strony
+// Loader
 const PageLoader = () => (
   <div className="flex justify-center items-center h-[calc(100vh-64px)]">
     <Loader2 className="animate-spin text-primary" size={40} />
   </div>
 );
 
-// Komponent 404
+// 404
 const NotFound = () => (
   <div className="flex flex-col items-center justify-center h-[calc(100vh-64px)] text-center px-4">
     <div className="bg-surface/50 p-8 rounded-3xl border border-border backdrop-blur-sm max-w-md w-full">
@@ -51,7 +53,7 @@ const NotFound = () => (
   </div>
 );
 
-// Komponent wymuszający przewinięcie do góry przy zmianie strony
+// ScrollToTop
 const ScrollToTop = () => {
   const { pathname } = useLocation();
   useEffect(() => {
@@ -60,7 +62,7 @@ const ScrollToTop = () => {
   return null;
 };
 
-// Layout aplikacji (Navbar + Content + Footer)
+// Layout
 const Layout = () => {
   const location = useLocation();
   const isChatPage = location.pathname === '/chat';
@@ -68,14 +70,9 @@ const Layout = () => {
   return (
     <div className="min-h-screen bg-background text-textMain flex flex-col font-sans selection:bg-primary/30">
       <Navbar />
-      
-      {/* --- ZMIANA TUTAJ --- */}
-      {/* Jeśli jesteśmy na czacie, usuwamy padding (pt-16), żeby czat przylegał do navbara. */}
-      {/* Na innych stronach zostawiamy padding, żeby treść miała odstęp. */}
       <div className={`flex-grow ${isChatPage ? '' : 'pt-16'}`}> 
         <Suspense fallback={<PageLoader />}>
           <Routes>
-            {/* PUBLICZNE */}
             <Route path="/" element={<Home />} />
             <Route path="/projects" element={<Projects />} />
             <Route path="/projects/:id" element={<ProjectDetails />} />
@@ -86,7 +83,6 @@ const Layout = () => {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/update-password" element={<UpdatePassword />} />
 
-            {/* CHRONIONE (Tylko zalogowani) */}
             <Route element={<ProtectedRoute />}>
               <Route path="/create-project" element={<CreateProject />} />
               <Route path="/edit-project/:id" element={<EditProject />} />
@@ -95,17 +91,14 @@ const Layout = () => {
               <Route path="/chat" element={<Chat />} />
             </Route>
 
-            {/* ADMIN (Tylko rola admina) */}
             <Route element={<AdminRoute />}>
               <Route path="/admin" element={<AdminDashboard />} />
             </Route>
 
-            {/* 404 */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
       </div>
-
       {!isChatPage && <Footer />}
     </div>
   );
@@ -117,8 +110,10 @@ function App() {
       <ErrorBoundary>
         <AuthProvider>
           <ScrollToTop />
-          {/* Ustawienia Toastów: ciemny motyw, na górze ekranu */}
-          <Toaster position="top-center" theme="dark" richColors closeButton />
+          
+          {/* --- CZYSTO I ELEGANCKO --- */}
+          <AppToaster /> 
+          
           <Layout />
         </AuthProvider>
       </ErrorBoundary>
