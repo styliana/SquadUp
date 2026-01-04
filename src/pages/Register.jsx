@@ -70,6 +70,8 @@ const Register = () => {
         email: data.email, 
         password: data.password,
         options: {
+          // --- KLUCZOWA ZMIANA: Dynamiczny adres przekierowania ---
+          emailRedirectTo: window.location.origin, 
           data: {
             full_name: data.fullName,
             username: data.username,
