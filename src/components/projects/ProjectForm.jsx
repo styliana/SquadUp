@@ -8,13 +8,12 @@ const ProjectForm = ({ initialData, onSubmit, isSubmitting, pageTitle, pageDescr
   const navigate = useNavigate();
   const [categories, setCategories] = useState([]);
   
-  // Dopasowanie nazw pól do nazw kolumn w bazie danych
   const defaultData = {
     title: '',
     type: '',
     description: '',
-    skills: [], // Tutaj przechowujemy tablicę nazw skilli
-    members_max: 4, // Zmiana z teamSize na members_max (zgodnie z Twoją bazą)
+    skills: [], 
+    members_max: 4, 
     deadline: ''
   };
 
@@ -25,7 +24,6 @@ const ProjectForm = ({ initialData, onSubmit, isSubmitting, pageTitle, pageDescr
       const { data } = await supabase.from('categories').select('name');
       if (data) {
         setCategories(data.map(c => c.name));
-        // Jeśli tworzymy nowy projekt i nie ma typu, ustaw pierwszy domyślny
         if (!formData.type && data.length > 0 && !initialData) {
           setFormData(prev => ({ ...prev, type: data[0].name }));
         }
@@ -34,13 +32,11 @@ const ProjectForm = ({ initialData, onSubmit, isSubmitting, pageTitle, pageDescr
     fetchCategories();
   }, [initialData]);
 
-  // Synchronizacja z initialData (ważne przy edycji)
   useEffect(() => {
     if (initialData) {
       setFormData(prev => ({ 
         ...prev, 
         ...initialData,
-        // Upewniamy się, że teamSize mapuje się na members_max jeśli przychodzi ze starego kodu
         members_max: initialData.members_max || initialData.teamSize || 4
       }));
     }
@@ -48,7 +44,6 @@ const ProjectForm = ({ initialData, onSubmit, isSubmitting, pageTitle, pageDescr
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Przekazujemy czyste dane do komponentu nadrzędnego
     onSubmit(formData);
   };
 
@@ -62,10 +57,11 @@ const ProjectForm = ({ initialData, onSubmit, isSubmitting, pageTitle, pageDescr
       <form onSubmit={handleSubmit} className="bg-surface border border-border rounded-2xl p-8 space-y-8 shadow-sm">
         <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-textMain mb-2">Project Title *</label>
+            <label className="block text-sm font-medium text-textMain mb-2">Project Title * (max 100)</label>
             <input 
               type="text" 
               required
+              maxLength={100} // LIMIT
               className="w-full bg-background border border-border rounded-xl px-4 py-3 text-textMain focus:outline-none focus:border-primary"
               value={formData.title}
               onChange={e => setFormData({...formData, title: e.target.value})}
@@ -98,10 +94,11 @@ const ProjectForm = ({ initialData, onSubmit, isSubmitting, pageTitle, pageDescr
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-textMain mb-2">Description *</label>
+            <label className="block text-sm font-medium text-textMain mb-2">Description * (max 2000)</label>
             <textarea 
               required
               rows={5}
+              maxLength={2000} // LIMIT
               className="w-full bg-background border border-border rounded-xl px-4 py-3 text-textMain focus:outline-none focus:border-primary resize-none"
               value={formData.description}
               onChange={e => setFormData({...formData, description: e.target.value})}

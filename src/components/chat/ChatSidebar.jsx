@@ -21,7 +21,8 @@ const ChatSidebar = ({ users, selectedUser, onSelectUser, unreadMap, loading, on
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-textMuted" size={18} />
           <input 
-            type="text" 
+            type="text"
+            maxLength={50} 
             placeholder="Search users..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}

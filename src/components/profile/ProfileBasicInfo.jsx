@@ -28,10 +28,11 @@ const ProfileBasicInfo = ({ profile, setProfile, isEditing }) => {
         {/* INPUTS */}
         <div className="flex-grow w-full space-y-5">
           <div>
-            <label className="text-xs text-textMuted uppercase font-bold block mb-1">Full Name</label>
+            <label className="text-xs text-textMuted uppercase font-bold block mb-1">Full Name (max 100)</label>
             {isEditing ? (
               <input 
                 type="text" 
+                maxLength={100}
                 value={profile.full_name || ''} 
                 onChange={e => setProfile({...profile, full_name: e.target.value})} 
                 className="w-full bg-background border border-border rounded-lg px-3 py-2 text-textMain focus:border-primary focus:outline-none transition-colors" 
@@ -39,10 +40,11 @@ const ProfileBasicInfo = ({ profile, setProfile, isEditing }) => {
             ) : (<h2 className="text-2xl font-bold text-textMain">{profile.full_name || 'Anonymous User'}</h2>)}
           </div>
           <div>
-            <label className="text-xs text-textMuted uppercase font-bold block mb-1">University</label>
+            <label className="text-xs text-textMuted uppercase font-bold block mb-1">University (max 150)</label>
             {isEditing ? (
               <input 
                 type="text" 
+                maxLength={150}
                 value={profile.university || ''} 
                 onChange={e => setProfile({...profile, university: e.target.value})} 
                 className="w-full bg-background border border-border rounded-lg px-3 py-2 text-textMain focus:border-primary focus:outline-none transition-colors" 

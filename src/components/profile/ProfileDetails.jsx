@@ -26,6 +26,7 @@ const ProfileDetails = ({ profile, setProfile, isEditing, availableCategories })
         <label className="text-xs text-textMuted uppercase font-bold block mb-4">Bio</label>
         {isEditing ? (
           <textarea 
+            maxLength={1000}
             rows={3} 
             value={profile.bio || ''} 
             onChange={e => setProfile({...profile, bio: e.target.value})} 

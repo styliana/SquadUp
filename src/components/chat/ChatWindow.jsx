@@ -140,6 +140,7 @@ const ChatWindow = ({
         <form onSubmit={handleSubmit} className="flex gap-3">
           <input 
             type="text" 
+            maxLength={2000}
             value={newMessage}
             onChange={(e) => { setNewMessage(e.target.value); if(onTyping) onTyping(); }} 
             placeholder="Napisz wiadomość..." 

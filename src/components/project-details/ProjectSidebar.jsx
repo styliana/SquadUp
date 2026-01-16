@@ -127,6 +127,7 @@ const ProjectSidebar = ({
             <textarea 
               className="w-full bg-background border border-border rounded-xl p-3 text-textMain text-sm mb-4 focus:outline-none focus:border-primary resize-none"
               rows={3}
+              maxLength={500}
               placeholder="Short message to the leader..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
