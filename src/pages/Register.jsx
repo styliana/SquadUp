@@ -144,8 +144,9 @@ const Register = () => {
               <input 
                 {...register("username")}
                 type="text" 
+                maxLength={50}
                 className={`w-full bg-background border rounded-xl py-3 pl-10 pr-4 text-textMain focus:outline-none transition-colors ${errors.username ? 'border-red-500 focus:border-red-500' : 'border-border focus:border-primary'}`}
-                placeholder="johndoe123"
+                placeholder="johndoe123 (max. 50 chars)"
                 autoComplete="off"
               />
             </div>
