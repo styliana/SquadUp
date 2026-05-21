@@ -1,19 +1,23 @@
 import { render, screen } from '@testing-library/react';
-import StatusBadge from '../StatusBadge';
 import { describe, it, expect } from 'vitest';
+// POPRAWIONA ŚCIEŻKA:
+import StatusBadge from '../common/StatusBadge';
 
 describe('StatusBadge Component', () => {
   it('renders the status text correctly', () => {
-    // Renderujemy komponent ze statusem "accepted"
     render(<StatusBadge status="accepted" />);
-    
-    // Sprawdzamy czy tekst "accepted" jest w dokumencie
     expect(screen.getByText(/accepted/i)).toBeInTheDocument();
   });
 
   it('renders unknown status without crashing', () => {
-    // Sprawdzamy odporność na dziwne dane
     render(<StatusBadge status="unknown-status" />);
     expect(screen.getByText(/unknown-status/i)).toBeInTheDocument();
+  });
+
+  it('używa fallbacku (pending), gdy nie podano żadnego statusu', () => {
+    render(<StatusBadge />); // Wywołanie bez propsa status
+    
+    // Zgodnie z kodem, jeśli status jest undefined, wymusza PENDING
+    expect(screen.getByText(/pending/i)).toBeInTheDocument();
   });
 });
