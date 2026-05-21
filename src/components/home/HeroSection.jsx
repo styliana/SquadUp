@@ -11,7 +11,7 @@ const HeroSection = () => {
 
       <h1 className="text-5xl md:text-7xl font-bold text-textMain mb-6 tracking-tight animate-in fade-in slide-in-from-bottom-5 duration-1000">
         Find your <br />
-        <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-blue-400 to-secondary animate-gradient">
+        <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-accent to-secondary animate-gradient">
           Dream Team
         </span>
       </h1>
@@ -21,9 +21,10 @@ const HeroSection = () => {
       </p>
 
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500">
+        {/* SOLIDNY POMARAŃCZOWY PRZYCISK */}
         <Link 
           to="/projects" 
-          className="group relative px-8 py-4 bg-gradient-to-r from-primary to-blue-600 rounded-xl text-textMain font-semibold text-lg shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:shadow-[0_0_30px_rgba(6,182,212,0.6)] transition-all hover:-translate-y-1"
+          className="group relative px-8 py-4 bg-secondary rounded-xl text-white font-semibold text-lg shadow-[0_0_20px_rgba(212,63,6,0.4)] hover:shadow-[0_0_30px_rgba(212,63,6,0.6)] transition-all hover:-translate-y-1"
           aria-label="Browse all available projects"
         >
           <div className="flex items-center gap-2">

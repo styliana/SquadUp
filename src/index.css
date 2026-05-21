@@ -9,8 +9,12 @@
     --text-main: 222.2 47.4% 11.2%;
     --text-muted: 215.4 16.3% 46.9%;
     --border: 214.3 31.8% 91.4%;
-    --primary: 189 94% 40%;
-    --secondary: 262 83% 55%;
+    
+    /* Paleta kolorów */
+    --primary: 189 94% 43%;     /* Cyjan (#06B6D4) */
+    --secondary: 17 94% 43%;    /* Pomarańcz/Czerwień (#D43F06) */
+    --accent: 37 94% 43%;       /* Miodowy (#D48406) */
+    --success: 156 94.5% 42.7%; /* NOWY: Intensywny Zielony (#06D481) */
   }
 
   .dark {
@@ -19,8 +23,11 @@
     --text-main: 210 20% 98%;
     --text-muted: 215 14% 65%;
     --border: 217 19% 27%;
-    --primary: 189 94% 43%;
-    --secondary: 262 83% 58%;
+    
+    --primary: 189 94% 48%;     
+    --secondary: 17 94% 48%;    
+    --accent: 37 94% 48%;       
+    --success: 156 94.5% 48%;   /* Rozjaśniony zielony dla Dark Mode */
   }
 
   body {
@@ -31,6 +38,56 @@
     font-family: 'Manrope', sans-serif !important;
     @apply border-border;
   }
+
+  /* Zabezpieczenie dla przycisków wewnątrz surface, żeby nie dostały brzydkiego cienia na start */
+  div[class*="bg-surface"] button {
+    box-shadow: none !important;
+  }
+
+  /* =========== NAPRAWIONY HOVER KART =========== */
+  /* Podnosi się TYLKO karta projektu (będąca linkiem) */
+  a.group > div[class*="bg-surface"], 
+  a.group > .rounded-2xl,
+  a[href*="/projects/"] > div[class*="bg-surface"] {
+    @apply transition-all duration-300;
+  }
+
+  /* Karta podnosi się na pomarańczowo TYLKO wtedy, gdy najeżdżasz na nią myszką */
+  a.group:hover > div[class*="bg-surface"],
+  a.group:hover > .rounded-2xl,
+  a[href*="/projects/"]:hover > div[class*="bg-surface"] {
+    border-color: rgba(212, 63, 6, 0.3) !important; 
+    box-shadow: 0 10px 25px -5px rgba(212, 63, 6, 0.08), 0 8px 10px -6px rgba(212, 63, 6, 0.08) !important; 
+    @apply -translate-y-1;
+  }
+  /* ============================================== */
+
+  /* Przyciski główne z klasą bg-secondary stają się naturalnie pomarańczowe */
+  .bg-secondary {
+    @apply text-white transition-colors duration-200 hover:brightness-110;
+  }
+
+  /* =========== NAVBAR: WIZUALNE DOPRACOWANIE =========== */
+  /* Elegancka, cyjanowa dolna kreska dla aktywnego linku w Navbarze */
+  nav a[class*="text-primary"] {
+    position: relative;
+  }
+
+  nav a[class*="text-primary"]::after {
+    content: "";
+    position: absolute;
+    bottom: -6px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    @apply bg-primary rounded-full;
+  }
+
+  /* Ikony w menu delikatnie rozświetlają się na cyjan przy najechaniu na link */
+  nav a:hover svg {
+    @apply text-primary/80 transition-colors duration-200;
+  }
+  /* ======================================================= */
 }
 
 @keyframes scroll {

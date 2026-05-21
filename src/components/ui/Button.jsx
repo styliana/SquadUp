@@ -3,7 +3,7 @@ import { cn } from '../../utils/cn';
 
 const Button = ({ children, isLoading, variant = 'primary', className, ...props }) => {
   const variants = {
-    primary: "bg-gradient-to-r from-primary to-blue-600 text-white hover:shadow-primary/25",
+    primary: "bg-gradient-to-r from-primary to-primary/90 text-background hover:brightness-110 shadow-md shadow-primary/10",
     secondary: "bg-surface border border-border text-textMain hover:bg-white/5",
     danger: "bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20",
     ghost: "text-textMuted hover:text-textMain hover:bg-white/5"

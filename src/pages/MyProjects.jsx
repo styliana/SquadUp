@@ -85,16 +85,21 @@ const MyProjects = () => {
     if (user) fetchData();
   }, [user]);
 
-  const handleDeleteProject = async (projectId) => {
-    if (!window.confirm("Are you sure? This will delete the project permanently.")) return;
+const handleDeleteProject = async (projectId) => {
+    if (!confirm("Are you sure? This will delete the project permanently.")) return;
+    
     try {
-      const { error } = await supabase.from('projects').delete().eq('id', projectId);
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', projectId);
+
       if (error) throw error;
       setCreatedProjects(prev => prev.filter(p => p.id !== projectId));
       toast.success("Project deleted successfully.");
     } catch (error) {
       console.error(error);
-      toast.error(`Delete failed: ${error.message}`);
+      toast.error("Failed to delete project.");
     }
   };
 

@@ -148,13 +148,15 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           
-          {/* LOGO */}
+      {/* LOGO */}
           <div className="flex items-center gap-4">
             <Link to="/" className="flex items-center gap-2 group">
-              <div className="bg-gradient-to-br from-primary to-blue-600 p-1.5 rounded-lg group-hover:shadow-[0_0_15px_rgba(6,182,212,0.5)] transition-all duration-300">
+              {/* Niebieskie/cyjanowe tło ikony z dopasowanym poświatem na hover */}
+              <div className="bg-primary p-1.5 rounded-lg group-hover:shadow-[0_0_15px_rgba(6,182,212,0.5)] transition-all duration-300">
                  <Users className="w-6 h-6 text-white" />
               </div>
-              <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-400">
+              {/* Pomarańczowy napis */}
+              <span className="text-xl font-bold text-secondary">
                 Squad Up
               </span>
             </Link>
