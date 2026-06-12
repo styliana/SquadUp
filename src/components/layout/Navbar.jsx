@@ -19,8 +19,8 @@ const Navbar = () => {
   
   // --- STATE ---
   const [notifications, setNotifications] = useState([]);
-  const [unreadBellCount, setUnreadBellCount] = useState(0); // Tylko Dzwonek
-  const [unreadChatCount, setUnreadChatCount] = useState(0); // Tylko Czat
+  const [unreadBellCount, setUnreadBellCount] = useState(0); 
+  const [unreadChatCount, setUnreadChatCount] = useState(0); 
 
   const isActive = (path) => location.pathname === path;
 
@@ -28,7 +28,6 @@ const Navbar = () => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
 
-  // Pobieranie avatara
   useEffect(() => {
     if (user) {
       const getProfile = async () => {
@@ -39,19 +38,13 @@ const Navbar = () => {
     }
   }, [user]);
 
-  // --- LOGIKA POWIADOMIEŃ I CZATU ---
   useEffect(() => {
     if (!user) return;
 
-    // Funkcja segregująca liczniki
     const updateCounts = (list) => {
       setNotifications(list);
-      
-      // 1. Licznik dla CZATU (tylko type 'new_message')
       const chatUnread = list.filter(n => !n.is_read && n.type === 'new_message').length;
       setUnreadChatCount(chatUnread);
-
-      // 2. Licznik dla DZWONKA (wszystko OPRÓCZ 'new_message')
       const bellUnread = list.filter(n => !n.is_read && n.type !== 'new_message').length;
       setUnreadBellCount(bellUnread);
     };
@@ -62,7 +55,7 @@ const Navbar = () => {
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(50); // Pobieramy więcej, żeby mieć historię
+        .limit(50); 
       
       if (data) updateCounts(data);
     };
@@ -87,30 +80,21 @@ const Navbar = () => {
     return () => supabase.removeChannel(channel);
   }, [user]);
 
-  // --- HANDLERS ---
-
-  // A. Kliknięcie w CZAT (czyści kropkę czatu)
   const handleChatClick = async () => {
     const chatNotificationIds = notifications
       .filter(n => !n.is_read && n.type === 'new_message')
       .map(n => n.id);
 
     if (chatNotificationIds.length > 0) {
-      // Optymistyczny update UI
       const updatedList = notifications.map(n => 
         chatNotificationIds.includes(n.id) ? { ...n, is_read: true } : n
       );
-      // Ręczna aktualizacja liczników
       setNotifications(updatedList);
       setUnreadChatCount(0); 
-      // Dzwonek bez zmian, bo czat go nie dotyczy
-
-      // Update w bazie
       await supabase.from('notifications').update({ is_read: true }).in('id', chatNotificationIds);
     }
   };
 
-  // B. Kliknięcie w POWIADOMIENIE z listy (przekazywane do dziecka)
   const markAsRead = async (id) => {
     const updatedList = notifications.map(n => n.id === id ? { ...n, is_read: true } : n);
     setNotifications(updatedList);
@@ -118,9 +102,7 @@ const Navbar = () => {
     await supabase.from('notifications').update({ is_read: true }).eq('id', id);
   };
   
-  // C. Kliknięcie "Mark all read" w dzwonku (tylko te widoczne w dzwonku!)
   const markAllBellAsRead = async () => {
-    // Szukamy ID tylko tych, które nie są wiadomościami
     const bellUnreadIds = notifications
       .filter(n => !n.is_read && n.type !== 'new_message')
       .map(n => n.id);
@@ -140,7 +122,6 @@ const Navbar = () => {
     navigate('/');
   };
 
-  // Całkowita liczba powiadomień dla Burgera (Czat + Dzwonek)
   const totalUnreadForBurger = unreadChatCount + unreadBellCount;
 
   return (
@@ -148,15 +129,14 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           
-      {/* LOGO */}
+          {/* LOGO */}
           <div className="flex items-center gap-4">
             <Link to="/" className="flex items-center gap-2 group">
-              {/* Niebieskie/cyjanowe tło ikony z dopasowanym poświatem na hover */}
               <div className="bg-primary p-1.5 rounded-lg group-hover:shadow-[0_0_15px_rgba(6,182,212,0.5)] transition-all duration-300">
                  <Users className="w-6 h-6 text-white" />
               </div>
-              {/* Pomarańczowy napis */}
-              <span className="text-xl font-bold text-secondary">
+              {/* Tuta zmiana - text-primary zamiast text-secondary */}
+              <span className="text-xl font-bold text-primary">
                 Squad Up
               </span>
             </Link>
@@ -171,7 +151,6 @@ const Navbar = () => {
                 <NavLink to="/create-project" icon={<PlusCircle size={18} />} text="Create Project" active={isActive('/create-project')} />
                 <NavLink to="/my-projects" icon={<Briefcase size={18} />} text="My Projects" active={isActive('/my-projects')} />
                 
-                {/* CHAT LINK Z OBSŁUGĄ KLIKNIĘCIA */}
                 <Link 
                   to="/chat" 
                   onClick={handleChatClick}
@@ -205,7 +184,6 @@ const Navbar = () => {
 
             {user ? (
               <>
-                {/* Przekazujemy przefiltrowany unreadBellCount! */}
                 <NotificationsMenu 
                   notifications={notifications} 
                   unreadCount={unreadBellCount} 
@@ -221,7 +199,6 @@ const Navbar = () => {
                   <LogOut size={20} />
                 </Button>
 
-                {/* BURGER MENU BUTTON */}
                 <Button 
                   variant="ghost"
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -229,7 +206,6 @@ const Navbar = () => {
                 >
                   {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                   
-                  {/* Burger świeci się, jeśli jest cokolwiek nowego (Chat LUB Dzwonek) */}
                   {!isMobileMenuOpen && totalUnreadForBurger > 0 && (
                     <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-background animate-pulse"></span>
                   )}
@@ -259,7 +235,6 @@ const Navbar = () => {
                   <MobileNavLink to="/create-project" icon={<PlusCircle size={18} />} text="Create Project" active={isActive('/create-project')} />
                   <MobileNavLink to="/my-projects" icon={<Briefcase size={18} />} text="My Projects" active={isActive('/my-projects')} />
                   
-                  {/* CHAT MOBILE */}
                   <Link 
                     to="/chat" 
                     onClick={() => {

@@ -4,17 +4,20 @@ import StatsSection from '../components/home/StatsSection';
 
 const Home = () => {
   return (
-    <div className="relative overflow-hidden min-h-[calc(100vh-64px)] flex flex-col justify-center">
+    <div className="relative w-[100vw] ml-[calc(-50vw+50%)] -mt-12 overflow-x-hidden pb-20">
+      
       <div 
-        className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-primary/20 blur-[120px] rounded-full -z-10 opacity-50" 
+        className="absolute top-[20%] left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-primary/20 blur-[120px] rounded-full -z-10 opacity-50 pointer-events-none" 
         aria-hidden="true"
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-20">
-        <HeroSection />
+      <HeroSection />
+
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-24 space-y-32">
         <TechMarquee />
         <StatsSection />
       </div>
+      
     </div>
   );
 };

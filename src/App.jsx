@@ -2,10 +2,8 @@ import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Loader2, AlertTriangle } from 'lucide-react';
 
-// --- NOWY IMPORT ---
-import AppToaster from './components/common/AppToaster'; // <-- Nasz nowy plik
+import AppToaster from './components/common/AppToaster'; 
 
-// --- IMPORTY LAYOUTU I AUTH ---
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer'; 
 import ErrorBoundary from './components/ErrorBoundary';
@@ -13,7 +11,6 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 import AdminRoute from './components/auth/AdminRoute'; 
 import { AuthProvider } from './context/AuthContext'; 
 
-// --- LENIWE IMPORTY STRON ---
 const Home = lazy(() => import('./pages/Home'));
 const Projects = lazy(() => import('./pages/Projects'));
 const ProjectDetails = lazy(() => import('./pages/ProjectDetails')); 
@@ -26,20 +23,17 @@ const Profile = lazy(() => import('./pages/Profile'));
 const Chat = lazy(() => import('./pages/Chat'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 
-// Legal
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const UpdatePassword = lazy(() => import('./pages/UpdatePassword'));
 
-// Loader
 const PageLoader = () => (
   <div className="flex justify-center items-center h-[calc(100vh-64px)]">
     <Loader2 className="animate-spin text-primary" size={40} />
   </div>
 );
 
-// 404
 const NotFound = () => (
   <div className="flex flex-col items-center justify-center h-[calc(100vh-64px)] text-center px-4">
     <div className="bg-surface/50 p-8 rounded-3xl border border-border backdrop-blur-sm max-w-md w-full">
@@ -53,7 +47,6 @@ const NotFound = () => (
   </div>
 );
 
-// ScrollToTop
 const ScrollToTop = () => {
   const { pathname } = useLocation();
   useEffect(() => {
@@ -62,7 +55,6 @@ const ScrollToTop = () => {
   return null;
 };
 
-// Layout
 const Layout = () => {
   const location = useLocation();
   const isChatPage = location.pathname === '/chat';
@@ -70,8 +62,10 @@ const Layout = () => {
   return (
     <div className="min-h-screen bg-background text-textMain flex flex-col font-sans selection:bg-primary/30">
       <Navbar />
-      <div className={`flex-grow ${isChatPage ? '' : 'pt-16'}`}> 
+      {/* ZMIANA: pt-16 zmienione na pt-8, co skraca odstęp o połowę */}
+      <div className={`flex-grow ${isChatPage ? '' : 'pt-8'}`}> 
         <Suspense fallback={<PageLoader />}>
+        <main className="w-full">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/projects" element={<Projects />} />
@@ -97,6 +91,7 @@ const Layout = () => {
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+        </main>
         </Suspense>
       </div>
       {!isChatPage && <Footer />}
@@ -110,10 +105,7 @@ function App() {
       <ErrorBoundary>
         <AuthProvider>
           <ScrollToTop />
-          
-          {/* --- CZYSTO I ELEGANCKO --- */}
           <AppToaster /> 
-          
           <Layout />
         </AuthProvider>
       </ErrorBoundary>
