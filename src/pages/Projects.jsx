@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import ProjectCard from '../components/projects/ProjectCard';
 import SkillSelector from '../components/common/SkillSelector';
 import { useProjects } from '../hooks/useProjects';
+import { useDebounce } from '../hooks/useDebounce';
 import ProjectCardSkeleton from '../components/skeletons/ProjectCardSkeleton';
 
 const Projects = () => {
@@ -20,6 +21,8 @@ const Projects = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showRecommended, setShowRecommended] = useState(false);
 
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
   // Pobieranie kategorii
   useEffect(() => {
     const fetchCategories = async () => {
@@ -33,21 +36,17 @@ const Projects = () => {
     fetchCategories();
   }, []);
 
-  // Obsługa filtrów i wyszukiwania (Debounce)
+  // Obsługa filtrów (natychmiastowo) i wyszukiwania (zdebouncowane)
   useEffect(() => {
     setPage(0);
-    const timeoutId = setTimeout(() => {
-      // isReset = true (nadpisujemy listę)
-      fetchProjects({
-        page: 0,
-        searchTerm,
-        selectedType,
-        selectedSkills,
-        showRecommended
-      }, true);
-    }, 300);
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm, selectedType, selectedSkills, showRecommended, fetchProjects]);
+    fetchProjects({
+      page: 0,
+      searchTerm: debouncedSearchTerm,
+      selectedType,
+      selectedSkills,
+      showRecommended
+    }, true);
+  }, [debouncedSearchTerm, selectedType, selectedSkills, showRecommended, fetchProjects]);
 
   const handleLoadMore = () => {
     const nextPage = page + 1;
