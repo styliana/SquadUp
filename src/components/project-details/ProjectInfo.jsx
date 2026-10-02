@@ -5,7 +5,8 @@ const ProjectInfo = ({ project, userSkills }) => {
   
   // Funkcja sprawdzająca dopasowanie skilla
   const isSkillMatched = (skillName) => {
-    return userSkills.some(skill => skill.toLowerCase() === skillName.toLowerCase());
+    if (!userSkills || userSkills.length === 0 || !skillName) return false;
+    return userSkills.some(skill => (typeof skill === 'string' ? skill : skill?.name || '').toLowerCase() === skillName.toLowerCase());
   };
 
   return (
@@ -42,11 +43,12 @@ const ProjectInfo = ({ project, userSkills }) => {
           <h3 className="text-lg font-semibold text-textMain mb-3">Required Skills</h3>
           <div className="flex flex-wrap gap-2">
             {project.skills && project.skills.length > 0 ? (
-              project.skills.map(skillName => {
+              project.skills.map((skill, index) => {
+                const skillName = typeof skill === 'string' ? skill : skill?.name || '';
                 const isMatch = isSkillMatched(skillName);
                 return (
                   <span 
-                    key={skillName} 
+                    key={skill?.id || skillName || index} 
                     className={`px-3 py-1.5 rounded-lg border text-sm transition-all ${
                       isMatch
                         ? 'bg-primary/10 border-primary/50 text-primary shadow-[0_0_15px_rgba(6,182,212,0.2)] font-medium'
