@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Search, Filter, Loader2, X, Sparkles, ArrowDownCircle } from 'lucide-react';
 import { categoryService } from '../services/categoryService';
 import { useAuth } from '../context/AuthContext';
@@ -70,6 +70,7 @@ const Projects = () => {
 
   // Sprawdzanie preferencji do sekcji "For You"
   const hasUserPreferences = (userProfile.skills?.length > 0) || (userProfile.preferred_categories?.length > 0);
+  const userSkills = useMemo(() => userProfile.skills || [], [userProfile.skills]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -174,14 +175,8 @@ const Projects = () => {
             {projects.map((project) => (
               <ProjectCard 
                 key={project.id} 
-                project={{
-                  ...project,
-                  tags: project.skills, // Hook już przygotował pole 'skills' jako tablicę nazw
-                  timePosted: new Date(project.created_at).toLocaleDateString(),
-                  membersCurrent: project.members_current,
-                  membersMax: project.members_max
-                }}
-                userSkills={userProfile.skills || []}
+                project={project}
+                userSkills={userSkills}
               />
             ))}
           </div>

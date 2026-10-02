@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Calendar, User, ArrowRight, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PROJECT_TYPE_STYLES } from '../../utils/constants';
@@ -115,4 +116,4 @@ const ProjectCard = ({ project, userSkills = [] }) => {
   );
 };
 
-export default ProjectCard;
+export default memo(ProjectCard);

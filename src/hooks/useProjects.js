@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import { toast } from 'sonner';
 import { sortProjectsByRelevance } from '../utils/recommendationAlgo';
@@ -9,6 +9,11 @@ export const useProjects = (user) => {
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [userProfile, setUserProfile] = useState({});
+  const userProfileRef = useRef(userProfile);
+
+  useEffect(() => {
+    userProfileRef.current = userProfile;
+  }, [userProfile]);
 
   useEffect(() => {
     if (!user) return;
@@ -34,10 +39,12 @@ export const useProjects = (user) => {
             .filter(name => typeof name === 'string') 
             || [];
           
-          setUserProfile({
+          const profileData = {
             ...data,
             skills: formattedSkills 
-          });
+          };
+          userProfileRef.current = profileData;
+          setUserProfile(profileData);
         }
       } catch (err) {
         console.error("Error loading profile:", err);
@@ -54,7 +61,8 @@ export const useProjects = (user) => {
     try {
       setLoading(true);
 
-      const isRecommendationMode = showRecommended && (userProfile?.preferred_categories?.length > 0 || userProfile?.skills?.length > 0);
+      const profile = userProfileRef.current;
+      const isRecommendationMode = showRecommended && (profile?.preferred_categories?.length > 0 || profile?.skills?.length > 0);
 
       // ZMIANA: Dodajemy pobieranie tabeli applications (tylko status), aby policzyć realną liczbę członków
       let query = supabase
@@ -90,16 +98,22 @@ export const useProjects = (user) => {
       if (error) throw error;
 
       // Transformacja danych
-      let formattedData = data.map(p => ({
-        ...p,
-        type: p.categories?.name || 'Unknown', 
-        skills: p.project_skills
+      let formattedData = data.map(p => {
+        const skills = p.project_skills
             ?.map(ps => ps.skills?.name)
             .filter(name => typeof name === 'string') 
-            || [],
-        // ZMIANA: Nadpisujemy members_current
-        members_current: 1 + (p.applications?.filter(a => a.status === APPLICATION_STATUS.ACCEPTED).length || 0)
-      }));
+            || [];
+        const members_current = 1 + (p.applications?.filter(a => a.status === APPLICATION_STATUS.ACCEPTED).length || 0);
+
+        return {
+          ...p,
+          type: p.categories?.name || 'Unknown', 
+          skills,
+          tags: skills,
+          membersCurrent: members_current,
+          members_current
+        };
+      });
 
       formattedData = formattedData.filter(p => p.members_current < p.members_max);
 
@@ -111,7 +125,7 @@ export const useProjects = (user) => {
       }
 
       if (isRecommendationMode) {
-        formattedData = sortProjectsByRelevance(formattedData, userProfile);
+        formattedData = sortProjectsByRelevance(formattedData, profile);
         const from = page * PAGE_SIZE;
         const to = from + PAGE_SIZE;
         const paginatedSlice = formattedData.slice(from, to);
@@ -140,7 +154,7 @@ export const useProjects = (user) => {
     } finally {
       setLoading(false);
     }
-  }, [userProfile]); 
+  }, []); 
 
   return { projects, loading, hasMore, fetchProjects, userProfile };
 };
