@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import { toast } from 'sonner';
 import { sortProjectsByRelevance } from '../utils/recommendationAlgo';
+import { APPLICATION_STATUS } from '../utils/constants';
 
 export const useProjects = (user) => {
   const [projects, setProjects] = useState([]);
@@ -97,7 +98,7 @@ export const useProjects = (user) => {
             .filter(name => typeof name === 'string') 
             || [],
         // ZMIANA: Nadpisujemy members_current
-        members_current: 1 + (p.applications?.filter(a => a.status === 'accepted').length || 0)
+        members_current: 1 + (p.applications?.filter(a => a.status === APPLICATION_STATUS.ACCEPTED).length || 0)
       }));
 
       formattedData = formattedData.filter(p => p.members_current < p.members_max);

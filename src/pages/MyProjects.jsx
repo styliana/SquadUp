@@ -8,7 +8,8 @@ import UserAvatar from '../components/common/UserAvatar';
 import StatusBadge from '../components/common/StatusBadge';
 import DashboardSkeleton from '../components/skeletons/DashboardSkeleton';
 import useThrowAsyncError from '../hooks/useThrowAsyncError';
-import { PROJECT_STATUS } from '../utils/constants'; 
+import { PROJECT_STATUS, APPLICATION_STATUS } from '../utils/constants'; 
+import { projectService } from '../services/projectService'; 
 
 const MyProjects = () => {
   const { user } = useAuth();
@@ -41,7 +42,7 @@ const MyProjects = () => {
       if (err1) throw err1;
 
       const projectsWithCount = (myProjects || []).map(p => {
-        const acceptedCount = p.applications?.filter(a => a.status === 'accepted').length || 0;
+        const acceptedCount = p.applications?.filter(a => a.status === APPLICATION_STATUS.ACCEPTED).length || 0;
         return {
           ...p,
           members_current: 1 + acceptedCount 
@@ -49,8 +50,8 @@ const MyProjects = () => {
       });
 
       const sortedMyProjects = projectsWithCount.sort((a, b) => {
-        const aHasAction = a.applications?.some(app => app.status === 'pending');
-        const bHasAction = b.applications?.some(app => app.status === 'pending');
+        const aHasAction = a.applications?.some(app => app.status === APPLICATION_STATUS.PENDING);
+        const bHasAction = b.applications?.some(app => app.status === APPLICATION_STATUS.PENDING);
         if (aHasAction && !bHasAction) return -1;
         if (!aHasAction && bHasAction) return 1;
         return new Date(b.created_at) - new Date(a.created_at);
@@ -132,22 +133,15 @@ const handleDeleteProject = async (projectId) => {
       }
 
       // 1. Logika AKCEPTACJI
-      if (newStatus === 'accepted') {
+      if (newStatus === APPLICATION_STATUS.ACCEPTED) {
         // Sprawdź czy jest miejsce
         if (targetProject.members_current >= targetProject.members_max) {
            toast.error("Team is already full!");
            return;
         }
 
-        // A. Aktualizuj status aplikacji
-        const { error: updateAppError } = await supabase
-          .from('applications')
-          .update({ status: 'accepted' })
-          .eq('id', applicationId);
-
-        if (updateAppError) {
-            throw new Error(`DB Error (Applications): ${updateAppError.message}`);
-        }
+        // A. Aktualizuj status aplikacji przez serwis
+        await projectService.updateApplicationStatus(applicationId, APPLICATION_STATUS.ACCEPTED);
 
         // B. --- NOWOŚĆ: WYŚLIJ WIADOMOŚĆ POWITALNĄ DO NOWEGO CZŁONKA ---
         try {
@@ -177,24 +171,15 @@ const handleDeleteProject = async (projectId) => {
         const isNowFull = newMembersCount >= targetProject.members_max;
 
         if (isNowFull) {
-           const { error: projectUpdateError } = await supabase
-                .from('projects')
-                .update({ status_id: PROJECT_STATUS.CLOSED })
-                .eq('id', projectId);
-
-           if (projectUpdateError) {
-               console.error("Failed to close project:", projectUpdateError);
-           }
+           await projectService.update(projectId, { status_id: PROJECT_STATUS.CLOSED });
 
            // Logika powiadomień po pełnym składzie (opcjonalna, jeśli chcesz wysłać info do WSZYSTKICH)
            try {
                const recipients = targetProject.applications
-                 .filter(app => app.status === 'accepted' || app.id === applicationId)
+                 .filter(app => app.status === APPLICATION_STATUS.ACCEPTED || app.id === applicationId)
                  .map(app => app.applicant_id);
 
                const uniqueRecipients = [...new Set(recipients)];
-               // Filtrujemy, żeby nie wysłać powtórnie do osoby którą przed chwilą powitaliśmy (opcjonalnie)
-               // Ale tutaj zostawiam wiadomość grupową "Team full"
                const messagesPayload = uniqueRecipients.map(recipientId => ({
                    project_id: projectId,
                    sender_id: user.id,
@@ -213,13 +198,7 @@ const handleDeleteProject = async (projectId) => {
       } 
       // 2. Logika ODRZUCENIA
       else {
-        const { error: rejectError } = await supabase.from('applications')
-          .update({ status: newStatus })
-          .eq('id', applicationId);
-        
-        if (rejectError) {
-            throw new Error(`DB Error (Reject): ${rejectError.message}`);
-        }
+        await projectService.updateApplicationStatus(applicationId, newStatus);
       }
 
       // 3. AKTUALIZACJA UI
@@ -230,11 +209,11 @@ const handleDeleteProject = async (projectId) => {
           app.id === applicationId ? { ...app, status: newStatus } : app
         ) || [];
         
-        const acceptedCount = updatedApps.filter(a => a.status === 'accepted').length;
+        const acceptedCount = updatedApps.filter(a => a.status === APPLICATION_STATUS.ACCEPTED).length;
         const updatedMembersCount = 1 + acceptedCount;
 
         let finalStatusId = project.status_id;
-        if (newStatus === 'accepted' && updatedMembersCount >= project.members_max) {
+        if (newStatus === APPLICATION_STATUS.ACCEPTED && updatedMembersCount >= project.members_max) {
             finalStatusId = PROJECT_STATUS.CLOSED;
         }
 
@@ -247,7 +226,7 @@ const handleDeleteProject = async (projectId) => {
       }));
 
       // Główny komunikat sukcesu
-      if (newStatus === 'accepted') {
+      if (newStatus === APPLICATION_STATUS.ACCEPTED) {
           // Toast jest wywoływany wcześniej dla wiadomości, więc tu opcjonalnie
       } else {
           toast.success("Candidate rejected.");
@@ -349,10 +328,10 @@ const handleDeleteProject = async (projectId) => {
                                 </div>
                               </div>
                               <div className="flex items-center gap-3 shrink-0 mt-3 md:mt-0 w-full md:w-auto justify-end">
-                                {app.status === 'pending' ? (
+                                {app.status === APPLICATION_STATUS.PENDING ? (
                                   <>
-                                    <button onClick={() => handleStatusChange(app.id, project.id, 'accepted')} className="flex items-center gap-1 px-3 py-2 bg-green-500/10 text-green-400 rounded-lg border border-green-500/20 hover:bg-green-500/20 transition-colors text-sm font-medium"><Check size={16} /> Accept</button>
-                                    <button onClick={() => handleStatusChange(app.id, project.id, 'rejected')} className="flex items-center gap-1 px-3 py-2 bg-red-500/10 text-red-400 rounded-lg border border-red-500/20 hover:bg-red-500/20 transition-colors text-sm font-medium"><X size={16} /> Reject</button>
+                                    <button onClick={() => handleStatusChange(app.id, project.id, APPLICATION_STATUS.ACCEPTED)} className="flex items-center gap-1 px-3 py-2 bg-green-500/10 text-green-400 rounded-lg border border-green-500/20 hover:bg-green-500/20 transition-colors text-sm font-medium"><Check size={16} /> Accept</button>
+                                    <button onClick={() => handleStatusChange(app.id, project.id, APPLICATION_STATUS.REJECTED)} className="flex items-center gap-1 px-3 py-2 bg-red-500/10 text-red-400 rounded-lg border border-red-500/20 hover:bg-red-500/20 transition-colors text-sm font-medium"><X size={16} /> Reject</button>
                                   </>
                                 ) : (<StatusBadge status={app.status} />)}
                                 <div className="w-px h-8 bg-white/5 mx-2 hidden md:block"></div>
@@ -376,7 +355,7 @@ const handleDeleteProject = async (projectId) => {
               ) : (
                 appliedProjects.map(app => (
                   <div key={app.id} className="group bg-surface border border-white/5 rounded-2xl p-6 hover:border-primary/30 transition-all duration-300 shadow-lg relative overflow-hidden">
-                    <div className={`absolute left-0 top-0 bottom-0 w-1 ${app.status === 'accepted' ? 'bg-emerald-500' : app.status === 'rejected' ? 'bg-red-500' : app.status === 'closed' ? 'bg-gray-500' : 'bg-yellow-500'}`} />
+                    <div className={`absolute left-0 top-0 bottom-0 w-1 ${app.status === APPLICATION_STATUS.ACCEPTED ? 'bg-emerald-500' : app.status === APPLICATION_STATUS.REJECTED ? 'bg-red-500' : app.status === APPLICATION_STATUS.CANCELLED ? 'bg-gray-500' : 'bg-yellow-500'}`} />
                     <div className="flex flex-col md:flex-row justify-between items-start gap-6 pl-2">
                       <div className="flex-grow">
                         <div className="flex items-center gap-3 mb-2">
@@ -399,7 +378,7 @@ const handleDeleteProject = async (projectId) => {
                               <Eye size={16} /> View Project
                             </Link>
                         )}
-                        {app.status === 'pending' && (
+                        {app.status === APPLICATION_STATUS.PENDING && (
                           <button onClick={() => handleWithdrawApplication(app.id)} className="w-full py-2 px-4 rounded-xl text-textMuted text-sm font-medium hover:text-red-400 hover:bg-red-500/10 transition-all flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
                             <Trash2 size={16} /> Withdraw
                           </button>
