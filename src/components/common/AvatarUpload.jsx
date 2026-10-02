@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from "../../supabaseClient";
 import { Camera, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { compressImage } from '../../utils/compressImage';
 
 const AvatarUpload = ({ url, onUpload, size = 150 }) => {
   const [uploading, setUploading] = useState(false);
@@ -15,13 +16,16 @@ const AvatarUpload = ({ url, onUpload, size = 150 }) => {
       }
 
       const file = event.target.files[0];
-      const fileExt = file.name.split('.').pop();
+      const compressedBlob = await compressImage(file, 300, 0.8);
+      const fileExt = 'jpg';
       const fileName = `${Math.random()}.${fileExt}`;
       const filePath = `${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, file);
+        .upload(filePath, compressedBlob, {
+          contentType: 'image/jpeg'
+        });
 
       if (uploadError) throw uploadError;
 
