@@ -9,11 +9,17 @@ const HeroSection = () => {
       <div className="absolute inset-0 z-0 flex justify-center">
         <div className="relative w-full max-w-[1920px] h-full">
           
-          <img 
-            src="/hero-bg.png" 
-            alt="Squad Up Network Background" 
-            className="w-full h-full object-cover object-right sm:object-center select-none"
-          />
+          <picture>
+            <source srcSet="/hero-bg.webp" type="image/webp" />
+            <img 
+              src="/hero-bg.png" 
+              alt="Squad Up Network Background" 
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
+              className="w-full h-full object-cover object-right sm:object-center select-none"
+            />
+          </picture>
           
           {/* MASKA KRYJĄCA:
             - Mobile (domyślnie): mocniejsze krycie przechodzące tylko do 60% tła (to-background/60)
