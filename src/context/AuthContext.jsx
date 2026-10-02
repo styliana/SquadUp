@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }) => {
       // Zapytanie do bazy
       const dbPromise = supabase
         .from('profiles')
-        .select('role')
+        .select('role_id')
         .eq('id', currentUser.id)
         .single();
 
@@ -37,11 +37,11 @@ export const AuthProvider = ({ children }) => {
 
       if (error) throw error;
 
-      // Logika uprawnień: Baza ma pierwszeństwo, ale isOwner to nasza "tylna furtka"
-      if (data?.role === 'admin') {
+      // Logika uprawnień: Baza ma pierwszeństwo (role_id === 2 oznacza Admina), a isOwner to nasza "tylna furtka"
+      if (Number(data?.role_id) === 2) {
         setIsAdmin(true);
       } else {
-        setIsAdmin(isOwner); 
+        setIsAdmin(Boolean(isOwner)); 
       }
 
     } catch (err) {
