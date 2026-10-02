@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { User, MessageCircle, Send, Loader2, CheckCircle, AlertCircle, Users } from 'lucide-react';
 import UserAvatar from '../common/UserAvatar';
+import { preloadRoute } from '../../utils/preloadRoute';
 
 const ProjectSidebar = ({ 
   project, 
@@ -29,7 +30,12 @@ const ProjectSidebar = ({
       <div className="bg-surface border border-border rounded-2xl p-6 shadow-sm">
         <h3 className="text-lg font-bold text-textMain mb-4">Team Leader</h3>
         
-        <Link to={`/profile/${project.author_id}`} className="flex items-center gap-4 mb-6 hover:bg-textMain/5 p-2 rounded-xl transition-colors group">
+        <Link 
+          to={`/profile/${project.author_id}`} 
+          onMouseEnter={() => preloadRoute('/profile')}
+          onTouchStart={() => preloadRoute('/profile')}
+          className="flex items-center gap-4 mb-6 hover:bg-textMain/5 p-2 rounded-xl transition-colors group"
+        >
           <UserAvatar 
             avatarUrl={author?.avatar_url} 
             name={author?.full_name || project.author} 
@@ -50,6 +56,8 @@ const ProjectSidebar = ({
         {!isAuthor && (
           <button 
             onClick={onSendMessage}
+            onMouseEnter={() => preloadRoute('/chat')}
+            onTouchStart={() => preloadRoute('/chat')}
             className="w-full py-3 rounded-xl border border-border text-textMain font-medium hover:bg-textMain/5 transition-all flex items-center justify-center gap-2"
           >
             <MessageCircle size={18} />
@@ -87,6 +95,8 @@ const ProjectSidebar = ({
                 <Link 
                   key={app.id} 
                   to={`/profile/${app.profiles?.id}`}
+                  onMouseEnter={() => preloadRoute('/profile')}
+                  onTouchStart={() => preloadRoute('/profile')}
                   className="relative group transition-transform hover:scale-105"
                   title={app.profiles?.full_name}
                 >

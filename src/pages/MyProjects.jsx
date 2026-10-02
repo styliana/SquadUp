@@ -10,6 +10,7 @@ import DashboardSkeleton from '../components/skeletons/DashboardSkeleton';
 import useThrowAsyncError from '../hooks/useThrowAsyncError';
 import { PROJECT_STATUS, APPLICATION_STATUS } from '../utils/constants'; 
 import { projectService } from '../services/projectService'; 
+import { preloadRoute } from '../utils/preloadRoute'; 
 
 const MyProjects = () => {
   const { user } = useAuth();
@@ -272,7 +273,14 @@ const handleDeleteProject = async (projectId) => {
                 <div className="text-center py-24 bg-surface/30 rounded-3xl border border-dashed border-border">
                   <Sparkles className="mx-auto text-primary mb-4 opacity-50" size={48} />
                   <p className="text-xl text-textMain font-semibold mb-2">No projects yet</p>
-                  <Link to="/create-project" className="px-6 py-3 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-colors inline-block">Create Project</Link>
+                  <Link 
+                    to="/create-project" 
+                    onMouseEnter={() => preloadRoute('/create-project')} 
+                    onTouchStart={() => preloadRoute('/create-project')} 
+                    className="px-6 py-3 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-colors inline-block"
+                  >
+                    Create Project
+                  </Link>
                 </div>
               ) : (
                 createdProjects.map(project => (
@@ -280,7 +288,12 @@ const handleDeleteProject = async (projectId) => {
                     <div className="p-6 border-b border-white/5 bg-white/[0.02] flex flex-col md:flex-row justify-between items-start gap-4">
                       <div>
                         <div className="flex items-center gap-3 mb-2">
-                          <h2 className="text-2xl font-bold text-textMain hover:text-primary transition-colors cursor-pointer" onClick={() => navigate(`/projects/${project.id}`, { state: { from: '/my-projects' } })}>
+                          <h2 
+                            className="text-2xl font-bold text-textMain hover:text-primary transition-colors cursor-pointer" 
+                            onMouseEnter={() => preloadRoute('/projects/:id')}
+                            onTouchStart={() => preloadRoute('/projects/:id')}
+                            onClick={() => navigate(`/projects/${project.id}`, { state: { from: '/my-projects' } })}
+                          >
                             {project.title}
                           </h2>
                           <span className="px-2.5 py-0.5 rounded-md bg-white/5 border border-border text-xs font-medium text-textMuted">
@@ -298,8 +311,23 @@ const handleDeleteProject = async (projectId) => {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Link to={`/projects/${project.id}`} state={{ from: '/my-projects' }} className="p-2 text-textMuted hover:text-textMain hover:bg-white/5 rounded-lg transition-colors"><Eye size={20} /></Link>
-                        <button onClick={() => navigate(`/edit-project/${project.id}`)} className="p-2 text-textMuted hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"><Edit2 size={20} /></button>
+                        <Link 
+                          to={`/projects/${project.id}`} 
+                          state={{ from: '/my-projects' }} 
+                          onMouseEnter={() => preloadRoute('/projects/:id')}
+                          onTouchStart={() => preloadRoute('/projects/:id')}
+                          className="p-2 text-textMuted hover:text-textMain hover:bg-white/5 rounded-lg transition-colors"
+                        >
+                          <Eye size={20} />
+                        </Link>
+                        <button 
+                          onClick={() => navigate(`/edit-project/${project.id}`)} 
+                          onMouseEnter={() => preloadRoute('/create-project')}
+                          onTouchStart={() => preloadRoute('/create-project')}
+                          className="p-2 text-textMuted hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                        >
+                          <Edit2 size={20} />
+                        </button>
                         <button onClick={() => handleDeleteProject(project.id)} className="p-2 text-textMuted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"><Trash2 size={20} /></button>
                       </div>
                     </div>
@@ -314,12 +342,24 @@ const handleDeleteProject = async (projectId) => {
                           {project.applications.map(app => (
                             <div key={app.id} className="bg-surface border border-white/5 rounded-xl p-4 flex flex-col md:flex-row items-center gap-4 hover:border-border transition-colors">
                               <div className="flex items-center gap-4 flex-grow w-full md:w-auto">
-                                <div className="shrink-0 cursor-pointer" onClick={() => navigate(`/profile/${app.profiles?.id}`)}>
+                                <div 
+                                  className="shrink-0 cursor-pointer" 
+                                  onMouseEnter={() => preloadRoute('/profile')}
+                                  onTouchStart={() => preloadRoute('/profile')}
+                                  onClick={() => navigate(`/profile/${app.profiles?.id}`)}
+                                >
                                   <UserAvatar avatarUrl={app.profiles?.avatar_url} name={app.profiles?.full_name} className="w-12 h-12" />
                                 </div>
                                 <div className="flex-grow min-w-0">
                                   <div className="flex items-baseline gap-2">
-                                    <span className="font-bold text-textMain text-base hover:underline cursor-pointer" onClick={() => navigate(`/profile/${app.profiles?.id}`)}>{app.profiles?.full_name || 'Anonymous'}</span>
+                                    <span 
+                                      className="font-bold text-textMain text-base hover:underline cursor-pointer" 
+                                      onMouseEnter={() => preloadRoute('/profile')}
+                                      onTouchStart={() => preloadRoute('/profile')}
+                                      onClick={() => navigate(`/profile/${app.profiles?.id}`)}
+                                    >
+                                      {app.profiles?.full_name || 'Anonymous'}
+                                    </span>
                                     <span className="text-xs text-textMuted truncate">{app.profiles?.university}</span>
                                   </div>
                                   <div className="mt-1.5 text-sm text-textMuted bg-background border border-border p-3 rounded-lg border-l-4 border-l-primary italic">
@@ -374,7 +414,13 @@ const handleDeleteProject = async (projectId) => {
                       </div>
                       <div className="flex flex-col items-end gap-3 min-w-[140px]">
                         {app.projects && (
-                            <Link to={`/projects/${app.project_id}`} state={{ from: '/my-projects' }} className="w-full py-2 px-4 rounded-xl border border-border text-textMain text-sm font-medium hover:bg-white/5 transition-all flex items-center justify-center gap-2">
+                            <Link 
+                              to={`/projects/${app.project_id}`} 
+                              state={{ from: '/my-projects' }} 
+                              onMouseEnter={() => preloadRoute('/projects/:id')}
+                              onTouchStart={() => preloadRoute('/projects/:id')}
+                              className="w-full py-2 px-4 rounded-xl border border-border text-textMain text-sm font-medium hover:bg-white/5 transition-all flex items-center justify-center gap-2"
+                            >
                               <Eye size={16} /> View Project
                             </Link>
                         )}

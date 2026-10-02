@@ -5,6 +5,7 @@ import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
 import { useProjectDetails } from '../hooks/useProjectDetails';
+import { preloadRoute } from '../utils/preloadRoute';
 
 // Importujemy nasze wydzielone komponenty
 import ProjectInfo from '../components/project-details/ProjectInfo';
@@ -127,7 +128,12 @@ const ProjectDetails = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       
       {/* Back Button */}
-      <Link to={backPath} className="inline-flex items-center gap-2 text-textMuted hover:text-textMain mb-8 transition-colors">
+      <Link 
+        to={backPath} 
+        onMouseEnter={() => preloadRoute(backPath)} 
+        onTouchStart={() => preloadRoute(backPath)} 
+        className="inline-flex items-center gap-2 text-textMuted hover:text-textMain mb-8 transition-colors"
+      >
         <ArrowLeft size={20} />
         {backLabel}
       </Link>
