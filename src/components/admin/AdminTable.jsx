@@ -1,6 +1,6 @@
 import { Loader2, Edit2, Trash2, ExternalLink, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { format } from 'date-fns';
+import { formatDate } from '../../utils/formatDate';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 
@@ -19,10 +19,7 @@ const AdminTable = ({
   const ITEMS_PER_PAGE = 10;
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
-  const safeFormatDate = (dateString) => {
-    if (!dateString) return '-';
-    try { return format(new Date(dateString), 'MMM d, yyyy'); } catch (e) { return '-'; }
-  };
+  const safeFormatDate = (dateString) => formatDate(dateString, { pattern: 'MMM d, yyyy', fallback: '-' });
 
   // Komponent nagłówka tabeli z obsługą kliknięcia
   const SortableHeader = ({ label, column, className = "" }) => {

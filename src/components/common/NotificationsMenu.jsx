@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Bell, Check, Info } from 'lucide-react'; // MessageSquare usunięte z importów, bo tu nie używamy
 import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
+import { formatDateTime } from '../../utils/formatDate';
 import { APPLICATION_STATUS_STYLES } from '../../utils/constants';
 
 const NotificationsMenu = ({ notifications = [], unreadCount = 0, markAsRead, markAllAsRead }) => {
@@ -19,10 +19,7 @@ const NotificationsMenu = ({ notifications = [], unreadCount = 0, markAsRead, ma
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const formatTime = (dateString) => {
-    try { return format(new Date(dateString), 'MMM d, HH:mm'); } 
-    catch (e) { return ''; }
-  };
+  const formatTime = (dateString) => formatDateTime(dateString);
 
   const renderNotificationContent = (n) => {
     // Obsługujemy tylko statusy i ogólne (bez czatu)
