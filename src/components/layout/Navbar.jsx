@@ -6,6 +6,7 @@ import { supabase } from '../../supabaseClient';
 import UserAvatar from '../common/UserAvatar';
 import NotificationsMenu from '../common/NotificationsMenu'; 
 import { useTheme } from '../../hooks/useTheme';
+import { preloadRoute } from '../../utils/preloadRoute';
 import Button from '../ui/Button';
 
 const Navbar = () => {
@@ -131,7 +132,7 @@ const Navbar = () => {
           
           {/* LOGO */}
           <div className="flex items-center gap-4">
-            <Link to="/" className="flex items-center gap-2 group">
+            <Link to="/" onMouseEnter={() => preloadRoute('/')} className="flex items-center gap-2 group">
               <div className="bg-primary p-1.5 rounded-lg group-hover:shadow-[0_0_15px_rgba(6,182,212,0.5)] transition-all duration-300">
                  <Users className="w-6 h-6 text-white" />
               </div>
@@ -154,6 +155,8 @@ const Navbar = () => {
                 <Link 
                   to="/chat" 
                   onClick={handleChatClick}
+                  onMouseEnter={() => preloadRoute('/chat')}
+                  onTouchStart={() => preloadRoute('/chat')}
                   className={`relative flex items-center gap-2 text-sm font-medium transition-colors duration-200 ${
                     isActive('/chat') ? 'text-primary' : 'text-textMuted hover:text-textMain'
                   }`}
@@ -191,7 +194,12 @@ const Navbar = () => {
                   markAllAsRead={markAllBellAsRead}
                 />
 
-                <Link to="/profile" className="hidden md:flex items-center gap-2 group ml-2">
+                <Link 
+                  to="/profile" 
+                  onMouseEnter={() => preloadRoute('/profile')}
+                  onTouchStart={() => preloadRoute('/profile')}
+                  className="hidden md:flex items-center gap-2 group ml-2"
+                >
                   <UserAvatar avatarUrl={avatarUrl} name={user.email} className="w-9 h-9" textSize="text-sm" />
                 </Link>
                 
@@ -213,7 +221,7 @@ const Navbar = () => {
               </>
             ) : (
               <div className="flex items-center gap-2">
-                <Link to="/login"><Button className="py-2 px-5 text-sm">Sign In</Button></Link>
+                <Link to="/login" onMouseEnter={() => preloadRoute('/login')} onTouchStart={() => preloadRoute('/login')}><Button className="py-2 px-5 text-sm">Sign In</Button></Link>
                 <Button variant="ghost" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="md:hidden p-2 h-10 w-10">
                   {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                 </Button>
@@ -237,6 +245,8 @@ const Navbar = () => {
                   
                   <Link 
                     to="/chat" 
+                    onMouseEnter={() => preloadRoute('/chat')}
+                    onTouchStart={() => preloadRoute('/chat')}
                     onClick={() => {
                         handleChatClick();
                         setIsMobileMenuOpen(false);
@@ -265,7 +275,12 @@ const Navbar = () => {
 
             {user && (
               <div className="pt-4 border-t border-border">
-                <Link to="/profile" className="flex items-center gap-3 p-3 rounded-xl hover:bg-textMain/5 transition-colors mb-2">
+                <Link 
+                  to="/profile" 
+                  onMouseEnter={() => preloadRoute('/profile')}
+                  onTouchStart={() => preloadRoute('/profile')}
+                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-textMain/5 transition-colors mb-2"
+                >
                   <UserAvatar avatarUrl={avatarUrl} name={user.email} className="w-8 h-8" />
                   <div>
                     <p className="text-sm font-bold text-textMain">My Profile</p>
@@ -287,6 +302,8 @@ const Navbar = () => {
 const NavLink = ({ to, icon, text, active }) => (
   <Link 
     to={to} 
+    onMouseEnter={() => preloadRoute(to)}
+    onTouchStart={() => preloadRoute(to)}
     className={`flex items-center gap-2 text-sm font-medium transition-colors duration-200 ${
       active ? 'text-primary' : 'text-textMuted hover:text-textMain'
     }`}
@@ -298,6 +315,8 @@ const NavLink = ({ to, icon, text, active }) => (
 const MobileNavLink = ({ to, icon, text, active }) => (
   <Link 
     to={to} 
+    onMouseEnter={() => preloadRoute(to)}
+    onTouchStart={() => preloadRoute(to)}
     className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
       active ? 'bg-primary/10 text-primary' : 'text-textMuted hover:bg-textMain/5'
     }`}

@@ -4,6 +4,7 @@ import { PROJECT_TYPE_STYLES } from '../../utils/constants';
 import UserAvatar from '../common/UserAvatar';
 import { formatDate } from '../../utils/formatDate';
 import Card from '../ui/Card';
+import { preloadRoute } from '../../utils/preloadRoute';
 
 const ProjectCard = ({ project, userSkills = [] }) => {
   
@@ -25,6 +26,8 @@ const ProjectCard = ({ project, userSkills = [] }) => {
     <Link 
       to={`/projects/${project.id}`} 
       state={{ from: '/projects' }}
+      onMouseEnter={() => preloadRoute('/projects/:id')}
+      onTouchStart={() => preloadRoute('/projects/:id')}
       className="block h-full group cursor-pointer" // cursor-pointer dla pewności
     >
       {/* 2. Usuwamy 'group' z Card (przeniesione wyżej) i usuwamy hover:shadow stąd, jeśli chcemy by działał na Linku */}

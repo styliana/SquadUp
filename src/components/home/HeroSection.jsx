@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
+import { preloadRoute } from '../../utils/preloadRoute';
 
 const HeroSection = () => {
   return (
@@ -58,6 +59,8 @@ const HeroSection = () => {
             
             <Link 
               to="/projects" 
+              onMouseEnter={() => preloadRoute('/projects')}
+              onTouchStart={() => preloadRoute('/projects')}
               className="group relative px-8 py-4 bg-primary rounded-xl text-white font-semibold text-lg shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:shadow-[0_0_30px_rgba(6,182,212,0.6)] transition-all hover:-translate-y-1 w-full sm:w-auto text-center"
               aria-label="Browse all available projects"
             >
@@ -70,6 +73,8 @@ const HeroSection = () => {
             {/* Zmieniono backdrop-blur-sm na backdrop-blur-md, aby drugi przycisk na jasnym/ciemnym motywie był jeszcze czytelniejszy */}
             <Link 
               to="/create-project" 
+              onMouseEnter={() => preloadRoute('/create-project')}
+              onTouchStart={() => preloadRoute('/create-project')}
               className="px-8 py-4 rounded-xl bg-white/5 border border-border text-textMain font-semibold text-lg hover:bg-white/10 transition-all hover:-translate-y-1 w-full sm:w-auto text-center backdrop-blur-md"
               aria-label="Create a new project listing"
             >

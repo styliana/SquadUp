@@ -1,8 +1,13 @@
+import { useEffect } from 'react';
 import HeroSection from '../components/home/HeroSection';
 import TechMarquee from '../components/home/TechMarquee';
 import StatsSection from '../components/home/StatsSection';
+import { preloadCommonRoutes } from '../utils/preloadRoute';
 
 const Home = () => {
+  useEffect(() => {
+    preloadCommonRoutes();
+  }, []);
   return (
     <div className="relative w-[100vw] ml-[calc(-50vw+50%)] -mt-12 overflow-x-hidden pb-20">
       
