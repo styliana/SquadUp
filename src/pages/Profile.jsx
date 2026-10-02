@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
+import { categoryService } from '../services/categoryService';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
 import useThrowAsyncError from '../hooks/useThrowAsyncError';
@@ -45,8 +46,12 @@ const Profile = () => {
 
   useEffect(() => {
     const fetchCats = async () => {
-      const { data } = await supabase.from('categories').select('id, name');
-      if (data) setAvailableCategories(data);
+      try {
+        const data = await categoryService.getAll();
+        if (data) setAvailableCategories(data);
+      } catch (err) {
+        console.error('Failed to load categories:', err);
+      }
     };
     fetchCats();
 

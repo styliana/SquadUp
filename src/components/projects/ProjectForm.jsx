@@ -7,7 +7,7 @@ import { Loader2 } from 'lucide-react';
 import SkillSelector from '../common/SkillSelector';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
-import { supabase } from '../../supabaseClient';
+import { categoryService } from '../../services/categoryService';
 
 export const projectSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters"),
@@ -61,8 +61,7 @@ const ProjectForm = ({
     const fetchCategories = async () => {
       try {
         setLoadingCategories(true);
-        const { data, error } = await supabase.from('categories').select('id, name');
-        if (error) throw error;
+        const data = await categoryService.getAll();
         if (data) {
           setCategories(data);
           if (data.length > 0 && !selectedType) {

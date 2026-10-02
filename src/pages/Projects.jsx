@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Search, Filter, Loader2, X, Sparkles, ArrowDownCircle } from 'lucide-react';
-import { supabase } from '../supabaseClient';
+import { categoryService } from '../services/categoryService';
 import { useAuth } from '../context/AuthContext';
 import ProjectCard from '../components/projects/ProjectCard';
 import SkillSelector from '../components/common/SkillSelector';
@@ -24,8 +24,7 @@ const Projects = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const { data, error } = await supabase.from('categories').select('name');
-        if (error) throw error;
+        const data = await categoryService.getAll();
         if (data) setCategories(['All', ...data.map(c => c.name)]);
       } catch (error) {
         console.error("Error fetching categories:", error);
